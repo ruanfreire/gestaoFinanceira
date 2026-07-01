@@ -81,7 +81,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          command_timeout: 20m
+          command_timeout: 45m
           envs: SEED_ADMIN_PASSWORD
           script: |
             set -euo pipefail
