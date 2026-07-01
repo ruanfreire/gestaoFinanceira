@@ -113,11 +113,11 @@ jobs:
             sudo chown opc:opc "$APP_DIR"
             STAGING=$(mktemp -d)
             trap 'rm -rf "$STAGING"' EXIT
-            sudo tar -xzf /tmp/release.tar.gz -C "$STAGING"
+            tar -xzf /tmp/release.tar.gz -C "$STAGING"
             sudo rsync -a "$STAGING/" "$APP_DIR/"
             sudo chown -R opc:opc "$APP_DIR"
-            chmod +x deploy/install-native.sh deploy/maintenance.sh deploy/ssl/*.sh 2>/dev/null || true
             cd "$APP_DIR"
+            chmod +x deploy/install-native.sh deploy/maintenance.sh deploy/ssl/*.sh 2>/dev/null || true
             export SEED_ADMIN_PASSWORD="${{ secrets.SEED_ADMIN_PASSWORD }}"
             DEPLOY_OK=1
             bash deploy/maintenance.sh on || true
