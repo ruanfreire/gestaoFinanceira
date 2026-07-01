@@ -132,6 +132,92 @@ export class NotasService {
     });
   }
 
+  /** Importação em lote — evita OOM na VM 1 GB (centenas de notas). */
+  async importBulk(
+    dtos: any[],
+    options: { batchSize?: number } = {},
+  ): Promise<{ imported: number; updated: number; ignored: number }> {
+    const batchSize = Math.min(100, Math.max(10, options.batchSize ?? 40));
+    let imported = 0;
+    let updated = 0;
+    const ignored = 0;
+
+    for (let offset = 0; offset < dtos.length; offset += batchSize) {
+      const batch = dtos.slice(offset, offset + batchSize);
+      const apiIds = [...new Set(batch.map((d) => d.nota_api_id).filter(Boolean))];
+      const empresaNumeros = batch
+        .filter((d) => d.empresa && d.numero)
+        .map((d) => ({ empresa: d.empresa, numero: d.numero }));
+
+      const [byApiId, byEmpresaNumero] = await Promise.all([
+        apiIds.length
+          ? this.notaModel
+              .find({ nota_api_id: { $in: apiIds } })
+              .select('_id nota_api_id')
+              .lean()
+          : Promise.resolve([]),
+        empresaNumeros.length
+          ? this.notaModel
+              .find({
+                $or: empresaNumeros.map((e) => ({ empresa: e.empresa, numero: e.numero })),
+              })
+              .select('_id empresa numero')
+              .lean()
+          : Promise.resolve([]),
+      ]);
+
+      const apiIdMap = new Map(
+        asLeanMany<{ _id: unknown; nota_api_id?: string }>(byApiId).map((n) => [
+          String(n.nota_api_id),
+          n,
+        ]),
+      );
+      const empresaNumeroMap = new Map(
+        asLeanMany<{ _id: unknown; empresa?: string; numero?: string }>(byEmpresaNumero).map(
+          (n) => [`${n.empresa}::${n.numero}`, n],
+        ),
+      );
+
+      const bulkOps: any[] = [];
+      for (const dto of batch) {
+        const stripped = this.stripPaymentFields(dto);
+        let existing = dto.nota_api_id ? apiIdMap.get(String(dto.nota_api_id)) : undefined;
+        if (!existing && dto.empresa && dto.numero) {
+          existing = empresaNumeroMap.get(`${dto.empresa}::${dto.numero}`);
+        }
+
+        if (existing) {
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: existing._id },
+              update: { $set: stripped },
+            },
+          });
+          updated++;
+        } else {
+          bulkOps.push({
+            insertOne: {
+              document: {
+                ...stripped,
+                status_pagamento: stripped.status_pagamento ?? 'em_aberto',
+                valor_pago: stripped.valor_pago ?? 0,
+              },
+            },
+          });
+          imported++;
+        }
+      }
+
+      if (bulkOps.length) {
+        await this.notaModel.bulkWrite(bulkOps, { ordered: false });
+      }
+
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+
+    return { imported, updated, ignored };
+  }
+
   async findAll(filter: any = {}, options: any = {}) {
     const { page = 1, limit = 50, sort = { data_emissao: -1, createdAt: -1 } } = options;
     const skip = (page - 1) * limit;

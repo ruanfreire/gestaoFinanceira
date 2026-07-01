@@ -178,33 +178,13 @@ export class ImportacoesService {
 
   async processJson(importId: string, json: unknown, _userId: unknown, notasService: NotasService) {
     const start = Date.now();
-    let imported = 0;
-    let updated = 0;
-    let ignored = 0;
-
     const notaItems = extractNotaItemsFromJson(json);
+    const dtos = notaItems.map(({ empresa, item }) => ({
+      ...mapNfItemToNotaDto(empresa, item),
+      importacao_fatura_id: importId,
+    }));
 
-    for (const { empresa, item } of notaItems) {
-      const dto = {
-        ...mapNfItemToNotaDto(empresa, item),
-        importacao_fatura_id: importId,
-      };
-      const result = await notasService.create(dto);
-      if (result) {
-        if (
-          result.createdAt &&
-          result.createdAt.getTime &&
-          result.updatedAt &&
-          result.createdAt.getTime() === result.updatedAt.getTime()
-        ) {
-          imported++;
-        } else {
-          updated++;
-        }
-      } else {
-        ignored++;
-      }
-    }
+    const { imported, updated, ignored } = await notasService.importBulk(dtos, { batchSize: 40 });
 
     const finishedAt = new Date();
     const processingTimeMs = Date.now() - start;

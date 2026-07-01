@@ -10,7 +10,8 @@ Group=opc
 WorkingDirectory=/opt/gestao-financeira/backend
 EnvironmentFile=/opt/gestao-financeira/.env
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/node dist/main.js
+Environment=NODE_OPTIONS=--max-old-space-size=300
+ExecStart=/usr/local/bin/node dist/main.js
 Restart=on-failure
 RestartSec=5
 

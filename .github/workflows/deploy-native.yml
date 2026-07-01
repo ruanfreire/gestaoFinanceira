@@ -62,10 +62,13 @@ jobs:
             frontend/package.json frontend/dist \
             UI/package.json \
             deploy/install-native.sh \
+            deploy/ssl/generate-selfsigned.sh \
+            deploy/ssl/install-letsencrypt.sh \
             deploy/env.native.example \
             deploy/mongodb/mongod.conf \
             deploy/nginx/native.conf \
-            deploy/systemd/gestao-financeira-backend.service
+            deploy/systemd/gestao-financeira-backend.service \
+            deploy/systemd/mongod.service
 
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.0

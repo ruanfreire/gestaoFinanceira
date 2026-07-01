@@ -2,27 +2,75 @@ const { spawn } = require('child_process');
 const mongoose = require('mongoose');
 const { killDevPorts, killStaleDevOrchestrators, prepareAppPorts } = require('./kill-ports');
 
-async function checkMongo(uri) {
+const DEFAULT_MONGO_URI = 'mongodb://127.0.0.1:27017/finance';
+
+async function checkMongo(uri, { silent = false } = {}) {
   try {
-    await mongoose.connect(uri, { serverSelectionTimeoutMS: 3000 });
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 3000, family: 4 });
     await mongoose.connection.close();
-    console.log('MongoDB reachable');
+    if (!silent) {
+      console.log('MongoDB reachable');
+    }
     return true;
   } catch (err) {
-    console.error('MongoDB connection failed:', err.message || err);
+    if (!silent) {
+      console.log('MongoDB local não detectado; tentando iniciar mongod...');
+    }
     return false;
   }
+}
+
+function attachMongodLogs(mongodProcess) {
+  const showLine = (line) => {
+    const text = line.trim();
+    if (!text) return;
+    const isNoise =
+      text.includes('"s":"I"') ||
+      text.includes('WiredTiger message') ||
+      text.includes('client metadata') ||
+      text.includes('Connection accepted') ||
+      text.includes('Connection ended') ||
+      text.includes('Connection not authenticating') ||
+      text.includes('Received first command');
+    const isImportant =
+      text.includes('"s":"E"') ||
+      text.includes('"s":"F"') ||
+      text.includes('startup complete') ||
+      text.includes('Waiting for connections') ||
+      text.includes('Unclean shutdown') ||
+      text.includes('Failed to start');
+    if (isImportant || (!isNoise && (text.includes('"s":"W"') || text.includes('error')))) {
+      process.stdout.write(`[mongod] ${text}\n`);
+    }
+  };
+
+  const flush = (chunk, isErr) => {
+    const prefix = isErr ? '[mongod:err] ' : '';
+    chunk
+      .toString()
+      .split(/\r?\n/)
+      .forEach((line) => {
+        if (!line.trim()) return;
+        if (isErr) {
+          process.stderr.write(`${prefix}${line}\n`);
+          return;
+        }
+        showLine(line);
+      });
+  };
+
+  mongodProcess.stdout.on('data', (data) => flush(data, false));
+  mongodProcess.stderr.on('data', (data) => flush(data, true));
 }
 
 async function start() {
   killStaleDevOrchestrators();
   killDevPorts({ includeMongo: true });
 
-  const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/finance';
+  const mongoUri = process.env.MONGO_URI || DEFAULT_MONGO_URI;
   const ok = await checkMongo(mongoUri);
   let mongodProcess = null;
 
-  // If Mongo is not reachable, attempt to start a local mongod from C:\bin\mongod.exe
   if (!ok) {
     const fs = require('fs');
     const path = require('path');
@@ -33,43 +81,32 @@ async function start() {
       if (!fs.existsSync(dbPath)) {
         fs.mkdirSync(dbPath, { recursive: true });
       }
-      console.log(`Starting local mongod from ${mongodExe} with dbpath ${dbPath}`);
-      mongodProcess = spawn(mongodExe, ['--dbpath', dbPath, '--bind_ip', '127.0.0.1'], {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        shell: false,
-      });
+      console.log(`Iniciando MongoDB local (${dbPath})`);
+      mongodProcess = spawn(
+        mongodExe,
+        ['--dbpath', dbPath, '--bind_ip', '127.0.0.1', '--quiet'],
+        { stdio: ['ignore', 'pipe', 'pipe'], shell: false },
+      );
 
-      mongodProcess.stdout.on('data', (data) => {
-        const text = data.toString();
-        process.stdout.write(`[mongod] ${text}`);
-      });
-      mongodProcess.stderr.on('data', (data) => {
-        const text = data.toString();
-        process.stderr.write(`[mongod] ${text}`);
-      });
+      attachMongodLogs(mongodProcess);
 
-      // wait for mongo to accept connections (retry for up to 15s)
       const startAt = Date.now();
       let started = false;
       while (Date.now() - startAt < 15000) {
-        // eslint-disable-next-line no-await-in-loop
-        // small delay
-        // eslint-disable-next-line no-await-in-loop
         await new Promise((r) => setTimeout(r, 500));
-        // eslint-disable-next-line no-await-in-loop
-        if (await checkMongo(mongoUri)) {
+        if (await checkMongo(mongoUri, { silent: true })) {
           started = true;
           break;
         }
       }
       if (!started) {
-        console.error('Failed to start local mongod within timeout. Aborting.');
+        console.error('Não foi possível iniciar o MongoDB local dentro do tempo limite.');
         if (mongodProcess) mongodProcess.kill();
         process.exit(1);
       }
-      console.log('Local mongod started and reachable.');
+      console.log('MongoDB local pronto.');
     } else {
-      console.error(`mongod executable not found at ${mongodExe}. Install MongoDB or place mongod.exe there.`);
+      console.error(`mongod não encontrado em ${mongodExe}. Instale o MongoDB ou coloque mongod.exe nesse caminho.`);
       process.exit(1);
     }
   }
@@ -107,4 +144,3 @@ async function start() {
 }
 
 start();
-

@@ -1,0 +1,15 @@
+[Unit]
+Description=MongoDB Database Server
+After=network.target
+
+[Service]
+Type=simple
+User=mongod
+Group=mongod
+ExecStart=/usr/local/bin/mongod -f /etc/mongod.conf
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=64000
+
+[Install]
+WantedBy=multi-user.target

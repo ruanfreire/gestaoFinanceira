@@ -66,10 +66,13 @@ Write-Host "==> Empacotando artefatos..."
   frontend/package.json frontend/dist `
   UI/package.json `
   deploy/install-native.sh `
+  deploy/ssl/generate-selfsigned.sh `
+  deploy/ssl/install-letsencrypt.sh `
   deploy/env.native.example `
   deploy/mongodb/mongod.conf `
   deploy/nginx/native.conf `
-  deploy/systemd/gestao-financeira-backend.service
+  deploy/systemd/gestao-financeira-backend.service `
+  deploy/systemd/mongod.service
 
 Write-Host "==> Enviando para a VM..."
 & scp @ssh $archive "${User}@${HostIP}:/tmp/gestao-financeira-native.tar.gz"

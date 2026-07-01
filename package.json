@@ -16,9 +16,7 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.0",
-    "mongoose": "^7.0.0"
-  },
-  "dependencies": {
+    "mongoose": "^7.0.0",
     "puppeteer": "^25.2.1"
   }
 }
