@@ -129,11 +129,23 @@ jobs:
               bash deploy/maintenance.sh force-off || true
             fi
             echo "==> Verificação final dos serviços"
-            if ! sudo systemctl is-active gestao-financeira-backend nginx mongod; then
+            ok=0
+            for i in $(seq 1 30); do
+              if sudo systemctl is-active --quiet gestao-financeira-backend \
+                && sudo systemctl is-active --quiet nginx \
+                && sudo systemctl is-active --quiet mongod; then
+                ok=1
+                break
+              fi
+              echo "==> Aguardando serviços ficarem ativos ($i/30)..."
+              sleep 2
+            done
+            if [ "$ok" -ne 1 ]; then
               DEPLOY_OK=0
               echo "::error::Serviços inativos após deploy"
               sudo systemctl status gestao-financeira-backend nginx mongod --no-pager || true
               sudo journalctl -u gestao-financeira-backend -n 30 --no-pager || true
+              sudo journalctl -u mongod -n 30 --no-pager || true
             fi
             rm -f /tmp/release.tar.gz
             if [ "$DEPLOY_OK" -eq 0 ]; then

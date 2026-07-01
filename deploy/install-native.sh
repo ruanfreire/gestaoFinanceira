@@ -127,9 +127,23 @@ ssl_cert_needs_refresh() {
   return 0
 }
 
+wait_for_mongod() {
+  local i
+  for i in $(seq 1 30); do
+    if bash -c 'echo > /dev/tcp/127.0.0.1/27017' 2>/dev/null; then
+      echo "==> MongoDB respondendo na porta 27017"
+      return 0
+    fi
+    sleep 2
+  done
+  echo "==> ERRO: MongoDB não respondeu após reinício"
+  sudo journalctl -u mongod -n 20 --no-pager || true
+  return 1
+}
+
 wait_for_backend() {
   local i code
-  for i in 1 2 3 4 5 6 7 8 9 10; do
+  for i in $(seq 1 20); do
     code=$(curl -s -o /dev/null -w "%{http_code}" \
       http://127.0.0.1:4000/api/auth/login \
       -X POST -H "Content-Type: application/json" -d '{}' 2>/dev/null || echo "000")
@@ -206,6 +220,8 @@ if [ "$FIRST_INSTALL" = true ]; then
     sed -i "s/troque_antes_do_primeiro_seed/$SEED_PASS/" .env
     echo "SEED_ADMIN_PASSWORD=$SEED_PASS"
     echo "Login: admin@finance.local"
+    mkdir -p .deploy
+    touch .deploy/pending-seed
   fi
 
   sudo cp deploy/systemd/gestao-financeira-backend.service /etc/systemd/system/
@@ -218,6 +234,12 @@ fi
 
 ensure_swap
 upgrade_node_if_needed
+
+if [[ -f .env ]] && [[ ! -f .deploy/seed-done ]] && [[ ! -f .deploy/pending-seed ]]; then
+  echo "==> Seed pendente detectado (.env sem seed concluído)"
+  mkdir -p .deploy
+  touch .deploy/pending-seed
+fi
 
 if is_maintenance_active; then
   echo "==> Modo manutenção ativo; serviços já parados"
@@ -247,16 +269,11 @@ else
   sudo nginx -t
   if ! systemctl is-active --quiet mongod 2>/dev/null; then
     sudo systemctl start mongod
-    sleep 3
   fi
+  wait_for_mongod
   sudo systemctl reload nginx
   sudo systemctl restart gestao-financeira-backend
   wait_for_backend || true
-fi
-
-if [ "$FIRST_INSTALL" = true ]; then
-  echo "==> Seed admin"
-  (cd backend && npm run seed:prod) || true
 fi
 
 echo "==> Deploy concluído ($(date -u +%Y-%m-%dT%H:%M:%SZ))"

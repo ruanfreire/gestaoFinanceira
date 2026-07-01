@@ -96,7 +96,18 @@ bash deploy/maintenance.sh on || true
 if ! bash deploy/install-native.sh; then DEPLOY_OK=0; fi
 if ! bash deploy/maintenance.sh off; then DEPLOY_OK=0; bash deploy/maintenance.sh force-off || true; fi
 echo '==> Verificação final dos serviços'
-if ! sudo systemctl is-active gestao-financeira-backend nginx mongod; then
+ok=0
+for i in $(seq 1 30); do
+  if sudo systemctl is-active --quiet gestao-financeira-backend \
+    && sudo systemctl is-active --quiet nginx \
+    && sudo systemctl is-active --quiet mongod; then
+    ok=1
+    break
+  fi
+  echo "==> Aguardando serviços ficarem ativos ($i/30)..."
+  sleep 2
+done
+if [ "$ok" -ne 1 ]; then
   DEPLOY_OK=0
   sudo systemctl status gestao-financeira-backend nginx mongod --no-pager || true
 fi

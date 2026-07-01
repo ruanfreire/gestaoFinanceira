@@ -20,9 +20,23 @@ free_ram() {
   free -h
 }
 
+wait_for_mongod() {
+  local i
+  for i in $(seq 1 30); do
+    if bash -c 'echo > /dev/tcp/127.0.0.1/27017' 2>/dev/null; then
+      echo "==> MongoDB respondendo na porta 27017"
+      return 0
+    fi
+    sleep 2
+  done
+  echo "==> ERRO: MongoDB não respondeu após reinício"
+  sudo journalctl -u mongod -n 20 --no-pager || true
+  return 1
+}
+
 wait_for_backend() {
   local i code
-  for i in 1 2 3 4 5 6 7 8 9 10; do
+  for i in $(seq 1 20); do
     code=$(curl -s -o /dev/null -w "%{http_code}" \
       http://127.0.0.1:4000/api/auth/login \
       -X POST -H "Content-Type: application/json" -d '{}' 2>/dev/null || echo "000")
@@ -35,6 +49,43 @@ wait_for_backend() {
   echo "==> AVISO: backend não respondeu após reinício"
   sudo journalctl -u gestao-financeira-backend -n 20 --no-pager || true
   return 1
+}
+
+wait_for_units_active() {
+  local unit i state all_active
+  for i in $(seq 1 30); do
+    all_active=1
+    for unit in gestao-financeira-backend nginx mongod; do
+      state=$(systemctl is-active "$unit" 2>/dev/null || echo "unknown")
+      if [[ "$state" != "active" ]]; then
+        echo "==> Aguardando $unit (estado: $state)"
+        all_active=0
+        break
+      fi
+    done
+    if [[ "$all_active" -eq 1 ]]; then
+      echo "==> Todos os serviços ativos"
+      return 0
+    fi
+    sleep 2
+  done
+  systemctl is-active gestao-financeira-backend nginx mongod || true
+  return 1
+}
+
+run_pending_seed() {
+  if [[ ! -f "$APP_DIR/.deploy/pending-seed" ]]; then
+    return 0
+  fi
+  echo "==> Seed admin (pós-deploy)"
+  rm -f "$APP_DIR/.deploy/pending-seed"
+  if (cd "$APP_DIR/backend" && npm run seed:prod); then
+    mkdir -p "$APP_DIR/.deploy"
+    touch "$APP_DIR/.deploy/seed-done"
+  else
+    echo "==> AVISO: seed falhou; será tentado no próximo deploy"
+    touch "$APP_DIR/.deploy/pending-seed"
+  fi
 }
 
 cmd_on() {
@@ -69,12 +120,13 @@ ensure_services_up() {
   if ! systemctl is-active --quiet mongod 2>/dev/null; then
     echo "==> Iniciando MongoDB"
     sudo systemctl start mongod
-    sleep 3
   fi
+  wait_for_mongod
 
   echo "==> Iniciando backend"
   sudo systemctl restart gestao-financeira-backend
   wait_for_backend || true
+  run_pending_seed
 
   if ! systemctl is-active --quiet nginx 2>/dev/null; then
     echo "==> Iniciando nginx"
@@ -107,7 +159,7 @@ cmd_off() {
   ensure_services_up
   sudo rm -f "$MAINT_FLAG" "$NGINX_BAK"
   echo "==> Modo manutenção DESATIVADO — sistema no ar"
-  sudo systemctl is-active gestao-financeira-backend nginx mongod
+  wait_for_units_active
 }
 
 cmd_force_off() {
@@ -118,7 +170,7 @@ cmd_force_off() {
     sudo systemctl daemon-reload 2>/dev/null || true
     sudo systemctl enable gestao-financeira-backend mongod nginx 2>/dev/null || true
     sudo systemctl start mongod 2>/dev/null || true
-    sleep 3
+    wait_for_mongod 2>/dev/null || sleep 5
     sudo systemctl restart gestao-financeira-backend 2>/dev/null || true
     sudo systemctl reload nginx 2>/dev/null || sudo systemctl start nginx 2>/dev/null || true
     sudo rm -f "$MAINT_FLAG" "$NGINX_BAK"
