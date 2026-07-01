@@ -178,6 +178,7 @@ cmd_force_off() {
     sudo systemctl enable gestao-financeira-backend mongod nginx 2>/dev/null || true
     sudo systemctl reset-failed mongod 2>/dev/null || true
     sudo systemctl restart mongod 2>/dev/null || true
+    wait_for_mongod 2>/dev/null || sleep 5
     sudo systemctl restart gestao-financeira-backend 2>/dev/null || true
     sudo systemctl reload nginx 2>/dev/null || sudo systemctl start nginx 2>/dev/null || true
     sudo rm -f "$MAINT_FLAG" "$NGINX_BAK"
