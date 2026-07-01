@@ -108,10 +108,13 @@ jobs:
             APP_DIR="${APP_DIR:-/opt/gestao-financeira}"
             sudo mkdir -p "$APP_DIR"
             sudo chown opc:opc "$APP_DIR"
-            cd "$APP_DIR"
-            sudo tar -xzf /tmp/release.tar.gz --overwrite --no-same-owner
+            STAGING=$(mktemp -d)
+            trap 'rm -rf "$STAGING"' EXIT
+            sudo tar -xzf /tmp/release.tar.gz -C "$STAGING"
+            sudo rsync -a "$STAGING/" "$APP_DIR/"
             sudo chown -R opc:opc "$APP_DIR"
             chmod +x deploy/install-native.sh deploy/ssl/*.sh 2>/dev/null || true
+            cd "$APP_DIR"
             export SEED_ADMIN_PASSWORD="${{ secrets.SEED_ADMIN_PASSWORD }}"
             bash deploy/install-native.sh
             rm -f /tmp/release.tar.gz

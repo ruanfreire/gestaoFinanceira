@@ -81,10 +81,13 @@ if ($LASTEXITCODE -ne 0) { throw "Falha no scp" }
 Write-Host "==> Instalando na VM (pode levar alguns minutos)..."
 $remote = @"
 set -e
-cd $RemoteDir
-sudo tar -xzf /tmp/gestao-financeira-native.tar.gz --overwrite --no-same-owner
+STAGING=$(mktemp -d)
+trap 'rm -rf "$STAGING"' EXIT
+sudo tar -xzf /tmp/gestao-financeira-native.tar.gz -C "$STAGING"
+sudo rsync -a "$STAGING/" "$RemoteDir/"
 sudo chown -R opc:opc $RemoteDir
 chmod +x deploy/install-native.sh deploy/ssl/*.sh 2>/dev/null || true
+cd $RemoteDir
 bash deploy/install-native.sh
 "@
 

@@ -34,14 +34,6 @@ ensure_swap() {
 }
 
 install_node_binary() {
-  if command -v node >/dev/null 2>&1; then
-    MAJOR=$(node -p "process.versions.node.split('.')[0]" 2>/dev/null || echo 0)
-    if [[ "$MAJOR" -ge 20 ]]; then
-      echo "==> Node já instalado: $(node -v)"
-      return
-    fi
-  fi
-
   ARCH="linux-x64"
   TAR="node-v${NODE_VERSION}-${ARCH}.tar.xz"
   echo "==> Node.js v${NODE_VERSION} (binário oficial — sem dnf)"
@@ -55,6 +47,18 @@ install_node_binary() {
   rm -f "/tmp/${TAR}"
   node -v
   sync
+}
+
+upgrade_node_if_needed() {
+  if command -v node >/dev/null 2>&1; then
+    MAJOR=$(node -p "process.versions.node.split('.')[0]" 2>/dev/null || echo 0)
+    if [[ "$MAJOR" -ge 22 ]]; then
+      echo "==> Node já instalado: $(node -v)"
+      return
+    fi
+    echo "==> Atualizando Node $(node -v) → v${NODE_VERSION}"
+  fi
+  install_node_binary
 }
 
 install_mongodb_binary() {
@@ -116,6 +120,30 @@ ensure_ssl_cert() {
   bash deploy/ssl/generate-selfsigned.sh
 }
 
+ssl_cert_needs_refresh() {
+  local cert="${SSL_DIR:-/etc/nginx/ssl}/gestao-financeira.crt"
+  [[ -f "$cert" ]] || return 0
+  sudo openssl x509 -in "$cert" -noout -checkend "$((30 * 86400))" >/dev/null 2>&1 && return 1
+  return 0
+}
+
+wait_for_backend() {
+  local i code
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    code=$(curl -s -o /dev/null -w "%{http_code}" \
+      http://127.0.0.1:4000/api/auth/login \
+      -X POST -H "Content-Type: application/json" -d '{}' 2>/dev/null || echo "000")
+    if [[ "$code" =~ ^[245] ]]; then
+      echo "==> Backend respondendo (HTTP $code)"
+      return 0
+    fi
+    sleep 3
+  done
+  echo "==> AVISO: backend não respondeu após reinício"
+  sudo journalctl -u gestao-financeira-backend -n 20 --no-pager || true
+  return 1
+}
+
 if [ "$FIRST_INSTALL" = true ]; then
   ensure_swap
   install_node_binary
@@ -166,18 +194,29 @@ if [ "$FIRST_INSTALL" = true ]; then
   sudo systemctl enable gestao-financeira-backend
 fi
 
+ensure_swap
+upgrade_node_if_needed
+
+echo "==> Parando backend para liberar RAM"
+sudo systemctl stop gestao-financeira-backend 2>/dev/null || true
+sleep 2
+
 echo "==> Dependências Node (backend)"
-export NODE_OPTIONS="--max-old-space-size=384"
+export NODE_OPTIONS="--max-old-space-size=256"
 npm ci --omit=dev --workspace backend --include-workspace-root
 
 echo "==> Reiniciando serviços"
-ensure_ssl_cert
+if [ "$FIRST_INSTALL" = true ] || ssl_cert_needs_refresh; then
+  ensure_ssl_cert
+else
+  echo "==> Certificado SSL válido; pulando renovação"
+fi
 sudo cp deploy/nginx/native.conf /etc/nginx/conf.d/gestao-financeira.conf
 sudo nginx -t
 sudo systemctl reload nginx
 sudo systemctl restart gestao-financeira-backend
 
-sleep 6
+wait_for_backend || true
 
 if [ "$FIRST_INSTALL" = true ]; then
   echo "==> Seed admin"

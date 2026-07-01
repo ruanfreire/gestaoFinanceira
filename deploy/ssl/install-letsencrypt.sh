@@ -15,6 +15,11 @@ if [[ -z "$SSL_DOMAIN" || "$SSL_DOMAIN" == "_" ]]; then
   exit 1
 fi
 
+if [[ -f "$CERT_FILE" ]] && sudo openssl x509 -in "$CERT_FILE" -noout -checkend "$((30 * 86400))" >/dev/null 2>&1; then
+  echo "==> Certificado válido por mais de 30 dias; pulando Let's Encrypt"
+  exit 0
+fi
+
 if [[ ! -d "$ACME_HOME" ]]; then
   echo "==> Instalando acme.sh"
   curl -fsSL https://get.acme.sh | sh -s "email=${ACME_EMAIL}"
@@ -33,11 +38,11 @@ fi
 
 echo "==> Emitindo certificado Let's Encrypt para ${SSL_DOMAIN}"
 "${ACME_HOME}/acme.sh" --set-default-ca --server letsencrypt
-"${ACME_HOME}/acme.sh" --issue \
-  -d "$SSL_DOMAIN" \
-  -w "$WEBROOT" \
-  --keylength ec-256 \
-  --force
+ISSUE_ARGS=(--issue -d "$SSL_DOMAIN" -w "$WEBROOT" --keylength ec-256)
+if [[ -f "$CERT_FILE" ]]; then
+  ISSUE_ARGS+=(--force)
+fi
+"${ACME_HOME}/acme.sh" "${ISSUE_ARGS[@]}"
 
 echo "==> Instalando certificado no nginx"
 sudo mkdir -p "$SSL_DIR"
