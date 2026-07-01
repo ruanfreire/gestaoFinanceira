@@ -95,6 +95,11 @@ DEPLOY_OK=1
 bash deploy/maintenance.sh on || true
 if ! bash deploy/install-native.sh; then DEPLOY_OK=0; fi
 if ! bash deploy/maintenance.sh off; then DEPLOY_OK=0; bash deploy/maintenance.sh force-off || true; fi
+echo '==> Verificação final dos serviços'
+if ! sudo systemctl is-active gestao-financeira-backend nginx mongod; then
+  DEPLOY_OK=0
+  sudo systemctl status gestao-financeira-backend nginx mongod --no-pager || true
+fi
 if [ "$DEPLOY_OK" -eq 0 ]; then exit 1; fi
 "@
 

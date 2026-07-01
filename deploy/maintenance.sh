@@ -59,18 +59,12 @@ cmd_on() {
   echo "==> Modo manutenção ATIVO (página estática no ar)"
 }
 
-cmd_off() {
-  if ! command -v nginx >/dev/null 2>&1; then
-    echo "==> nginx ausente; pulando desativação"
-    return 0
+ensure_services_up() {
+  if systemctl list-unit-files 2>/dev/null | grep -q gestao-financeira-backend; then
+    sudo cp "$APP_DIR/deploy/systemd/gestao-financeira-backend.service" /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl enable gestao-financeira-backend mongod nginx 2>/dev/null || true
   fi
-
-  if [[ -f "$NGINX_BAK" ]]; then
-    sudo cp "$NGINX_BAK" "$NGINX_CONF"
-  else
-    sudo cp "$APP_DIR/deploy/nginx/native.conf" "$NGINX_CONF"
-  fi
-  sudo nginx -t
 
   if ! systemctl is-active --quiet mongod 2>/dev/null; then
     echo "==> Iniciando MongoDB"
@@ -82,20 +76,54 @@ cmd_off() {
   sudo systemctl restart gestao-financeira-backend
   wait_for_backend || true
 
-  sudo systemctl reload nginx
+  if ! systemctl is-active --quiet nginx 2>/dev/null; then
+    echo "==> Iniciando nginx"
+    sudo systemctl start nginx
+  else
+    sudo systemctl reload nginx
+  fi
+}
+
+cmd_off() {
+  if ! command -v nginx >/dev/null 2>&1; then
+    echo "==> nginx ausente; iniciando apenas backend e MongoDB"
+    ensure_services_up
+    sudo rm -f "$MAINT_FLAG" "$NGINX_BAK"
+    return 0
+  fi
+
+  echo "==> Aplicando configuração de produção do nginx"
+  sudo cp "$APP_DIR/deploy/nginx/native.conf" "$NGINX_CONF"
+  if ! sudo nginx -t; then
+    echo "==> AVISO: native.conf inválido; tentando backup anterior"
+    if [[ -f "$NGINX_BAK" ]] && sudo cp "$NGINX_BAK" "$NGINX_CONF" && sudo nginx -t; then
+      echo "==> Backup de nginx restaurado"
+    else
+      echo "==> ERRO: nginx -t falhou"
+      return 1
+    fi
+  fi
+
+  ensure_services_up
   sudo rm -f "$MAINT_FLAG" "$NGINX_BAK"
   echo "==> Modo manutenção DESATIVADO — sistema no ar"
+  sudo systemctl is-active gestao-financeira-backend nginx mongod
 }
 
 cmd_force_off() {
   echo "==> Restauração forçada (recuperação de falha)"
-  cmd_off || {
+  if ! cmd_off; then
     sudo cp "$APP_DIR/deploy/nginx/native.conf" "$NGINX_CONF" 2>/dev/null || true
+    sudo nginx -t 2>/dev/null || true
+    sudo systemctl daemon-reload 2>/dev/null || true
+    sudo systemctl enable gestao-financeira-backend mongod nginx 2>/dev/null || true
     sudo systemctl start mongod 2>/dev/null || true
+    sleep 3
     sudo systemctl restart gestao-financeira-backend 2>/dev/null || true
     sudo systemctl reload nginx 2>/dev/null || sudo systemctl start nginx 2>/dev/null || true
     sudo rm -f "$MAINT_FLAG" "$NGINX_BAK"
-  }
+    sudo systemctl is-active gestao-financeira-backend nginx mongod 2>/dev/null || true
+  fi
 }
 
 cmd_status() {

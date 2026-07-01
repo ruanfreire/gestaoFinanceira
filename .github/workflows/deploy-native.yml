@@ -128,6 +128,13 @@ jobs:
               DEPLOY_OK=0
               bash deploy/maintenance.sh force-off || true
             fi
+            echo "==> Verificação final dos serviços"
+            if ! sudo systemctl is-active gestao-financeira-backend nginx mongod; then
+              DEPLOY_OK=0
+              echo "::error::Serviços inativos após deploy"
+              sudo systemctl status gestao-financeira-backend nginx mongod --no-pager || true
+              sudo journalctl -u gestao-financeira-backend -n 30 --no-pager || true
+            fi
             rm -f /tmp/release.tar.gz
             if [ "$DEPLOY_OK" -eq 0 ]; then
               echo "::error::Deploy falhou; verifique logs na VM"

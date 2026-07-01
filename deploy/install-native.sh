@@ -211,6 +211,9 @@ if [ "$FIRST_INSTALL" = true ]; then
   sudo cp deploy/systemd/gestao-financeira-backend.service /etc/systemd/system/
   sudo systemctl daemon-reload
   sudo systemctl enable gestao-financeira-backend
+else
+  sudo cp deploy/systemd/gestao-financeira-backend.service /etc/systemd/system/
+  sudo systemctl daemon-reload
 fi
 
 ensure_swap
@@ -257,4 +260,8 @@ if [ "$FIRST_INSTALL" = true ]; then
 fi
 
 echo "==> Deploy concluído ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
-sudo systemctl is-active gestao-financeira-backend nginx mongod
+if is_maintenance_active; then
+  echo "==> Manutenção ativa; serviços serão verificados em maintenance.sh off"
+else
+  sudo systemctl is-active gestao-financeira-backend nginx mongod
+fi
