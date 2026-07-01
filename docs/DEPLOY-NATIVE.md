@@ -30,18 +30,25 @@ git push -u origin main
 |--------|-------|-------------|
 | `SSH_HOST` | `147.15.15.150` | Sim |
 | `SSH_USER` | `opc` | Sim |
-| `SSH_PRIVATE_KEY` | Conteúdo completo de `ssh/ssh-key-2026-07-01.key` | Sim |
+| `SSH_PRIVATE_KEY` | Chave privada completa (ver abaixo) | Sim |
 | `DEPLOY_PATH` | `/opt/gestao-financeira` | Sim |
 | `SSH_PORT` | `22` | Não |
-| `SEED_ADMIN_PASSWORD` | Senha do admin inicial | Não (gerada automaticamente) |
+| `SEED_ADMIN_PASSWORD` | Senha do admin inicial | Não |
 
-**SSH_PRIVATE_KEY:** copie o arquivo inteiro, incluindo:
+#### Como cadastrar `SSH_PRIVATE_KEY`
 
-```
------BEGIN RSA PRIVATE KEY-----
-...
------END RSA PRIVATE KEY-----
-```
+1. Abra o arquivo `ssh/ssh-key-2026-07-01.key` no editor
+2. Copie **tudo**, incluindo as linhas:
+   ```
+   -----BEGIN RSA PRIVATE KEY-----
+   ...
+   -----END RSA PRIVATE KEY-----
+   ```
+3. GitHub → **New repository secret** → Name: `SSH_PRIVATE_KEY`
+4. Cole no campo Value — deve ter **várias linhas**, não uma linha só
+5. Salve
+
+Erro `can't connect without a private SSH key` = secret ausente, vazio ou sem quebras de linha.
 
 ### 3. Primeiro deploy
 

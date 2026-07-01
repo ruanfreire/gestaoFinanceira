@@ -27,6 +27,12 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
     steps:
       - uses: actions/checkout@v5
 
@@ -34,6 +40,16 @@ jobs:
         with:
           node-version: 20
           cache: npm
+
+      - name: Validate deploy secrets
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          missing=0
+          [ -n "$SSH_HOST" ] || { echo "::error::Secret SSH_HOST não configurado"; missing=1; }
+          [ -n "$SSH_USER" ] || { echo "::error::Secret SSH_USER não configurado"; missing=1; }
+          [ -n "$SSH_KEY" ] || { echo "::error::Secret SSH_PRIVATE_KEY não configurado ou vazio"; missing=1; }
+          exit "$missing"
 
       - name: Build release
         run: |
@@ -51,33 +67,31 @@ jobs:
             deploy/nginx/native.conf \
             deploy/systemd/gestao-financeira-backend.service
 
-      - name: Upload release to VM
-        uses: appleboy/scp-action@v0.1.7
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          source: release.tar.gz
-          target: /tmp/
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Upload release to VM
+        run: |
+          PORT="${SSH_PORT:-22}"
+          scp -P "$PORT" -o StrictHostKeyChecking=accept-new \
+            release.tar.gz "${SSH_USER}@${SSH_HOST}:/tmp/"
 
       - name: Install on VM
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          envs: SEED_ADMIN_PASSWORD
-          script: |
-            set -euo pipefail
-            APP_DIR="${{ secrets.DEPLOY_PATH }}"
-            APP_DIR="${APP_DIR:-/opt/gestao-financeira}"
-            sudo mkdir -p "$APP_DIR"
-            sudo chown opc:opc "$APP_DIR"
-            cd "$APP_DIR"
-            tar -xzf /tmp/release.tar.gz
-            chmod +x deploy/install-native.sh
-            export SEED_ADMIN_PASSWORD="${{ secrets.SEED_ADMIN_PASSWORD }}"
-            bash deploy/install-native.sh
-            rm -f /tmp/release.tar.gz
+        run: |
+          PORT="${SSH_PORT:-22}"
+          APP_DIR="${DEPLOY_PATH:-/opt/gestao-financeira}"
+          ssh -p "$PORT" -o StrictHostKeyChecking=accept-new \
+            "${SSH_USER}@${SSH_HOST}" bash -s <<REMOTE
+          set -euo pipefail
+          APP_DIR="${APP_DIR}"
+          sudo mkdir -p "\$APP_DIR"
+          sudo chown opc:opc "\$APP_DIR"
+          cd "\$APP_DIR"
+          tar -xzf /tmp/release.tar.gz
+          chmod +x deploy/install-native.sh
+          export SEED_ADMIN_PASSWORD="${SEED_ADMIN_PASSWORD}"
+          bash deploy/install-native.sh
+          rm -f /tmp/release.tar.gz
+          REMOTE
