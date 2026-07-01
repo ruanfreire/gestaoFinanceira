@@ -2,6 +2,10 @@
   "name": "gestao-financeira-monorepo",
   "private": true,
   "version": "0.1.0",
+  "engines": {
+    "node": ">=22.12.0",
+    "npm": ">=10.0.0"
+  },
   "workspaces": [
     "frontend",
     "backend",
