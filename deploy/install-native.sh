@@ -183,7 +183,11 @@ sync_mongodb_config() {
   fi
   echo "==> Sincronizando configuração do MongoDB"
   sudo cp deploy/mongodb/mongod.conf /etc/mongod.conf
+  sudo chmod 644 /etc/mongod.conf
+  sudo chown root:root /etc/mongod.conf
   sudo cp deploy/systemd/mongod.service /etc/systemd/system/
+  sudo mkdir -p /var/lib/mongo /var/log/mongodb
+  sudo chown -R mongod:mongod /var/lib/mongo /var/log/mongodb
   sudo systemctl daemon-reload
   sudo systemctl enable mongod 2>/dev/null || true
   sudo systemctl reset-failed mongod 2>/dev/null || true
