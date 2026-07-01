@@ -1,0 +1,44 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - app
+
+  backend:
+    image: ${BACKEND_IMAGE:-gestao-financeira-backend:local}
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/finance}
+      PORT: ${PORT:-4000}
+      NODE_ENV: production
+    depends_on:
+      - mongo
+    networks:
+      - app
+
+  web:
+    image: ${WEB_IMAGE:-gestao-financeira-web:local}
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    depends_on:
+      - backend
+    networks:
+      - app
+
+networks:
+  app:
+
+volumes:
+  mongo_data:

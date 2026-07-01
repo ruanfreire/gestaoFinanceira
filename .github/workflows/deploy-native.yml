@@ -1,0 +1,83 @@
+name: Deploy Native
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Build release
+        run: |
+          npm ci
+          npm run build --workspace backend
+          npm run build --workspace frontend
+          tar -czf release.tar.gz \
+            package.json package-lock.json \
+            backend/package.json backend/dist \
+            frontend/package.json frontend/dist \
+            UI/package.json \
+            deploy/install-native.sh \
+            deploy/env.native.example \
+            deploy/mongodb/mongod.conf \
+            deploy/nginx/native.conf \
+            deploy/systemd/gestao-financeira-backend.service
+
+      - name: Upload release to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          source: release.tar.gz
+          target: /tmp/
+
+      - name: Install on VM
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          envs: SEED_ADMIN_PASSWORD
+          script: |
+            set -euo pipefail
+            APP_DIR="${{ secrets.DEPLOY_PATH }}"
+            APP_DIR="${APP_DIR:-/opt/gestao-financeira}"
+            sudo mkdir -p "$APP_DIR"
+            sudo chown opc:opc "$APP_DIR"
+            cd "$APP_DIR"
+            tar -xzf /tmp/release.tar.gz
+            chmod +x deploy/install-native.sh
+            export SEED_ADMIN_PASSWORD="${{ secrets.SEED_ADMIN_PASSWORD }}"
+            bash deploy/install-native.sh
+            rm -f /tmp/release.tar.gz

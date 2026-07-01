@@ -1,0 +1,22 @@
+# Perfil para VM com pouca RAM (ex.: Oracle E2.1.Micro — 1 GB)
+# Uso: docker compose -f docker-compose.yml -f docker-compose.micro.yml up -d --build
+
+services:
+  mongo:
+    command: mongod --wiredTigerCacheSizeGB 0.25
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  backend:
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  web:
+    deploy:
+      resources:
+        limits:
+          memory: 128M

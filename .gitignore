@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+!deploy/env.production.example
+!deploy/env.native.example
+*.log
+.DS_Store
+.data/
+
+# Chaves SSH — nunca commitar
+ssh/*.key
+ssh/*.pem
+
+# Cursor / IDE
+.cursor/
