@@ -1,4 +1,4 @@
-import type { DashboardFilters } from "../types/dashboard.types";
+import type { DashboardDateBasis, DashboardFilters } from "../types/dashboard.types";
 
 function dateKey(value: string | Date): string {
   return new Date(value).toISOString().slice(0, 10);
@@ -13,6 +13,7 @@ function paymentMonthKey(value: string | Date): string {
 export function isDateInDashboardPeriod(
   value: string | Date | undefined,
   filters: DashboardFilters,
+  dateBasis: DashboardDateBasis = "pagamento",
 ): boolean {
   if (!value) return false;
 
@@ -28,17 +29,22 @@ export function isDateInDashboardPeriod(
   return true;
 }
 
-export function formatDashboardPeriodLabel(filters: DashboardFilters): string {
+export function formatDashboardPeriodLabel(
+  filters: DashboardFilters,
+  dateBasis: DashboardDateBasis = "pagamento",
+): string {
+  const kind = dateBasis === "emissao" ? "emissão" : "pagamentos";
+
   if (filters.filterMode === "mes" && filters.mesPagamento) {
     const [year, month] = filters.mesPagamento.split("-");
-    return `pagamentos em ${month}/${year}`;
+    return `${kind} em ${month}/${year}`;
   }
   if (filters.filterMode === "periodo" && filters.from && filters.to) {
     const format = (iso: string) => {
       const [y, m, d] = iso.split("-");
       return `${d}/${m}/${y}`;
     };
-    return `pagamentos de ${format(filters.from)} a ${format(filters.to)}`;
+    return `${kind} de ${format(filters.from)} a ${format(filters.to)}`;
   }
-  return "todo o histórico";
+  return dateBasis === "emissao" ? "todas as notas por emissão" : "todo o histórico de pagamentos";
 }

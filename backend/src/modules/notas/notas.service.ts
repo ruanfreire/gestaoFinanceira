@@ -664,19 +664,53 @@ export class NotasService {
       status_pagamento?: string;
       mes_pagamento?: string;
       mes_competencia?: string;
+      date_basis?: 'pagamento' | 'emissao';
     } = {},
   ) {
     await this.enrichNotasMetadata();
     await this.backfillPagamentosHistorico();
 
+    const dateBasis = filters.date_basis === 'emissao' ? 'emissao' : 'pagamento';
     const { from, to } = resolvePaymentDateRange(filters);
-    const paymentDateFilter = buildPaymentDateMongoFilter(from, to);
+    const dateFilter = buildPaymentDateMongoFilter(from, to);
+
+    if (dateBasis === 'emissao') {
+      const filter: Record<string, unknown> = {};
+      if (dateFilter) {
+        filter.data_emissao = dateFilter;
+      }
+      if (filters.status_pagamento) {
+        filter.status_pagamento = filters.status_pagamento;
+      }
+
+      const notas = asLeanMany<NotaExtracaoLean>(
+        await this.notaModel.find(filter).sort({ data_emissao: -1, numero: -1 }).lean(),
+      );
+
+      const items = notas.map((nota) => ({
+        ...nota,
+        pagamentos: nota.pagamentos,
+        saldo_aberto: notaSaldoAberto(nota),
+        valor_pago_efetivo: effectiveValorPago(nota),
+        qtd_pagamentos: (nota.pagamentos || []).length,
+      }));
+
+      return {
+        items,
+        total: items.length,
+        totais: {
+          valor_nf: items.reduce((sum, item) => sum + Number(item.valor ?? 0), 0),
+          valor_pago: items.reduce((sum, item) => sum + Number(item.valor_pago_efetivo ?? 0), 0),
+          saldo_aberto: items.reduce((sum, item) => sum + notaSaldoAberto(item), 0),
+        },
+      };
+    }
 
     const filter: Record<string, unknown> = {};
-    if (paymentDateFilter) {
+    if (dateFilter) {
       filter.$or = [
-        { data_pagamento: paymentDateFilter },
-        { pagamentos: { $elemMatch: { data: paymentDateFilter } } },
+        { data_pagamento: dateFilter },
+        { pagamentos: { $elemMatch: { data: dateFilter } } },
       ];
     }
     if (filters.status_pagamento) {
@@ -699,18 +733,18 @@ export class NotasService {
         const temPagamentoNoPeriodo =
           pagamentosNoPeriodo.length > 0 || isDateInPaymentRange(nota.data_pagamento, from, to);
 
-        if (paymentDateFilter && !temPagamentoNoPeriodo) {
+        if (dateFilter && !temPagamentoNoPeriodo) {
           return null;
         }
 
         const valorPagoEfetivo =
-          paymentDateFilter && pagamentosNoPeriodo.length > 0
+          dateFilter && pagamentosNoPeriodo.length > 0
             ? valorPagoPeriodo
             : effectiveValorPago(nota);
 
         return {
           ...nota,
-          pagamentos: paymentDateFilter ? pagamentosNoPeriodo : nota.pagamentos,
+          pagamentos: dateFilter ? pagamentosNoPeriodo : nota.pagamentos,
           saldo_aberto: notaSaldoAberto(nota),
           valor_pago_efetivo: valorPagoEfetivo,
           qtd_pagamentos: (nota.pagamentos || []).length,

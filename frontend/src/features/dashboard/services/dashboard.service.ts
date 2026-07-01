@@ -5,6 +5,7 @@ import type {
   ConciliacaoListResponse,
   DashboardAlert,
   DashboardData,
+  DashboardDateBasis,
   DashboardFilters,
   ExtracaoResponse,
   ImportacaoBancaria,
@@ -36,10 +37,21 @@ function paymentMonthKey(value: string | Date): string {
   return `${date.getFullYear()}-${month}`;
 }
 
-function buildPaymentMonthChart(items: NotaExtracaoItem[]) {
+function buildMonthChart(items: NotaExtracaoItem[], dateBasis: DashboardDateBasis) {
   const map = new Map<string, { emitido: number; recebido: number }>();
 
   for (const item of items) {
+    if (dateBasis === "emissao") {
+      const emissionDate = item.data_emissao ?? item.mes_competencia;
+      if (!emissionDate) continue;
+      const key = paymentMonthKey(emissionDate);
+      const current = map.get(key) ?? { emitido: 0, recebido: 0 };
+      current.emitido += Number(item.valor ?? 0);
+      current.recebido += Number(item.valor_pago_efetivo ?? item.valor_pago ?? 0);
+      map.set(key, current);
+      continue;
+    }
+
     const pagamentos =
       item.pagamentos && item.pagamentos.length > 0
         ? item.pagamentos
@@ -64,6 +76,19 @@ function buildPaymentMonthChart(items: NotaExtracaoItem[]) {
     emitido: sorted.map(([, values]) => values.emitido),
     recebido: sorted.map(([, values]) => values.recebido),
   };
+}
+
+async function loadExtracao(
+  filters: DashboardFilters,
+  dateBasis: DashboardDateBasis,
+): Promise<ExtracaoResponse> {
+  const res = await api.get<ExtracaoResponse>("/notas/extracao", {
+    params: {
+      ...paymentDateApiParams(filters),
+      date_basis: dateBasis,
+    },
+  });
+  return res.data;
 }
 
 function countNotasByStatus(items: NotaExtracaoItem[]) {
@@ -216,8 +241,18 @@ function buildAlerts(
 
 export const dashboardService = {
   async load(filters: DashboardFilters): Promise<DashboardData> {
+    let dateBasis: DashboardDateBasis = "pagamento";
+    let extracao = await loadExtracao(filters, "pagamento");
+
+    if (extracao.total === 0) {
+      const byEmission = await loadExtracao(filters, "emissao");
+      if (byEmission.total > 0) {
+        extracao = byEmission;
+        dateBasis = "emissao";
+      }
+    }
+
     const [
-      extracaoRes,
       pendentesAsaasRes,
       pendentesNubankRes,
       semMatchAsaasRes,
@@ -225,7 +260,6 @@ export const dashboardService = {
       importacoesRes,
       importacoesBancariasRes,
     ] = await Promise.all([
-      api.get<ExtracaoResponse>("/notas/extracao", { params: paymentDateApiParams(filters) }),
       api.get<ConciliacaoListResponse>("/extrato-asaas/pendentes"),
       api.get<ConciliacaoListResponse>("/extrato-nubank/pendentes"),
       api.get<ConciliacaoListResponse>("/extrato-asaas/sem-match"),
@@ -236,7 +270,6 @@ export const dashboardService = {
       }),
     ]);
 
-    const extracao = extracaoRes.data;
     const { pagas, emAberto } = countNotasByStatus(extracao.items);
 
     const pendentesAsaas = filterConciliacaoResponse(pendentesAsaasRes.data, filters);
@@ -271,8 +304,9 @@ export const dashboardService = {
     );
 
     return {
+      dateBasis,
       kpis,
-      competenciaChart: buildPaymentMonthChart(extracao.items),
+      competenciaChart: buildMonthChart(extracao.items, dateBasis),
       conciliacaoChart: {
         categories: ["Pendente vínculo", "Sem match", "Notas pagas", "Notas em aberto"],
         values: [pendentesTotal, semMatchTotal, pagas, emAberto],

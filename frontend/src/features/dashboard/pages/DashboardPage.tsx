@@ -21,7 +21,7 @@ import { formatDashboardPeriodLabel } from "../utils/dashboard-period.util";
 export default function DashboardPage() {
   const [filters, setFilters] = useState<DashboardFilters>(createDefaultDashboardFilters);
   const { data, isLoading, isError, error, refetch, isFetching } = useDashboardQuery(filters);
-  const periodLabel = formatDashboardPeriodLabel(filters);
+  const periodLabel = formatDashboardPeriodLabel(filters, data?.dateBasis);
 
   if (isLoading) {
     return <DashboardSkeleton />;
@@ -72,6 +72,7 @@ export default function DashboardPage() {
           competenciaChart={data.competenciaChart}
           conciliacaoChart={data.conciliacaoChart}
           periodLabel={periodLabel}
+          dateBasis={data.dateBasis}
         />
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">

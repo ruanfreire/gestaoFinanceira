@@ -1,3 +1,5 @@
+export type DashboardDateBasis = "pagamento" | "emissao";
+
 export type NotaExtracaoItem = {
   _id: string;
   valor?: number;
@@ -5,6 +7,7 @@ export type NotaExtracaoItem = {
   valor_pago_efetivo?: number;
   saldo_aberto?: number;
   mes_competencia?: string;
+  data_emissao?: string;
   data_pagamento?: string;
   pagamentos?: Array<{ data?: string; valor?: number }>;
   status_pagamento?: string;
@@ -115,6 +118,7 @@ export type DashboardFilters = {
 };
 
 export type DashboardData = {
+  dateBasis: DashboardDateBasis;
   kpis: {
     valorNf: number;
     valorRecebido: number;

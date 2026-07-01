@@ -3,12 +3,13 @@ import FinanceAreaChart from "@ui/components/charts/FinanceAreaChart";
 import FinanceBarChart from "@ui/components/charts/FinanceBarChart";
 import EmptyState from "@ui/components/ui/empty-state/EmptyState";
 import { formatCurrency } from "@/utils/nota-format.util";
-import type { DashboardData } from "../types/dashboard.types";
+import type { DashboardData, DashboardDateBasis } from "../types/dashboard.types";
 
 type DashboardChartsProps = {
   competenciaChart: DashboardData["competenciaChart"];
   conciliacaoChart: DashboardData["conciliacaoChart"];
   periodLabel: string;
+  dateBasis: DashboardDateBasis;
 };
 
 const currencyFormatter = (value: number) => formatCurrency(value);
@@ -17,6 +18,7 @@ export function DashboardCharts({
   competenciaChart,
   conciliacaoChart,
   periodLabel,
+  dateBasis,
 }: DashboardChartsProps) {
   const hasCompetenciaData =
     competenciaChart.categories.length > 0 &&
@@ -25,12 +27,16 @@ export function DashboardCharts({
 
   const hasConciliacaoData = conciliacaoChart.values.some((v) => v > 0);
 
+  const chartTitle =
+    dateBasis === "emissao" ? "Notas por mês de emissão" : "Recebimentos por mês de pagamento";
+  const chartDesc =
+    dateBasis === "emissao"
+      ? `Valor emitido das notas no período (${periodLabel}). Recebido pode ser zero sem faturas pagas.`
+      : `Valor emitido vs. recebido no período selecionado (${periodLabel}).`;
+
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-      <ComponentCard
-        title="Recebimentos por mês de pagamento"
-        desc={`Valor emitido vs. recebido no período selecionado (${periodLabel}).`}
-      >
+      <ComponentCard title={chartTitle} desc={chartDesc}>
         {hasCompetenciaData ? (
           <FinanceAreaChart
             categories={competenciaChart.categories}
@@ -42,8 +48,12 @@ export function DashboardCharts({
           />
         ) : (
           <EmptyState
-            title="Sem dados de pagamento"
-            description="Não há recebimentos no período selecionado."
+            title="Sem dados no período"
+            description={
+              dateBasis === "emissao"
+                ? "Não há notas emitidas no período selecionado."
+                : "Não há recebimentos no período selecionado."
+            }
           />
         )}
       </ComponentCard>

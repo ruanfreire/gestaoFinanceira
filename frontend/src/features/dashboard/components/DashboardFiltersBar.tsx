@@ -65,7 +65,7 @@ export function DashboardFiltersBar({ filters, onApply, loading }: DashboardFilt
   };
 
   return (
-    <ComponentCard title="Período exibido" desc="Filtro por data de pagamento dos lançamentos e recebimentos.">
+    <ComponentCard title="Período exibido" desc="Prioriza pagamentos; se não houver, exibe notas pela data de emissão no mesmo período.">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
