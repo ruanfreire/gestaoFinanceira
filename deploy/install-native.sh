@@ -177,15 +177,25 @@ run_npm_ci_if_needed() {
   echo "$new_hash" > "$hash_file"
 }
 
+sync_mongodb_config() {
+  if ! command -v mongod >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "==> Sincronizando configuração do MongoDB"
+  sudo cp deploy/mongodb/mongod.conf /etc/mongod.conf
+  sudo cp deploy/systemd/mongod.service /etc/systemd/system/
+  sudo systemctl daemon-reload
+  sudo systemctl enable mongod 2>/dev/null || true
+  sudo systemctl reset-failed mongod 2>/dev/null || true
+}
+
 if [ "$FIRST_INSTALL" = true ]; then
   ensure_swap
   install_node_binary
   install_nginx_rpm
   install_mongodb_binary
 
-  sudo cp deploy/mongodb/mongod.conf /etc/mongod.conf
-  sudo cp deploy/systemd/mongod.service /etc/systemd/system/
-  sudo systemctl daemon-reload
+  sync_mongodb_config
   sudo systemctl enable --now mongod
 
   ensure_ssl_cert
@@ -234,6 +244,7 @@ fi
 
 ensure_swap
 upgrade_node_if_needed
+sync_mongodb_config
 
 if [[ -f .env ]] && [[ ! -f .deploy/seed-done ]] && [[ ! -f .deploy/pending-seed ]]; then
   echo "==> Seed pendente detectado (.env sem seed concluído)"

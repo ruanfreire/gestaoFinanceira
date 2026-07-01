@@ -113,13 +113,19 @@ cmd_on() {
 ensure_services_up() {
   if systemctl list-unit-files 2>/dev/null | grep -q gestao-financeira-backend; then
     sudo cp "$APP_DIR/deploy/systemd/gestao-financeira-backend.service" /etc/systemd/system/
+    sudo cp "$APP_DIR/deploy/systemd/mongod.service" /etc/systemd/system/
+    sudo cp "$APP_DIR/deploy/mongodb/mongod.conf" /etc/mongod.conf
     sudo systemctl daemon-reload
     sudo systemctl enable gestao-financeira-backend mongod nginx 2>/dev/null || true
+    sudo systemctl reset-failed mongod 2>/dev/null || true
   fi
 
   if ! systemctl is-active --quiet mongod 2>/dev/null; then
     echo "==> Iniciando MongoDB"
     sudo systemctl start mongod
+  else
+    echo "==> Reiniciando MongoDB (aplicar configuração)"
+    sudo systemctl restart mongod
   fi
   wait_for_mongod
 
@@ -166,11 +172,12 @@ cmd_force_off() {
   echo "==> Restauração forçada (recuperação de falha)"
   if ! cmd_off; then
     sudo cp "$APP_DIR/deploy/nginx/native.conf" "$NGINX_CONF" 2>/dev/null || true
+    sudo cp "$APP_DIR/deploy/mongodb/mongod.conf" /etc/mongod.conf 2>/dev/null || true
     sudo nginx -t 2>/dev/null || true
     sudo systemctl daemon-reload 2>/dev/null || true
     sudo systemctl enable gestao-financeira-backend mongod nginx 2>/dev/null || true
-    sudo systemctl start mongod 2>/dev/null || true
-    wait_for_mongod 2>/dev/null || sleep 5
+    sudo systemctl reset-failed mongod 2>/dev/null || true
+    sudo systemctl restart mongod 2>/dev/null || true
     sudo systemctl restart gestao-financeira-backend 2>/dev/null || true
     sudo systemctl reload nginx 2>/dev/null || sudo systemctl start nginx 2>/dev/null || true
     sudo rm -f "$MAINT_FLAG" "$NGINX_BAK"
