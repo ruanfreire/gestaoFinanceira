@@ -82,8 +82,9 @@ Write-Host "==> Instalando na VM (pode levar alguns minutos)..."
 $remote = @"
 set -e
 cd $RemoteDir
-tar -xzf /tmp/gestao-financeira-native.tar.gz
-chmod +x deploy/install-native.sh
+sudo tar -xzf /tmp/gestao-financeira-native.tar.gz --overwrite --no-same-owner
+sudo chown -R opc:opc $RemoteDir
+chmod +x deploy/install-native.sh deploy/ssl/*.sh 2>/dev/null || true
 bash deploy/install-native.sh
 "@
 

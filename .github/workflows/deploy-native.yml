@@ -109,8 +109,9 @@ jobs:
             sudo mkdir -p "$APP_DIR"
             sudo chown opc:opc "$APP_DIR"
             cd "$APP_DIR"
-            tar -xzf /tmp/release.tar.gz
-            chmod +x deploy/install-native.sh
+            sudo tar -xzf /tmp/release.tar.gz --overwrite --no-same-owner
+            sudo chown -R opc:opc "$APP_DIR"
+            chmod +x deploy/install-native.sh deploy/ssl/*.sh 2>/dev/null || true
             export SEED_ADMIN_PASSWORD="${{ secrets.SEED_ADMIN_PASSWORD }}"
             bash deploy/install-native.sh
             rm -f /tmp/release.tar.gz
