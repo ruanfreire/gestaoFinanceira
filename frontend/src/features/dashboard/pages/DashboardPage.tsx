@@ -64,7 +64,7 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <DashboardFiltersBar filters={filters} onApply={setFilters} loading={isFetching} />
 
         <DashboardMetrics kpis={data.kpis} />
@@ -75,9 +75,9 @@ export default function DashboardPage() {
           dateBasis={data.dateBasis}
         />
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-3">
           <DashboardAlerts alerts={data.alerts} />
-          <div className="xl:col-span-2 space-y-6">
+          <div className="min-w-0 space-y-6 xl:col-span-2">
             <RecentImportsPanel items={data.recentImports} />
             <PendingConciliacaoPanel items={data.pendingMovements} />
           </div>

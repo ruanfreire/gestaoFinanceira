@@ -17,8 +17,9 @@ const alertVariant: Record<DashboardAlert["type"], "success" | "warning" | "erro
 export function DashboardAlerts({ alerts }: DashboardAlertsProps) {
   if (alerts.length === 0) {
     return (
-      <ComponentCard title="Alertas" desc="Situação geral do sistema.">
+      <ComponentCard compact title="Alertas" desc="Situação geral do sistema.">
         <EmptyState
+          embedded
           title="Tudo em ordem"
           description="Não há pendências críticas no momento."
         />

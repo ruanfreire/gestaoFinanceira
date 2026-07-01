@@ -28,6 +28,7 @@ export default function FinanceBarChart({
       type: "bar",
       height,
       toolbar: { show: false },
+      width: "100%",
     },
     plotOptions: {
       bar: {
@@ -69,10 +70,8 @@ export default function FinanceBarChart({
   };
 
   return (
-    <div className="max-w-full overflow-x-auto custom-scrollbar">
-      <div className="min-w-[640px]">
-        <Chart options={options} series={series} type="bar" height={height} />
-      </div>
+    <div className="w-full min-w-0">
+      <Chart options={options} series={series} type="bar" height={height} width="100%" />
     </div>
   );
 }

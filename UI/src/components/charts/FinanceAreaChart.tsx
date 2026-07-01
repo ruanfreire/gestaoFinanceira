@@ -29,6 +29,7 @@ export default function FinanceAreaChart({
       height,
       type: "area",
       toolbar: { show: false },
+      width: "100%",
     },
     stroke: {
       curve: "smooth",
@@ -67,10 +68,8 @@ export default function FinanceAreaChart({
   };
 
   return (
-    <div className="max-w-full overflow-x-auto custom-scrollbar">
-      <div className="min-w-[640px]">
-        <Chart options={options} series={series} type="area" height={height} />
-      </div>
+    <div className="w-full min-w-0">
+      <Chart options={options} series={series} type="area" height={height} width="100%" />
     </div>
   );
 }

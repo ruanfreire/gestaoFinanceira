@@ -42,7 +42,6 @@ export default function MonthPicker({
     if (!inputRef.current) return;
 
     pickerRef.current = flatpickr(inputRef.current, {
-      static: true,
       plugins: [
         monthSelectPlugin({
           shorthand: false,

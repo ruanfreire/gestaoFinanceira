@@ -42,7 +42,6 @@ export default function DatePicker({
     if (!inputRef.current) return;
 
     pickerRef.current = flatpickr(inputRef.current, {
-      static: true,
       monthSelectorType: "static",
       dateFormat: "Y-m-d",
       altInput: true,

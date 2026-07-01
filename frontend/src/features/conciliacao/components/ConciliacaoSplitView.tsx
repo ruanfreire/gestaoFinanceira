@@ -44,7 +44,7 @@ export function ConciliacaoSplitView({
 
   if (loading) {
     return (
-      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
         <Skeleton className="h-96 rounded-2xl" />
         <Skeleton className="h-96 rounded-2xl" />
       </div>
@@ -58,10 +58,10 @@ export function ConciliacaoSplitView({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(280px,340px)_1fr]">
+    <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
       <section
         aria-label="Lista de lançamentos"
-        className={`rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 ${
+        className={`min-w-0 rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 ${
           mobileShowDetail ? "hidden lg:block" : "block"
         }`}
       >
@@ -85,7 +85,7 @@ export function ConciliacaoSplitView({
 
       <section
         aria-label="Detalhe do lançamento"
-        className={mobileShowDetail ? "block" : "hidden lg:block"}
+        className={`min-w-0 ${mobileShowDetail ? "block" : "hidden lg:block"}`}
       >
         {selectedItem && (
           <>

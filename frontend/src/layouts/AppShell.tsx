@@ -10,20 +10,21 @@ import AppHeader from "./AppHeader";
 function ShellContent() {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
 
+  const sidebarOffset =
+    isExpanded || isHovered ? "lg:pl-[290px]" : "lg:pl-[90px]";
+
   return (
-    <div className="min-h-screen xl:flex">
+    <div className="min-h-screen">
       <ScrollToTop />
-      <div>
-        <AppSidebar />
-        <Backdrop />
-      </div>
+      <AppSidebar />
+      <Backdrop />
       <div
-        className={`flex-1 transition-all duration-300 ease-in-out ${
-          isExpanded || isHovered ? "lg:ml-[290px]" : "lg:ml-[90px]"
-        } ${isMobileOpen ? "ml-0" : ""}`}
+        className={`min-w-0 transition-all duration-300 ease-in-out ${sidebarOffset} ${
+          isMobileOpen ? "pl-0" : ""
+        }`}
       >
         <AppHeader />
-        <main className="mx-auto max-w-(--breakpoint-2xl) p-4 md:p-6">
+        <main className="mx-auto max-w-(--breakpoint-2xl) p-4 pb-10 md:p-6 md:pb-12">
           <RouteBreadcrumb />
           <Outlet />
         </main>

@@ -50,7 +50,7 @@ export default function ExtracaoNotasPage() {
         description="Relatório por mês ou intervalo de data de pagamento, com totais e exportação CSV."
       />
 
-      <ComponentCard title="Filtros" desc="Defina o recorte do relatório e clique em gerar.">
+      <ComponentCard compact title="Filtros" desc="Defina o recorte do relatório e clique em gerar.">
         <form onSubmit={handleBuscar} className="space-y-4">
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">

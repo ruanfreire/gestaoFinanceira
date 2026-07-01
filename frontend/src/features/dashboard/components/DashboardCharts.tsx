@@ -35,7 +35,7 @@ export function DashboardCharts({
       : `Valor emitido vs. recebido no período selecionado (${periodLabel}).`;
 
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+    <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-2">
       <ComponentCard title={chartTitle} desc={chartDesc}>
         {hasCompetenciaData ? (
           <FinanceAreaChart
@@ -48,6 +48,7 @@ export function DashboardCharts({
           />
         ) : (
           <EmptyState
+            embedded
             title="Sem dados no período"
             description={
               dateBasis === "emissao"
@@ -71,6 +72,7 @@ export function DashboardCharts({
           />
         ) : (
           <EmptyState
+            embedded
             title="Nenhum dado disponível"
             description="Cadastre notas e importe extratos para popular o painel."
           />

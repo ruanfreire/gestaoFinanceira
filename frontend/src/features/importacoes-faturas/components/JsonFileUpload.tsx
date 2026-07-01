@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import DropZone from "@ui/components/form/DropZone";
 import Alert from "@ui/components/ui/alert/Alert";
 import Button from "@ui/components/ui/button/Button";
-import ComponentCard from "@ui/components/common/ComponentCard";
 import Spinner from "@ui/components/ui/spinner/Spinner";
 import { useToast } from "@ui/components/ui/toast/ToastContext";
 import { importacoesFaturasService } from "../services/importacoes-faturas.service";
@@ -104,12 +103,18 @@ export function JsonFileUpload({ onSuccess }: JsonFileUploadProps) {
       )}
 
       {preview?.valid && (
-        <ComponentCard
-          title="Pré-visualização"
-          desc={`${preview.totalFaturas} fatura(s) em ${preview.empresas || 1} empresa(s) detectada(s) no arquivo.`}
-        >
-          <JsonImportPreviewTable items={preview.sample} total={preview.totalFaturas} />
-        </ComponentCard>
+        <div className="rounded-xl border border-gray-200 dark:border-gray-800">
+          <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+            <h4 className="text-sm font-medium text-gray-800 dark:text-white/90">Pré-visualização</h4>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+              {preview.totalFaturas} fatura(s) em {preview.empresas || 1} empresa(s) detectada(s) no
+              arquivo.
+            </p>
+          </div>
+          <div className="p-4">
+            <JsonImportPreviewTable items={preview.sample} total={preview.totalFaturas} />
+          </div>
+        </div>
       )}
 
       <div className="flex gap-3">

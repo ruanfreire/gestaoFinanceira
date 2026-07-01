@@ -96,8 +96,8 @@ export default function FluxoCaixaPage() {
         }
       />
 
-      <ComponentCard title="Parâmetros de exportação">
-        <form onSubmit={handleExport} className="space-y-6">
+      <ComponentCard compact title="Parâmetros de exportação">
+        <form onSubmit={handleExport} className="space-y-4">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Banco
