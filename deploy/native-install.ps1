@@ -89,6 +89,8 @@ trap 'rm -rf "$STAGING"' EXIT
 tar -xzf /tmp/gestao-financeira-native.tar.gz -C "$STAGING"
 sudo rsync -a "$STAGING/" "$RemoteDir/"
 sudo chown -R opc:opc $RemoteDir
+sudo chmod o+x $RemoteDir $RemoteDir/frontend $RemoteDir/frontend/dist 2>/dev/null || true
+sudo chmod -R o+rX $RemoteDir/frontend/dist 2>/dev/null || true
 cd $RemoteDir
 chmod +x deploy/install-native.sh deploy/maintenance.sh deploy/ssl/*.sh 2>/dev/null || true
 DEPLOY_OK=1

@@ -21,6 +21,12 @@ fi
 
 echo "==> Modo: $([ "$FIRST_INSTALL" = true ] && echo 'primeira instalação' || echo 'atualização')"
 
+fix_nginx_app_permissions() {
+  echo "==> Permissões para nginx ler o frontend"
+  sudo chmod o+x "$APP_DIR" "$APP_DIR/frontend" "$APP_DIR/frontend/dist" 2>/dev/null || true
+  sudo chmod -R o+rX "$APP_DIR/frontend/dist" 2>/dev/null || true
+}
+
 ensure_swap() {
   if swapon --show | grep -q /swapfile; then
     return
@@ -269,6 +275,7 @@ else
 fi
 
 run_npm_ci_if_needed
+fix_nginx_app_permissions
 
 echo "==> Finalizando instalação"
 if [ "$FIRST_INSTALL" = true ] || ssl_cert_needs_refresh; then
