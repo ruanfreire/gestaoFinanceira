@@ -27,6 +27,12 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
     steps:
       - uses: actions/checkout@v5
 
@@ -37,8 +43,6 @@ jobs:
 
       - name: Validate deploy secrets
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           missing=0
@@ -63,16 +67,27 @@ jobs:
             deploy/nginx/native.conf \
             deploy/systemd/gestao-financeira-backend.service
 
-      - name: Upload release to VM
-        uses: appleboy/scp-action@v0.1.7
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          source: release.tar.gz
-          target: /tmp/
-          timeout: 120s
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Test SSH connection (fail fast)
+        run: |
+          PORT="${SSH_PORT:-22}"
+          ssh -p "$PORT" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=30 \
+            -o StrictHostKeyChecking=accept-new \
+            "${SSH_USER}@${SSH_HOST}" "echo OK"
+
+      - name: Upload release to VM
+        run: |
+          PORT="${SSH_PORT:-22}"
+          scp -P "$PORT" \
+            -o ConnectTimeout=30 \
+            -o StrictHostKeyChecking=accept-new \
+            release.tar.gz "${SSH_USER}@${SSH_HOST}:/tmp/"
 
       - name: Install on VM
         uses: appleboy/ssh-action@v1.2.0
@@ -81,6 +96,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          timeout: 60s
           command_timeout: 45m
           envs: SEED_ADMIN_PASSWORD
           script: |
