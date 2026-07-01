@@ -62,11 +62,14 @@ jobs:
             frontend/package.json frontend/dist \
             UI/package.json \
             deploy/install-native.sh \
+            deploy/maintenance.sh \
             deploy/ssl/generate-selfsigned.sh \
             deploy/ssl/install-letsencrypt.sh \
             deploy/env.native.example \
             deploy/mongodb/mongod.conf \
             deploy/nginx/native.conf \
+            deploy/nginx/maintenance.conf \
+            deploy/nginx/maintenance.html \
             deploy/systemd/gestao-financeira-backend.service \
             deploy/systemd/mongod.service
 
@@ -113,8 +116,20 @@ jobs:
             sudo tar -xzf /tmp/release.tar.gz -C "$STAGING"
             sudo rsync -a "$STAGING/" "$APP_DIR/"
             sudo chown -R opc:opc "$APP_DIR"
-            chmod +x deploy/install-native.sh deploy/ssl/*.sh 2>/dev/null || true
+            chmod +x deploy/install-native.sh deploy/maintenance.sh deploy/ssl/*.sh 2>/dev/null || true
             cd "$APP_DIR"
             export SEED_ADMIN_PASSWORD="${{ secrets.SEED_ADMIN_PASSWORD }}"
-            bash deploy/install-native.sh
+            DEPLOY_OK=1
+            bash deploy/maintenance.sh on || true
+            if ! bash deploy/install-native.sh; then
+              DEPLOY_OK=0
+            fi
+            if ! bash deploy/maintenance.sh off; then
+              DEPLOY_OK=0
+              bash deploy/maintenance.sh force-off || true
+            fi
             rm -f /tmp/release.tar.gz
+            if [ "$DEPLOY_OK" -eq 0 ]; then
+              echo "::error::Deploy falhou; verifique logs na VM"
+              exit 1
+            fi

@@ -66,11 +66,14 @@ Write-Host "==> Empacotando artefatos..."
   frontend/package.json frontend/dist `
   UI/package.json `
   deploy/install-native.sh `
+  deploy/maintenance.sh `
   deploy/ssl/generate-selfsigned.sh `
   deploy/ssl/install-letsencrypt.sh `
   deploy/env.native.example `
   deploy/mongodb/mongod.conf `
   deploy/nginx/native.conf `
+  deploy/nginx/maintenance.conf `
+  deploy/nginx/maintenance.html `
   deploy/systemd/gestao-financeira-backend.service `
   deploy/systemd/mongod.service
 
@@ -86,9 +89,13 @@ trap 'rm -rf "$STAGING"' EXIT
 sudo tar -xzf /tmp/gestao-financeira-native.tar.gz -C "$STAGING"
 sudo rsync -a "$STAGING/" "$RemoteDir/"
 sudo chown -R opc:opc $RemoteDir
-chmod +x deploy/install-native.sh deploy/ssl/*.sh 2>/dev/null || true
+chmod +x deploy/install-native.sh deploy/maintenance.sh deploy/ssl/*.sh 2>/dev/null || true
 cd $RemoteDir
-bash deploy/install-native.sh
+DEPLOY_OK=1
+bash deploy/maintenance.sh on || true
+if ! bash deploy/install-native.sh; then DEPLOY_OK=0; fi
+if ! bash deploy/maintenance.sh off; then DEPLOY_OK=0; bash deploy/maintenance.sh force-off || true; fi
+if [ "$DEPLOY_OK" -eq 0 ]; then exit 1; fi
 "@
 
 & ssh @ssh "${User}@${HostIP}" $remote

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="refresh" content="60" />
+  <title>Atualização em andamento</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #e2e8f0;
+      padding: 24px;
+    }
+    .card {
+      max-width: 480px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 40px 32px;
+      text-align: center;
+      backdrop-filter: blur(8px);
+    }
+    .icon {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 20px;
+      border: 3px solid #38bdf8;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h1 { font-size: 1.35rem; font-weight: 600; margin-bottom: 12px; }
+    p { font-size: 0.95rem; line-height: 1.6; color: #94a3b8; }
+    .hint { margin-top: 24px; font-size: 0.8rem; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon" aria-hidden="true"></div>
+    <h1>Sistema em atualização</h1>
+    <p>Estamos aplicando uma nova versão. Isso leva alguns minutos — a página recarrega automaticamente.</p>
+    <p class="hint">Gestão Financeira · Seu Movimento</p>
+  </div>
+</body>
+</html>

@@ -144,6 +144,25 @@ wait_for_backend() {
   return 1
 }
 
+is_maintenance_active() {
+  [[ -f /var/www/maintenance/.active ]]
+}
+
+run_npm_ci_if_needed() {
+  local hash_file="$APP_DIR/.deploy/package-lock.sha256"
+  local new_hash
+  mkdir -p "$APP_DIR/.deploy"
+  new_hash=$(sha256sum package-lock.json | awk '{print $1}')
+  if [[ -f "$hash_file" ]] && [[ "$(cat "$hash_file")" == "$new_hash" ]] && [[ -d node_modules/argon2 ]]; then
+    echo "==> package-lock.json inalterado; pulando npm ci"
+    return 0
+  fi
+  echo "==> Dependências Node (backend)"
+  export NODE_OPTIONS="--max-old-space-size=256"
+  npm ci --omit=dev --workspace backend --include-workspace-root
+  echo "$new_hash" > "$hash_file"
+}
+
 if [ "$FIRST_INSTALL" = true ]; then
   ensure_swap
   install_node_binary
@@ -197,26 +216,40 @@ fi
 ensure_swap
 upgrade_node_if_needed
 
-echo "==> Parando backend para liberar RAM"
-sudo systemctl stop gestao-financeira-backend 2>/dev/null || true
-sleep 2
+if is_maintenance_active; then
+  echo "==> Modo manutenção ativo; serviços já parados"
+else
+  echo "==> Parando backend para liberar RAM"
+  sudo systemctl stop gestao-financeira-backend 2>/dev/null || true
+  if systemctl is-active --quiet mongod 2>/dev/null; then
+    echo "==> Parando MongoDB para liberar RAM"
+    sudo systemctl stop mongod
+  fi
+  sleep 2
+fi
 
-echo "==> Dependências Node (backend)"
-export NODE_OPTIONS="--max-old-space-size=256"
-npm ci --omit=dev --workspace backend --include-workspace-root
+run_npm_ci_if_needed
 
-echo "==> Reiniciando serviços"
+echo "==> Finalizando instalação"
 if [ "$FIRST_INSTALL" = true ] || ssl_cert_needs_refresh; then
   ensure_ssl_cert
 else
   echo "==> Certificado SSL válido; pulando renovação"
 fi
-sudo cp deploy/nginx/native.conf /etc/nginx/conf.d/gestao-financeira.conf
-sudo nginx -t
-sudo systemctl reload nginx
-sudo systemctl restart gestao-financeira-backend
 
-wait_for_backend || true
+if is_maintenance_active; then
+  echo "==> Serviços serão reiniciados ao desativar manutenção"
+else
+  sudo cp deploy/nginx/native.conf /etc/nginx/conf.d/gestao-financeira.conf
+  sudo nginx -t
+  if ! systemctl is-active --quiet mongod 2>/dev/null; then
+    sudo systemctl start mongod
+    sleep 3
+  fi
+  sudo systemctl reload nginx
+  sudo systemctl restart gestao-financeira-backend
+  wait_for_backend || true
+fi
 
 if [ "$FIRST_INSTALL" = true ]; then
   echo "==> Seed admin"
