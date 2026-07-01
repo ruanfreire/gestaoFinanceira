@@ -15,7 +15,7 @@ fi
 
 cd "$APP_DIR"
 
-if ! systemctl list-unit-files 2>/dev/null | grep -q gestao-financeira-backend; then
+if [[ ! -f /etc/systemd/system/gestao-financeira-backend.service ]]; then
   FIRST_INSTALL=true
 fi
 
@@ -168,15 +168,37 @@ is_maintenance_active() {
   [[ -f /var/www/maintenance/.active ]]
 }
 
+needs_npm_ci() {
+  local hash_file="$APP_DIR/.deploy/package-lock.sha256"
+  local new_hash
+  new_hash=$(sha256sum package-lock.json | awk '{print $1}')
+  if [[ -f "$hash_file" ]] && [[ "$(cat "$hash_file")" == "$new_hash" ]] && [[ -d node_modules/argon2 ]]; then
+    return 1
+  fi
+  return 0
+}
+
+enter_maintenance_if_needed() {
+  if is_maintenance_active; then
+    return 0
+  fi
+  if [[ "$FIRST_INSTALL" == true ]] || needs_npm_ci; then
+    echo "==> Ativando manutenção (deploy pesado)"
+    bash deploy/maintenance.sh on || true
+  else
+    echo "==> Deploy leve; API permanece no ar durante atualização"
+  fi
+}
+
 run_npm_ci_if_needed() {
   local hash_file="$APP_DIR/.deploy/package-lock.sha256"
   local new_hash
   mkdir -p "$APP_DIR/.deploy"
-  new_hash=$(sha256sum package-lock.json | awk '{print $1}')
-  if [[ -f "$hash_file" ]] && [[ "$(cat "$hash_file")" == "$new_hash" ]] && [[ -d node_modules/argon2 ]]; then
+  if ! needs_npm_ci; then
     echo "==> package-lock.json inalterado; pulando npm ci"
     return 0
   fi
+  new_hash=$(sha256sum package-lock.json | awk '{print $1}')
   echo "==> Dependências Node (backend)"
   export NODE_OPTIONS="--max-old-space-size=256"
   npm ci --omit=dev --workspace backend --include-workspace-root
@@ -252,6 +274,7 @@ else
   sudo systemctl daemon-reload
 fi
 
+enter_maintenance_if_needed
 ensure_swap
 upgrade_node_if_needed
 sync_mongodb_config
@@ -265,13 +288,7 @@ fi
 if is_maintenance_active; then
   echo "==> Modo manutenção ativo; serviços já parados"
 else
-  echo "==> Parando backend para liberar RAM"
-  sudo systemctl stop gestao-financeira-backend 2>/dev/null || true
-  if systemctl is-active --quiet mongod 2>/dev/null; then
-    echo "==> Parando MongoDB para liberar RAM"
-    sudo systemctl stop mongod
-  fi
-  sleep 2
+  echo "==> Deploy leve; serviços permanecem ativos"
 fi
 
 run_npm_ci_if_needed

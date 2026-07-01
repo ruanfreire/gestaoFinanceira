@@ -94,7 +94,6 @@ sudo chmod -R o+rX $RemoteDir/frontend/dist 2>/dev/null || true
 cd $RemoteDir
 chmod +x deploy/install-native.sh deploy/maintenance.sh deploy/ssl/*.sh 2>/dev/null || true
 DEPLOY_OK=1
-bash deploy/maintenance.sh on || true
 if ! bash deploy/install-native.sh; then DEPLOY_OK=0; fi
 if ! bash deploy/maintenance.sh off; then DEPLOY_OK=0; bash deploy/maintenance.sh force-off || true; fi
 echo '==> Verificação final dos serviços'
