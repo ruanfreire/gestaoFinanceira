@@ -4,21 +4,23 @@ import { AppProviders } from "./providers";
 import { RequireAuth } from "@/features/auth/require-auth";
 import { ProtectedShell } from "@/app/protected-shell";
 import { ROUTES } from "@/lib/constants";
+import { lazyRoutes } from "@/lib/lazy-routes";
 import { Skeleton } from "@/design-system/atoms";
 
-const EntrarPage = lazy(() => import("@/features/auth/pages/entrar-page"));
-const HomePage = lazy(() => import("@/features/home/pages/home-page"));
-const NotasPage = lazy(() => import("@/features/notas/pages/notas-page"));
-const NotaNovaPage = lazy(() => import("@/features/notas/pages/nota-nova-page"));
-const RecebimentosPage = lazy(() => import("@/features/recebimentos/pages/recebimentos-page"));
-const ArquivosNotasPage = lazy(() => import("@/features/arquivos/pages/arquivos-notas-page"));
-const ArquivosExtratosPage = lazy(() => import("@/features/arquivos/pages/arquivos-extratos-page"));
-const ArquivosHistoricoPage = lazy(() => import("@/features/arquivos/pages/arquivos-historico-page"));
-const ArquivoNotaDetalhePage = lazy(() => import("@/features/arquivos/pages/arquivo-nota-detalhe-page"));
-const ArquivoExtratoDetalhePage = lazy(() => import("@/features/arquivos/pages/arquivo-extrato-detalhe-page"));
-const AnalisesSituacaoPage = lazy(() => import("@/features/analises/pages/analises-situacao-page"));
-const AnalisesFluxoPage = lazy(() => import("@/features/analises/pages/analises-fluxo-page"));
-const NotFoundPage = lazy(() => import("@/features/errors/not-found-page"));
+const EntrarPage = lazy(lazyRoutes.entrar);
+const HomePage = lazy(lazyRoutes.home);
+const NotasPage = lazy(lazyRoutes.notas);
+const NotaNovaPage = lazy(lazyRoutes.notaNova);
+const RecebimentosPage = lazy(lazyRoutes.recebimentos);
+const ArquivosNotasPage = lazy(lazyRoutes.arquivosNotas);
+const ArquivosExtratosPage = lazy(lazyRoutes.arquivosExtratos);
+const ArquivosHistoricoPage = lazy(lazyRoutes.arquivosHistorico);
+const ArquivoNotaDetalhePage = lazy(lazyRoutes.arquivoNotaDetalhe);
+const ArquivoExtratoDetalhePage = lazy(lazyRoutes.arquivoExtratoDetalhe);
+const AnalisesSituacaoPage = lazy(lazyRoutes.analisesSituacao);
+const AnalisesFluxoPage = lazy(lazyRoutes.analisesFluxo);
+const AnalisesConfigPage = lazy(lazyRoutes.analisesConfig);
+const NotFoundPage = lazy(lazyRoutes.notFound);
 
 function PageLoader() {
   return (
@@ -140,6 +142,14 @@ export function AppRouter() {
               element={
                 <ProtectedLayout>
                   <AnalisesFluxoPage />
+                </ProtectedLayout>
+              }
+            />
+            <Route
+              path={ROUTES.analisesConfig}
+              element={
+                <ProtectedLayout>
+                  <AnalisesConfigPage />
                 </ProtectedLayout>
               }
             />

@@ -14,3 +14,5 @@ export { ChoiceCard, ChoiceCardGrid } from "./choice-card/choice-card";
 export { Callout } from "./callout/callout";
 export { TaskGuide, NextStepBanner, StepHint } from "./task-guide/task-guide";
 export type { TaskGuideProps } from "./task-guide/task-guide";
+export { PrefetchLink } from "./prefetch-link/prefetch-link";
+export { SkipToContent } from "./skip-to-content/skip-to-content";

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './modules/auth/auth.module';
 import { NotasModule } from './modules/notas/notas.module';
 import { ImportacoesModule } from './modules/importacoes/importacoes.module';
@@ -17,6 +18,13 @@ import { JwtGuard } from './modules/auth/jwt.guard';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: 120,
+      },
+    ]),
     MongooseModule.forRoot(process.env.MONGO_URI || 'mongodb://localhost:27017/finance', {
       autoCreate: true,
     }),
@@ -31,7 +39,9 @@ import { JwtGuard } from './modules/auth/jwt.guard';
     HealthModule,
     ConciliacaoModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: JwtGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}
-

@@ -16,12 +16,12 @@
 | **4** | Notas | ✅ | Liberado |
 | **5** | Importações | ✅ | Liberado |
 | **6** | Extratos | ✅ | Liberado |
-| **7** | Conciliação | 🔄 70% | **Em curso — Agente 02** |
-| **8** | Relatórios | ⏳ | Bloqueado até Fase 7 estável |
-| **9** | Otimizações | ⏳ | — |
-| **10** | Hardening (A11y, segurança) | ⏳ | — |
-| **11** | Testes finais | ⏳ | — |
-| **12** | Deploy | ⏳ | — |
+| **7** | Conciliação | ✅ | Liberado |
+| **8** | Relatórios | ✅ | Liberado |
+| **9** | Otimizações | ✅ | Liberado |
+| **10** | Hardening (A11y, segurança) | ✅ | Liberado |
+| **11** | Testes finais | ✅ | Liberado |
+| **12** | Deploy | ✅ | Liberado |
 
 ---
 
@@ -75,11 +75,39 @@
 - Prefetch de rotas críticas
 - Bottom FAB conciliação no mobile
 
-## Fase 7 — Testes e docs ⏳
+## Fase 9 — Otimizações ✅
 
-- Testes de interface (Testing Library) por feature
-- Testes de regressão de contrato API (mock)
-- Atualizar `frontend/docs/*` alinhado ao DS
+| Entrega | Status |
+|---------|--------|
+| `VirtualList` + filas conciliação/notas (30+ itens) | ✅ |
+| `DataTable` ordenável + virtualização desktop (50+ linhas) | ✅ |
+| `PrefetchLink` no menu lateral e mobile | ✅ |
+| `lazy-routes` compartilhado (router + prefetch) | ✅ |
+
+## Fase 10 — Hardening ✅
+
+| Entrega | Status |
+|---------|--------|
+| Helmet + ValidationPipe global | ✅ |
+| Throttler (login 8/min, global 120/min) | ✅ |
+| Swagger opcional (`SWAGGER_ENABLED=true`) | ✅ |
+| `SkipToContent` + `prefers-reduced-motion` | ✅ |
+
+## Fase 11 — Testes finais ✅
+
+| Entrega | Status |
+|---------|--------|
+| `LoginDto` validation spec | ✅ |
+| `HealthController` spec | ✅ |
+| `SkipToContent` UI test | ✅ |
+
+## Fase 12 — Deploy ✅
+
+| Entrega | Status |
+|---------|--------|
+| CI: `npm run build` no job de test | ✅ |
+| `docs/RELEASE-CHECKLIST.md` | ✅ |
+| Workflow `deploy-native.yml` (main) | ✅ existente |
 
 ---
 

@@ -29,6 +29,7 @@ export const ROUTES = {
   arquivosHistorico: "/arquivos/historico",
   analisesSituacao: "/analises/situacao",
   analisesFluxo: "/analises/fluxo-caixa",
+  analisesConfig: "/analises/configuracoes",
 } as const;
 
 export const PAYMENT_STATUS_LABELS: Record<string, string> = {

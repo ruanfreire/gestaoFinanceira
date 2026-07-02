@@ -58,6 +58,11 @@ export const screenTasks: Record<string, ScreenTask> = {
     steps: ["Escolha o período", "Escolha o banco", "Baixe o Excel"],
     minutes: 2,
   },
+  analisesConfig: {
+    goal: "Salvar dados padrão para exportações de fluxo de caixa",
+    steps: ["Preencha empresa e conta", "Toque em Salvar padrões", "Use no wizard de fluxo de caixa"],
+    minutes: 1,
+  },
 };
 
 export const journeyNextSteps = {

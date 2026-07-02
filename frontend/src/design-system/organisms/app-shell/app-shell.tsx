@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { PrefetchLink, SkipToContent } from "@/design-system/molecules";
 import { Home, FileText, Link2, FolderOpen, BarChart3, LogOut, Upload, FileSpreadsheet } from "lucide-react";
 import { Button, Typography, Avatar, Badge } from "@/design-system/atoms";
 import { cn } from "@/design-system/lib/cn";
@@ -25,6 +25,7 @@ const sidebarNav = [
     children: [
       { to: ROUTES.analisesSituacao, label: "Situação das notas" },
       { to: ROUTES.analisesFluxo, label: "Fluxo de caixa" },
+      { to: ROUTES.analisesConfig, label: "Config. exportação" },
     ],
   },
 ];
@@ -41,6 +42,7 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-background">
+      <SkipToContent />
       <div className="lg:flex">
         <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface lg:fixed lg:inset-y-0 lg:flex">
           <div className="flex h-16 items-center gap-3 border-b border-border px-4">
@@ -100,23 +102,25 @@ export function AppShell({
             </Typography>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" className="hidden sm:inline-flex" asChild>
-                <Link to={ROUTES.arquivosNotas}>
+                <PrefetchLink to={ROUTES.arquivosNotas}>
                   <Upload className="h-4 w-4 shrink-0" aria-hidden />
                   Enviar notas
-                </Link>
+                </PrefetchLink>
               </Button>
               <Button variant="outline" size="sm" className="hidden md:inline-flex" asChild>
-                <Link to={ROUTES.arquivosExtratos}>
+                <PrefetchLink to={ROUTES.arquivosExtratos}>
                   <FileSpreadsheet className="h-4 w-4 shrink-0" aria-hidden />
                   Enviar extrato bancário
-                </Link>
+                </PrefetchLink>
               </Button>
               <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => logout()} aria-label="Sair">
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
           </header>
-          <main className="container-app flex-1 py-4 pb-nav lg:py-6 lg:pb-6">{children}</main>
+          <main id="main-content" tabIndex={-1} className="container-app flex-1 py-4 pb-nav lg:py-6 lg:pb-6">
+            {children}
+          </main>
         </div>
       </div>
       <MobileNav pendingRecebimentos={pendingRecebimentos} />
@@ -141,7 +145,7 @@ function SidebarLink({
 }) {
   const active = pathname === to || (to !== ROUTES.home && pathname.startsWith(to));
   return (
-    <Link
+    <PrefetchLink
       to={to}
       className={cn(
         "flex items-center gap-2 rounded-lg px-3 py-2 text-body transition-default",
@@ -156,6 +160,6 @@ function SidebarLink({
           {badge > 99 ? "99+" : badge}
         </Badge>
       )}
-    </Link>
+    </PrefetchLink>
   );
 }

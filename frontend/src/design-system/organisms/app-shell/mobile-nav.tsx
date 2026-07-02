@@ -1,5 +1,6 @@
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { Home, FileText, Link2, FolderOpen, BarChart3 } from "lucide-react";
+import { PrefetchLink } from "@/design-system/molecules";
 import { cn } from "@/design-system/lib/cn";
 import { ROUTES } from "@/lib/constants";
 
@@ -26,7 +27,7 @@ export function MobileNav({ pendingRecebimentos = 0 }: { pendingRecebimentos?: n
           const active = match(pathname);
           const badge = badgeKey === "recebimentos" ? pendingRecebimentos : 0;
           return (
-            <Link
+            <PrefetchLink
               key={to}
               to={to}
               className={cn(
@@ -46,7 +47,7 @@ export function MobileNav({ pendingRecebimentos = 0 }: { pendingRecebimentos?: n
                 )}
               </span>
               <span className="truncate">{label}</span>
-            </Link>
+            </PrefetchLink>
           );
         })}
       </div>

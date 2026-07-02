@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Typography } from "@/design-system/atoms";
+import { SkipToContent } from "@/design-system/molecules";
 import { Card, CardBody } from "@/design-system/organisms";
 
 export function AuthTemplate({
@@ -13,6 +14,7 @@ export function AuthTemplate({
 }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
+      <SkipToContent />
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -21,7 +23,7 @@ export function AuthTemplate({
         <img src="/images/logo/logo-icon.svg" alt="" className="h-10 w-10" aria-hidden />
         <Typography variant="h2">Gestão Financeira</Typography>
       </motion.div>
-      <Card className="w-full max-w-md">
+      <Card id="main-content" tabIndex={-1} className="w-full max-w-md">
         <CardBody>
           <Typography variant="h3" as="h1">
             {title}

@@ -15,6 +15,7 @@
     "kill-ports": "node ./scripts/kill-ports.js",
     "install:all": "npm install --workspaces",
     "lint": "echo \"No root lint configured\"",
+    "build": "npm run build --workspace backend && npm run build --workspace frontend",
     "test": "npm --workspace backend run test && npm --workspace frontend run test"
   },
   "devDependencies": {

@@ -1,9 +1,11 @@
 import { Controller, Get } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('health')
+@SkipThrottle()
 export class HealthController {
   constructor(@InjectConnection() private readonly connection: Connection) {}
 

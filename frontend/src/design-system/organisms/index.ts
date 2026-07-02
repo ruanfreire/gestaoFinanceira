@@ -11,3 +11,4 @@ export { AttentionPanel } from "./attention-panel/attention-panel";
 export type { AttentionItem } from "./attention-panel/attention-panel";
 export { SplitView } from "./split-view/split-view";
 export { Sheet } from "./sheet/sheet";
+export { VirtualList } from "./virtual-list/virtual-list";

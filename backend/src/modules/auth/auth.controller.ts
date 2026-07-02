@@ -1,4 +1,5 @@
 import { Body, Controller, Post, Res, Req, HttpCode } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { Public } from '../../common/decorators/public.decorator';
@@ -23,6 +24,7 @@ export class AuthController {
   @Post('login')
   @Public()
   @HttpCode(200)
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
   async login(@Body() body: LoginDto, @Res({ passthrough: true }) res: any) {
     const user = await this.authService.validateUser(body.email, body.password);
     if (!user) {
@@ -37,6 +39,7 @@ export class AuthController {
   @Post('refresh')
   @Public()
   @HttpCode(200)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   async refresh(@Req() req: any, @Res({ passthrough: true }) res: any) {
     const cookie = req.cookies?.refreshToken;
     if (!cookie) return { ok: false, message: 'No refresh token' };

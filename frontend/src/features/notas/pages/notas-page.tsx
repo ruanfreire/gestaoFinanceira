@@ -18,10 +18,10 @@ import { NotaDetailPanel } from "../components/nota-detail-panel";
 import { NotasQueue } from "../components/notas-queue";
 
 const columns: DataTableColumn<Nota>[] = [
-  { id: "numero", header: "NF", cell: (n) => n.numero ?? "—" },
-  { id: "empresa", header: "Empresa", cell: (n) => n.empresa ?? "—" },
-  { id: "tomador", header: "Tomador", cell: (n) => n.tomador ?? "—" },
-  { id: "valor", header: "Valor", cell: (n) => formatMoney(n.valor) },
+  { id: "numero", header: "NF", cell: (n) => n.numero ?? "—", sortable: true, sortValue: (n) => n.numero ?? "" },
+  { id: "empresa", header: "Empresa", cell: (n) => n.empresa ?? "—", sortable: true, sortValue: (n) => n.empresa ?? "" },
+  { id: "tomador", header: "Tomador", cell: (n) => n.tomador ?? "—", sortable: true, sortValue: (n) => n.tomador ?? "" },
+  { id: "valor", header: "Valor", cell: (n) => formatMoney(n.valor), sortable: true, sortValue: (n) => n.valor ?? 0 },
   {
     id: "status",
     header: "Status",

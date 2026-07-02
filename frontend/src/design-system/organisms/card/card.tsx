@@ -8,6 +8,7 @@ export function Card({
   onClick,
   role,
   tabIndex,
+  id,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -15,9 +16,11 @@ export function Card({
   onClick?: () => void;
   role?: React.AriaRole;
   tabIndex?: number;
+  id?: string;
 }) {
   return (
     <div
+      id={id}
       className={cn(
         "rounded-xl border border-border bg-surface shadow-xs transition-default",
         hover && "hover:shadow-sm",

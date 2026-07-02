@@ -1,11 +1,21 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { analisesApi, defaultFluxoFilters } from "../api";
+import { loadFluxoDefaults } from "../hooks/use-fluxo-defaults";
 import { WizardTemplate } from "@/design-system/templates";
-import { PeriodFilter, validatePeriodFilter, TaskGuide, StepHint, ChoiceCard, ChoiceCardGrid } from "@/design-system/molecules";
+import {
+  PeriodFilter,
+  validatePeriodFilter,
+  TaskGuide,
+  StepHint,
+  ChoiceCard,
+  ChoiceCardGrid,
+} from "@/design-system/molecules";
 import { Button, Input, Label, Typography } from "@/design-system/atoms";
 import { Card, CardBody } from "@/design-system/organisms";
 import { useToast } from "@/app/toast-provider";
 import { bancoLabel } from "@/lib/format";
+import { ROUTES } from "@/lib/constants";
 import { screenTasks } from "@/lib/screen-tasks";
 
 const STEPS = [
@@ -17,12 +27,23 @@ const STEPS = [
 const STEP_HINTS = [
   "O mês atual já vem selecionado. Ajuste se precisar e toque em Continuar.",
   "Escolha o banco ou deixe consolidado para ver tudo junto.",
-  "Revise e toque em Baixar Excel — o arquivo vai para sua pasta de downloads.",
+  "Revise o resumo e toque em Baixar Excel.",
 ];
 
+function formatPeriodLabel(filters: ReturnType<typeof defaultFluxoFilters>) {
+  if (filters.filterMode === "mes" && filters.mesPagamento) {
+    return `Mês ${filters.mesPagamento}`;
+  }
+  return `${filters.from} a ${filters.to}`;
+}
+
 export default function AnalisesFluxoPage() {
+  const stored = loadFluxoDefaults();
   const [step, setStep] = useState(0);
-  const [filters, setFilters] = useState(defaultFluxoFilters);
+  const [filters, setFilters] = useState(() => ({
+    ...defaultFluxoFilters(),
+    ...stored,
+  }));
   const [exporting, setExporting] = useState(false);
   const { toast } = useToast();
   const task = screenTasks.analisesFluxo;
@@ -40,13 +61,15 @@ export default function AnalisesFluxoPage() {
     setExporting(true);
     try {
       await analisesApi.exportFluxoCaixa(filters);
-      toast("Excel baixado com sucesso", "success");
+      toast("Arquivo salvo na pasta de downloads.", "success");
     } catch (err) {
       toast(err instanceof Error ? err.message : "Falha ao exportar", "error");
     } finally {
       setExporting(false);
     }
   };
+
+  const periodLabel = formatPeriodLabel(filters);
 
   return (
     <WizardTemplate
@@ -97,10 +120,26 @@ export default function AnalisesFluxoPage() {
       {step === 2 && (
         <Card>
           <CardBody className="stack-gap">
-            <Typography variant="body">
-              Banco: <strong>{bancoLabel(filters.banco)}</strong>
-            </Typography>
-            <Typography variant="caption">
+            <Typography variant="subtitle">Resumo antes de baixar</Typography>
+            <ul className="space-y-1 text-body">
+              <li>
+                <strong>Período:</strong> {periodLabel}
+              </li>
+              <li>
+                <strong>Banco:</strong> {bancoLabel(filters.banco)}
+              </li>
+              {filters.banco !== "consolidado" && filters.empresaNome && (
+                <li>
+                  <strong>Empresa:</strong> {filters.empresaNome}
+                </li>
+              )}
+              {filters.banco !== "consolidado" && filters.saldoInicial && (
+                <li>
+                  <strong>Saldo inicial:</strong> {filters.saldoInicial}
+                </li>
+              )}
+            </ul>
+            <Typography variant="caption" tone="muted">
               O arquivo incluirá movimentos conciliados do período selecionado.
             </Typography>
 
@@ -112,25 +151,44 @@ export default function AnalisesFluxoPage() {
                 <div className="mt-3 grid gap-4 sm:grid-cols-2">
                   <div>
                     <Label>Empresa</Label>
-                    <Input className="mt-1.5" value={filters.empresaNome} onChange={(e) => setFilters({ ...filters, empresaNome: e.target.value })} />
+                    <Input
+                      className="mt-1.5"
+                      value={filters.empresaNome}
+                      onChange={(e) => setFilters({ ...filters, empresaNome: e.target.value })}
+                    />
                   </div>
                   <div>
                     <Label>CNPJ</Label>
-                    <Input className="mt-1.5" value={filters.empresaCnpj} onChange={(e) => setFilters({ ...filters, empresaCnpj: e.target.value })} />
+                    <Input
+                      className="mt-1.5"
+                      value={filters.empresaCnpj}
+                      onChange={(e) => setFilters({ ...filters, empresaCnpj: e.target.value })}
+                    />
                   </div>
                   <div>
                     <Label>Conta corrente</Label>
-                    <Input className="mt-1.5" value={filters.contaCorrente} onChange={(e) => setFilters({ ...filters, contaCorrente: e.target.value })} />
+                    <Input
+                      className="mt-1.5"
+                      value={filters.contaCorrente}
+                      onChange={(e) => setFilters({ ...filters, contaCorrente: e.target.value })}
+                    />
                   </div>
                   <div>
                     <Label>Saldo inicial</Label>
-                    <Input className="mt-1.5" value={filters.saldoInicial} onChange={(e) => setFilters({ ...filters, saldoInicial: e.target.value })} />
+                    <Input
+                      className="mt-1.5"
+                      value={filters.saldoInicial}
+                      onChange={(e) => setFilters({ ...filters, saldoInicial: e.target.value })}
+                    />
                   </div>
                 </div>
+                <Button variant="link" size="sm" className="mt-2 px-0" asChild>
+                  <Link to={ROUTES.analisesConfig}>Salvar como padrão para próximas exportações</Link>
+                </Button>
               </details>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => setStep(1)}>
                 Voltar
               </Button>

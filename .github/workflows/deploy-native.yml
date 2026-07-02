@@ -23,6 +23,9 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Build release artifacts
+        run: npm run build
+
   deploy:
     needs: test
     runs-on: ubuntu-latest
