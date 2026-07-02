@@ -109,104 +109,61 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Test SSH connection (fail fast)
+      - name: Deploy to VM (upload + install, conexão única)
+        timeout-minutes: 50
         run: |
           PORT="${SSH_PORT:-22}"
           [ -n "$PORT" ] || PORT=22
-          CONTROL="$RUNNER_TEMP/ssh-deploy-%C"
-          mkdir -p "$RUNNER_TEMP"
-          echo "CONTROL_PATH=$CONTROL" >> "$GITHUB_ENV"
-          ssh -p "$PORT" \
-            -o BatchMode=yes \
-            -o ConnectTimeout=30 \
-            -o StrictHostKeyChecking=accept-new \
-            -o ControlMaster=auto \
-            -o ControlPath="$CONTROL" \
-            -o ControlPersist=180 \
-            "${SSH_USER}@${SSH_HOST}" "echo OK"
-
-      - name: Upload release to VM
-        run: |
-          PORT="${SSH_PORT:-22}"
-          [ -n "$PORT" ] || PORT=22
-          CONTROL="${CONTROL_PATH:-$RUNNER_TEMP/ssh-deploy-%C}"
           if [ ! -f release.tar.gz ]; then
             echo "::error::release.tar.gz não encontrado após o build"
             exit 1
           fi
           ls -lh release.tar.gz
-          for attempt in 1 2 3; do
-            echo "==> SCP tentativa $attempt/3"
-            if scp -P "$PORT" \
-              -o ConnectTimeout=60 \
-              -o ServerAliveInterval=15 \
-              -o ServerAliveCountMax=4 \
-              -o StrictHostKeyChecking=accept-new \
-              -o ControlPath="$CONTROL" \
-              release.tar.gz "${SSH_USER}@${SSH_HOST}:/tmp/"; then
-              ssh -p "$PORT" -o ControlPath="$CONTROL" -O exit "${SSH_USER}@${SSH_HOST}" 2>/dev/null || true
+          SSH_BASE=(
+            -p "$PORT"
+            -o BatchMode=yes
+            -o ConnectTimeout=120
+            -o ServerAliveInterval=15
+            -o ServerAliveCountMax=10
+            -o StrictHostKeyChecking=accept-new
+            -o TCPKeepAlive=yes
+          )
+          for attempt in 1 2 3 4 5; do
+            echo "==> Deploy tentativa $attempt/5"
+            CONTROL="$RUNNER_TEMP/ssh-deploy-${attempt}-%C"
+            SSH_M=("${SSH_BASE[@]}" -o ControlMaster=auto -o ControlPath="$CONTROL" -o ControlPersist=120)
+            cleanup() {
+              ssh "${SSH_M[@]}" -O exit "${SSH_USER}@${SSH_HOST}" 2>/dev/null || true
+            }
+            trap cleanup EXIT
+            if ! ssh "${SSH_M[@]}" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
+              cleanup
+              trap - EXIT
+              wait=$((attempt * 20))
+              echo "Conexão falhou; aguardando ${wait}s..."
+              sleep "$wait"
+              continue
+            fi
+            if ! cat release.tar.gz | ssh "${SSH_M[@]}" "${SSH_USER}@${SSH_HOST}" "cat > /tmp/release.tar.gz && ls -lh /tmp/release.tar.gz"; then
+              cleanup
+              trap - EXIT
+              wait=$((attempt * 20))
+              echo "Upload falhou; aguardando ${wait}s..."
+              sleep "$wait"
+              continue
+            fi
+            if ssh "${SSH_M[@]}" "${SSH_USER}@${SSH_HOST}" \
+              "export SEED_ADMIN_PASSWORD=$(printf '%q' "${SEED_ADMIN_PASSWORD:-}") APP_DIR=$(printf '%q' "${DEPLOY_PATH:-/opt/gestao-financeira}")" \
+              bash -s < deploy/ci-remote-deploy.sh; then
+              cleanup
+              trap - EXIT
               exit 0
             fi
-            sleep 10
+            cleanup
+            trap - EXIT
+            wait=$((attempt * 20))
+            echo "Instalação falhou; aguardando ${wait}s..."
+            sleep "$wait"
           done
-          echo "::error::SCP falhou após 3 tentativas"
+          echo "::error::Deploy falhou após 5 tentativas"
           exit 1
-
-      - name: Install on VM
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          timeout: 60s
-          command_timeout: 45m
-          envs: SEED_ADMIN_PASSWORD
-          script: |
-            set -euo pipefail
-            APP_DIR="${{ secrets.DEPLOY_PATH }}"
-            APP_DIR="${APP_DIR:-/opt/gestao-financeira}"
-            sudo mkdir -p "$APP_DIR"
-            sudo chown opc:opc "$APP_DIR"
-            STAGING=$(mktemp -d)
-            trap 'rm -rf "$STAGING"' EXIT
-            tar -xzf /tmp/release.tar.gz -C "$STAGING"
-            sudo rsync -a "$STAGING/" "$APP_DIR/"
-            sudo chown -R opc:opc "$APP_DIR"
-            sudo chmod o+x "$APP_DIR" "$APP_DIR/frontend" "$APP_DIR/frontend/dist" 2>/dev/null || true
-            sudo chmod -R o+rX "$APP_DIR/frontend/dist" 2>/dev/null || true
-            cd "$APP_DIR"
-            chmod +x deploy/install-native.sh deploy/maintenance.sh deploy/backup-mongo.sh deploy/setup-backup-cron.sh deploy/ssl/*.sh 2>/dev/null || true
-            export SEED_ADMIN_PASSWORD="${{ secrets.SEED_ADMIN_PASSWORD }}"
-            DEPLOY_OK=1
-            if ! bash deploy/install-native.sh; then
-              DEPLOY_OK=0
-            fi
-            if ! bash deploy/maintenance.sh off; then
-              DEPLOY_OK=0
-              bash deploy/maintenance.sh force-off || true
-            fi
-            echo "==> Verificação final dos serviços"
-            ok=0
-            for i in $(seq 1 30); do
-              if sudo systemctl is-active --quiet gestao-financeira-backend \
-                && sudo systemctl is-active --quiet nginx \
-                && sudo systemctl is-active --quiet mongod; then
-                ok=1
-                break
-              fi
-              echo "==> Aguardando serviços ficarem ativos ($i/30)..."
-              sleep 2
-            done
-            if [ "$ok" -ne 1 ]; then
-              DEPLOY_OK=0
-              echo "::error::Serviços inativos após deploy"
-              sudo systemctl status gestao-financeira-backend nginx mongod --no-pager || true
-              sudo journalctl -u gestao-financeira-backend -n 30 --no-pager || true
-              sudo journalctl -u mongod -n 30 --no-pager || true
-            fi
-            rm -f /tmp/release.tar.gz
-            if [ "$DEPLOY_OK" -eq 0 ]; then
-              echo "::error::Deploy falhou; verifique logs na VM"
-              exit 1
-            fi
