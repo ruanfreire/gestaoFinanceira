@@ -112,19 +112,45 @@ jobs:
       - name: Test SSH connection (fail fast)
         run: |
           PORT="${SSH_PORT:-22}"
+          [ -n "$PORT" ] || PORT=22
+          CONTROL="$RUNNER_TEMP/ssh-deploy-%C"
+          mkdir -p "$RUNNER_TEMP"
+          echo "CONTROL_PATH=$CONTROL" >> "$GITHUB_ENV"
           ssh -p "$PORT" \
             -o BatchMode=yes \
             -o ConnectTimeout=30 \
             -o StrictHostKeyChecking=accept-new \
+            -o ControlMaster=auto \
+            -o ControlPath="$CONTROL" \
+            -o ControlPersist=180 \
             "${SSH_USER}@${SSH_HOST}" "echo OK"
 
       - name: Upload release to VM
         run: |
           PORT="${SSH_PORT:-22}"
-          scp -P "$PORT" \
-            -o ConnectTimeout=30 \
-            -o StrictHostKeyChecking=accept-new \
-            release.tar.gz "${SSH_USER}@${SSH_HOST}:/tmp/"
+          [ -n "$PORT" ] || PORT=22
+          CONTROL="${CONTROL_PATH:-$RUNNER_TEMP/ssh-deploy-%C}"
+          if [ ! -f release.tar.gz ]; then
+            echo "::error::release.tar.gz não encontrado após o build"
+            exit 1
+          fi
+          ls -lh release.tar.gz
+          for attempt in 1 2 3; do
+            echo "==> SCP tentativa $attempt/3"
+            if scp -P "$PORT" \
+              -o ConnectTimeout=60 \
+              -o ServerAliveInterval=15 \
+              -o ServerAliveCountMax=4 \
+              -o StrictHostKeyChecking=accept-new \
+              -o ControlPath="$CONTROL" \
+              release.tar.gz "${SSH_USER}@${SSH_HOST}:/tmp/"; then
+              ssh -p "$PORT" -o ControlPath="$CONTROL" -O exit "${SSH_USER}@${SSH_HOST}" 2>/dev/null || true
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::SCP falhou após 3 tentativas"
+          exit 1
 
       - name: Install on VM
         uses: appleboy/ssh-action@v1.2.0
