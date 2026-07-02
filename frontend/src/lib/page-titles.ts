@@ -1,5 +1,5 @@
 import { ROUTES } from "@/lib/constants";
-import { stripOrgSlug } from "@/lib/org-path";
+import { inferOrgSlugFromPath, stripOrgSlug } from "@/lib/org-path";
 
 const TITLES: Array<{ match: (path: string) => boolean; title: string }> = [
   { match: (p) => p === ROUTES.home, title: "Início" },
@@ -19,7 +19,8 @@ const TITLES: Array<{ match: (path: string) => boolean; title: string }> = [
 ];
 
 export function resolvePageTitle(pathname: string, orgSlug?: string): string {
-  const path = stripOrgSlug(pathname, orgSlug);
+  const slug = orgSlug ?? inferOrgSlugFromPath(pathname);
+  const path = stripOrgSlug(pathname, slug);
   const found = TITLES.find((entry) => entry.match(path));
   return found?.title ?? "Gestão Financeira";
 }

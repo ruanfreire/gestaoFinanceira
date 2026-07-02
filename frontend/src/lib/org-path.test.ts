@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stripOrgSlug, withOrgSlug } from "./org-path";
+import { inferOrgSlugFromPath, stripOrgSlug, withOrgSlug } from "./org-path";
 
 describe("org-path", () => {
   it("prefixes app routes with org slug", () => {
@@ -15,6 +15,14 @@ describe("org-path", () => {
   it("strips org slug from pathname", () => {
     expect(stripOrgSlug("/empresa-demo/notas")).toBe("/notas");
     expect(stripOrgSlug("/empresa-demo", "empresa-demo")).toBe("/");
+    expect(stripOrgSlug("/empresa-demo", inferOrgSlugFromPath("/empresa-demo"))).toBe("/");
+  });
+
+  it("infere slug no pathname", () => {
+    expect(inferOrgSlugFromPath("/empresa-demo")).toBe("empresa-demo");
+    expect(inferOrgSlugFromPath("/empresa-demo/notas")).toBe("empresa-demo");
+    expect(inferOrgSlugFromPath("/notas")).toBeUndefined();
+    expect(inferOrgSlugFromPath("/auth/entrar")).toBeUndefined();
   });
 
   it("keeps legacy routes without org slug", () => {

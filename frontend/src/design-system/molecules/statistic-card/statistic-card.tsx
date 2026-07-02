@@ -23,7 +23,7 @@ export function StatisticCard({
         className,
       )}
     >
-      <Typography variant="caption" tone="muted" className="leading-snug">
+      <Typography variant="caption" className="leading-snug">
         {label}
       </Typography>
       <div className="mt-3">

@@ -25,6 +25,7 @@ test.describe("WCAG — axe-core", () => {
     test("início sem violações críticas ou sérias", async ({ page }) => {
       await page.goto("/");
       await expect(page.getByRole("heading", { name: "Início", level: 1 })).toBeVisible();
+      await expect(page.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 15_000 });
       const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
       const blocking = results.violations.filter((v) => BLOCKING_IMPACTS.has(v.impact ?? ""));
       expect(blocking, formatViolations(blocking)).toEqual([]);

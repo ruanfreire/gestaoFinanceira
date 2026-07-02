@@ -38,6 +38,14 @@ export function stripOrgSlug(pathname: string, orgSlug?: string): string {
   return pathname;
 }
 
+/** Infere slug da org no pathname quando useParams não está disponível (ex.: PageTitleSync). */
+export function inferOrgSlugFromPath(pathname: string): string | undefined {
+  if (pathname === "/" || isPublicAppPath(pathname)) return undefined;
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length === 0 || APP_ROUTE_ROOTS.has(parts[0]!)) return undefined;
+  return parts[0];
+}
+
 export function withOrgSlug(slug: string | undefined, path: string): string {
   if (!slug || isPublicAppPath(path)) return path;
   const normalized = path.startsWith("/") ? path : `/${path}`;

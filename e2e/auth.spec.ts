@@ -12,6 +12,6 @@ test.describe("Autenticação", () => {
 
   test("login redireciona para o início", async ({ page }) => {
     await login(page);
-    await expect(page).toHaveTitle(/Início/);
+    await expect(page).toHaveTitle(/Início · Gestão Financeira/);
   });
 });

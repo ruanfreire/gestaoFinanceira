@@ -6,7 +6,8 @@ describe("page-titles", () => {
   it("resolve títulos por rota", () => {
     expect(resolvePageTitle(ROUTES.home)).toBe("Início");
     expect(resolvePageTitle(ROUTES.notas)).toBe("Minhas notas");
-    expect(resolvePageTitle("/unknown")).toBe("Gestão Financeira");
+    expect(resolvePageTitle("/empresa-demo")).toBe("Início");
+    expect(resolvePageTitle("/unknown-page/extra")).toBe("Gestão Financeira");
   });
 
   it("formata document.title", () => {

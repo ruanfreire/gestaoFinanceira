@@ -2,7 +2,7 @@ import { Skeleton } from "@/design-system/atoms";
 
 export function DashboardSkeleton() {
   return (
-    <div className="stack-gap section-gap" aria-busy="true" aria-label="Carregando dashboard">
+    <div className="stack-gap section-gap" role="status" aria-busy="true" aria-label="Carregando dashboard">
       <Skeleton className="h-32 w-full" />
       <div className="grid gap-4 lg:grid-cols-12">
         <Skeleton className="h-48 lg:col-span-8" />

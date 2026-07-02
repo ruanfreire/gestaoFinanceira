@@ -13,8 +13,9 @@ const typographyVariants = cva("", {
       subtitle: "text-[length:var(--text-subtitle)] leading-[var(--text-subtitle--line-height)] font-medium",
       body: "text-[length:var(--text-body)] leading-[var(--text-body--line-height)]",
       small: "text-[length:var(--text-small)] leading-[var(--text-small--line-height)]",
-      caption: "text-[length:var(--text-caption)] leading-[var(--text-caption--line-height)] text-muted-foreground",
-      overline: "text-[length:var(--text-overline)] leading-[var(--text-overline--line-height)] font-semibold uppercase tracking-widest text-muted-foreground",
+      caption: "text-[length:var(--text-caption)] leading-[var(--text-caption--line-height)]",
+      overline:
+        "text-[length:var(--text-overline)] leading-[var(--text-overline--line-height)] font-semibold uppercase tracking-widest",
     },
     tone: {
       default: "text-foreground",
@@ -57,8 +58,10 @@ export function Typography({
   ...props
 }: TypographyProps) {
   const Component = (as ?? defaultElement[variant!]) as React.ElementType;
+  const resolvedTone =
+    tone ?? (variant === "caption" || variant === "overline" ? "muted" : "default");
   return (
-    <Component className={cn(typographyVariants({ variant, tone }), className)} {...props}>
+    <Component className={cn(typographyVariants({ variant, tone: resolvedTone }), className)} {...props}>
       {children}
     </Component>
   );
