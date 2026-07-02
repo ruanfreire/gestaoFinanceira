@@ -1,10 +1,12 @@
-import { useLocation, Navigate, Link } from "react-router-dom";
+import { useLocation, Navigate, Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { AppBootLoader } from "@/app/app-boot-loader";
 import { useAuth } from "@/features/auth/context";
 import { authApi } from "@/features/auth/api";
+import { resolveAuthHomePath } from "@/features/auth/resolve-auth-home";
 import { useAuthWelcome } from "@/features/auth/hooks/use-auth-welcome";
 import { loginSchema, type LoginFormData } from "@/features/auth/schema";
 import { AuthTemplate } from "@/design-system/templates";
@@ -12,25 +14,18 @@ import { Button, Input, Checkbox, Typography } from "@/design-system/atoms";
 import { FormGroup, Callout } from "@/design-system/molecules";
 import { ErrorState } from "@/design-system/molecules";
 import { ROUTES } from "@/lib/constants";
-import { isSuperadmin } from "@/features/auth/types";
-import { homePathForSlug } from "@/lib/org-path";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
 
 export default function EntrarPage() {
-  const { isAuthenticated, login, user } = useAuth();
+  const { isAuthenticated, isBootstrapping, login, user } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
-  const defaultFrom =
-    user && isSuperadmin(user)
-      ? ROUTES.superadmin
-      : user?.organization?.slug
-        ? homePathForSlug(user.organization.slug)
-        : ROUTES.home;
-  const from = (location.state as { from?: string } | null)?.from ?? defaultFrom;
+  const from = (location.state as { from?: string } | null)?.from;
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const welcome = useAuthWelcome();
-  useFocusTrap(formRef, !isAuthenticated);
+  useFocusTrap(formRef, !isAuthenticated && !isBootstrapping);
 
   const {
     register,
@@ -47,13 +42,25 @@ export default function EntrarPage() {
     },
   });
 
-  if (isAuthenticated) return <Navigate to={from} replace />;
+  if (isBootstrapping) {
+    return <AppBootLoader />;
+  }
+
+  const redirectTarget = resolveAuthHomePath(user, from);
+  if (isAuthenticated && redirectTarget) {
+    return <Navigate to={redirectTarget} replace />;
+  }
 
   const onSubmit = async (data: LoginFormData) => {
     setError(null);
     try {
       await login(data);
       welcome.dismiss();
+      const nextUser = authApi.getUser();
+      const target = resolveAuthHomePath(nextUser, from);
+      if (target) {
+        navigate(target, { replace: true });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível entrar");
     }

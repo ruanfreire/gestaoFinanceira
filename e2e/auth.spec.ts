@@ -14,4 +14,19 @@ test.describe("Autenticação", () => {
     await login(page);
     await expect(page).toHaveTitle(/Início · Gestão Financeira/);
   });
+
+  test("sessão inválida sem slug não deixa tela em branco", async ({ page }) => {
+    await page.goto("/auth/entrar");
+    await page.evaluate(() => {
+      localStorage.setItem("accessToken", "invalid-token");
+      localStorage.setItem(
+        "user",
+        JSON.stringify({ _id: "1", name: "Test", email: "admin@finance.local", roles: ["admin"] }),
+      );
+    });
+    await page.reload();
+
+    await expect(page.getByRole("textbox", { name: "E-mail" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator("body")).not.toBeEmpty();
+  });
 });

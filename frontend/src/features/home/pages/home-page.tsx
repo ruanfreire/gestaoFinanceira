@@ -105,7 +105,21 @@ export default function HomePage() {
     );
   }
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <motion.div {...pageMotion}>
+        <DashboardHeader
+          filters={filters}
+          onFiltersChange={setFilters}
+          onApplyFilters={() => refetch()}
+          loading
+        />
+        <div className="mt-6">
+          <DashboardSkeleton />
+        </div>
+      </motion.div>
+    );
+  }
 
   const kpiItems = buildKpiItems(data.kpis, previousKpis);
 

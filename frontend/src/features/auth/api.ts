@@ -63,14 +63,18 @@ export const authApi = {
   },
 
   async fetchMe(): Promise<AuthUser | null> {
+    if (!this.isAuthenticated()) return null;
     try {
       const res = await api.get<{ ok: boolean; user?: AuthUser }>("/auth/me");
       if (res.data?.ok && res.data.user) {
         localStorage.setItem(USER_KEY, JSON.stringify(res.data.user));
         return res.data.user;
       }
-    } catch {
-      /* ignore */
+    } catch (error) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (!status || status === 401 || status === 403) {
+        this.clearSession();
+      }
     }
     return null;
   },
