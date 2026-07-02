@@ -153,8 +153,8 @@ jobs:
               continue
             fi
             if ssh "${SSH_M[@]}" "${SSH_USER}@${SSH_HOST}" \
-              "export SEED_ADMIN_PASSWORD=$(printf '%q' "${SEED_ADMIN_PASSWORD:-}") APP_DIR=$(printf '%q' "${DEPLOY_PATH:-/opt/gestao-financeira}")" \
-              bash -s < deploy/ci-remote-deploy.sh; then
+              "export SEED_ADMIN_PASSWORD=$(printf '%q' "${SEED_ADMIN_PASSWORD:-}") APP_DIR=$(printf '%q' "${DEPLOY_PATH:-/opt/gestao-financeira}"); bash -s" \
+              < deploy/ci-remote-deploy.sh; then
               cleanup
               trap - EXIT
               exit 0
