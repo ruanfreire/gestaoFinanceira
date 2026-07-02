@@ -64,9 +64,9 @@ Write-Host "==> Empacotando artefatos..."
   package.json package-lock.json `
   backend/package.json backend/dist `
   frontend/package.json frontend/dist `
-  UI/package.json `
   deploy/install-native.sh `
   deploy/maintenance.sh `
+  deploy/backup-mongo.sh `
   deploy/ssl/generate-selfsigned.sh `
   deploy/ssl/install-letsencrypt.sh `
   deploy/env.native.example `
