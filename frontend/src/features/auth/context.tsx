@@ -7,7 +7,7 @@ type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isBootstrapping: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<AuthUser>;
   setSession: (user: AuthUser) => void;
   logout: () => Promise<void>;
 };
@@ -61,8 +61,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!res.ok || !res.accessToken) {
       throw new Error(res.message || "Credenciais inválidas");
     }
-    setUser(res.user ?? authApi.getUser());
+    const sessionUser = res.user ?? authApi.getUser();
+    if (!sessionUser) {
+      throw new Error("Não foi possível carregar o perfil após o login.");
+    }
+    setUser(sessionUser);
     setIsBootstrapping(false);
+    return sessionUser;
   }, []);
 
   const setSession = useCallback((nextUser: AuthUser) => {

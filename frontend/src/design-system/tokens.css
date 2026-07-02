@@ -1,4 +1,4 @@
-/* Design Tokens — Gestão Financeira
+/* Design Tokens — Fecho
  * Referências: Stripe Dashboard, Linear, Mercury — hierarquia clara, superfícies neutras, acento único
  * Escala 8px · Grid 12 colunas · WCAG AA
  */
@@ -98,13 +98,13 @@
   --color-border: #e2e8f0;
   --color-border-subtle: #f1f5f9;
   --color-input: #e2e8f0;
-  --color-ring: #3b82f6;
+  --color-ring: #0e7490;
 
-  --color-primary: #1e40af;
-  --color-primary-hover: #1e3a8a;
-  --color-primary-active: #172554;
+  --color-primary: #0e7490;
+  --color-primary-hover: #0c6378;
+  --color-primary-active: #0a4f62;
   --color-primary-foreground: #ffffff;
-  --color-primary-subtle: #eff6ff;
+  --color-primary-subtle: #ecfeff;
 
   --color-secondary: #f1f5f9;
   --color-secondary-hover: #e2e8f0;
@@ -131,8 +131,8 @@
   --color-disabled: #94a3b8;
   --color-disabled-bg: #f1f5f9;
 
-  --color-accent: #eff6ff;
-  --color-accent-foreground: #1d4ed8;
+  --color-accent: #ecfeff;
+  --color-accent-foreground: #0e7490;
 
   /* aliases legados */
   --color-destructive: var(--color-danger);
@@ -150,13 +150,13 @@
   --color-border: #27272a;
   --color-border-subtle: #1f1f23;
   --color-input: #27272a;
-  --color-ring: #60a5fa;
+  --color-ring: #22d3ee;
 
-  --color-primary: #3b82f6;
-  --color-primary-hover: #60a5fa;
-  --color-primary-active: #2563eb;
-  --color-primary-foreground: #ffffff;
-  --color-primary-subtle: #172554;
+  --color-primary: #22d3ee;
+  --color-primary-hover: #67e8f9;
+  --color-primary-active: #06b6d4;
+  --color-primary-foreground: #042f3a;
+  --color-primary-subtle: #083344;
 
   --color-secondary: #27272a;
   --color-secondary-hover: #3f3f46;
@@ -173,6 +173,6 @@
   --color-disabled: #52525b;
   --color-disabled-bg: #27272a;
 
-  --color-accent: #172554;
-  --color-accent-foreground: #93c5fd;
+  --color-accent: #083344;
+  --color-accent-foreground: #67e8f9;
 }

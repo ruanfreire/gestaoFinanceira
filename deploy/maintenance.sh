@@ -77,7 +77,7 @@ run_pending_seed() {
   fi
   echo "==> Seed admin (pós-deploy)"
   rm -f "$APP_DIR/.deploy/pending-seed"
-  if (cd "$APP_DIR/backend" && npm run seed:prod); then
+  if (cd "$APP_DIR/backend" && set -a && source "$APP_DIR/.env" && set +a && npm run seed:prod); then
     mkdir -p "$APP_DIR/.deploy"
     touch "$APP_DIR/.deploy/seed-done"
   else

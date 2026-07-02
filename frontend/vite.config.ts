@@ -10,12 +10,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["images/logo/logo-icon.svg"],
+      includeAssets: ["images/logo/logo-icon.svg", "images/logo/logo-wordmark.svg"],
       manifest: {
-        name: "Gestão Financeira",
-        short_name: "Gestão",
-        description: "Controle financeiro, notas fiscais e conciliação",
-        theme_color: "#0f172a",
+        name: "Fecho",
+        short_name: "Fecho",
+        description: "Concilie notas, extratos e recebimentos sem planilha.",
+        theme_color: "#0b3d4c",
         background_color: "#ffffff",
         display: "standalone",
         start_url: "/",

@@ -90,6 +90,16 @@ export class AuthService {
     };
   }
 
+  assertClientAppUserReady(user: Record<string, unknown>) {
+    const roles = user.roles as string[] | undefined;
+    if (roles?.includes('superadmin')) return;
+    const org = user.organization as { slug?: string } | undefined;
+    if (org?.slug) return;
+    throw new UnauthorizedException(
+      'Conta sem organização vinculada. Use outro usuário ou peça ao administrador para corrigir o cadastro.',
+    );
+  }
+
   async getUserById(id: string) {
     const user = asLeanOne(
       await this.userModel

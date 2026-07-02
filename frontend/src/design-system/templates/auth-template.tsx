@@ -1,4 +1,5 @@
 import { Typography } from "@/design-system/atoms";
+import { BrandLogo } from "@/design-system/atoms";
 import { SkipToContent, ThemeToggle } from "@/design-system/molecules";
 import { Card, CardBody } from "@/design-system/organisms";
 
@@ -17,9 +18,8 @@ export function AuthTemplate({
         <ThemeToggle />
       </div>
       <SkipToContent />
-      <div className="mb-8 flex items-center gap-3">
-        <img src="/images/logo/logo-icon.svg" alt="" className="h-10 w-10" aria-hidden />
-        <Typography variant="h2">Gestão Financeira</Typography>
+      <div className="mb-8">
+        <BrandLogo size="lg" />
       </div>
       <Card id="main-content" tabIndex={-1} className="w-full max-w-md">
         <CardBody>

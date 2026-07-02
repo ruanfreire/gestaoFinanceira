@@ -1,4 +1,5 @@
 import { ROUTES } from "@/lib/constants";
+import { APP_NAME } from "@/lib/brand";
 import { inferOrgSlugFromPath, stripOrgSlug } from "@/lib/org-path";
 
 const TITLES: Array<{ match: (path: string) => boolean; title: string }> = [
@@ -22,10 +23,10 @@ export function resolvePageTitle(pathname: string, orgSlug?: string): string {
   const slug = orgSlug ?? inferOrgSlugFromPath(pathname);
   const path = stripOrgSlug(pathname, slug);
   const found = TITLES.find((entry) => entry.match(path));
-  return found?.title ?? "Gestão Financeira";
+  return found?.title ?? APP_NAME;
 }
 
 export function formatDocumentTitle(pageTitle: string): string {
-  if (pageTitle === "Gestão Financeira") return pageTitle;
-  return `${pageTitle} · Gestão Financeira`;
+  if (pageTitle === APP_NAME) return pageTitle;
+  return `${pageTitle} · ${APP_NAME}`;
 }

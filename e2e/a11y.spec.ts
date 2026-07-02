@@ -11,7 +11,7 @@ function formatViolations(violations: { id: string; impact?: string; description
 test.describe("WCAG — axe-core", () => {
   test("login sem violações críticas ou sérias", async ({ page }) => {
     await page.goto("/auth/entrar");
-    await expect(page.getByRole("heading", { name: "Gestão Financeira", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Fecho", level: 2 })).toBeVisible();
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
     const blocking = results.violations.filter((v) => BLOCKING_IMPACTS.has(v.impact ?? ""));
     expect(blocking, formatViolations(blocking)).toEqual([]);

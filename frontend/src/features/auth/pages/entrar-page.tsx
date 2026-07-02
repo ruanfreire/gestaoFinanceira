@@ -1,7 +1,7 @@
 import { useLocation, Navigate, Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { AppBootLoader } from "@/app/app-boot-loader";
 import { useAuth } from "@/features/auth/context";
@@ -17,15 +17,16 @@ import { ROUTES } from "@/lib/constants";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
 
 export default function EntrarPage() {
-  const { isAuthenticated, isBootstrapping, login, user } = useAuth();
+  const { isAuthenticated, isBootstrapping, login, logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from;
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const welcome = useAuthWelcome();
-  useFocusTrap(formRef, !isAuthenticated && !isBootstrapping);
+  useFocusTrap(formRef, !isAuthenticated && !isBootstrapping && !isRedirecting);
 
   const {
     register,
@@ -42,7 +43,14 @@ export default function EntrarPage() {
     },
   });
 
-  if (isBootstrapping) {
+  useEffect(() => {
+    if (isBootstrapping || isRedirecting || !isAuthenticated) return;
+    const target = resolveAuthHomePath(user, from);
+    if (target) return;
+    void logout();
+  }, [from, isAuthenticated, isBootstrapping, isRedirecting, logout, user]);
+
+  if (isBootstrapping || isRedirecting) {
     return <AppBootLoader />;
   }
 
@@ -54,13 +62,18 @@ export default function EntrarPage() {
   const onSubmit = async (data: LoginFormData) => {
     setError(null);
     try {
-      await login(data);
+      const sessionUser = await login(data);
       welcome.dismiss();
-      const nextUser = authApi.getUser();
-      const target = resolveAuthHomePath(nextUser, from);
-      if (target) {
-        navigate(target, { replace: true });
+      const target = resolveAuthHomePath(sessionUser, from);
+      if (!target) {
+        await logout();
+        setError(
+          "Sua conta não está vinculada a uma organização. Peça ao administrador para corrigir o cadastro.",
+        );
+        return;
       }
+      setIsRedirecting(true);
+      navigate(target, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível entrar");
     }

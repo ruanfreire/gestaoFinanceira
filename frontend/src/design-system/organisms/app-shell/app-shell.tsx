@@ -1,7 +1,7 @@
 import { useLocation } from "react-router-dom";
 import { PrefetchLink, SkipToContent, ThemeToggle } from "@/design-system/molecules";
 import { Home, FileText, Link2, FolderOpen, BarChart3, LogOut, Search, Settings } from "lucide-react";
-import { Button, Typography, Avatar, Badge } from "@/design-system/atoms";
+import { Button, Typography, Avatar, Badge, BrandLogo } from "@/design-system/atoms";
 import { cn } from "@/design-system/lib/cn";
 import { ROUTES } from "@/lib/constants";
 import { stripOrgSlug } from "@/lib/org-path";
@@ -74,9 +74,8 @@ export function AppShell({
       <SkipToContent />
       <div className="lg:flex">
         <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-surface lg:fixed lg:inset-y-0 lg:flex">
-          <div className="flex h-16 items-center gap-3 border-b border-border px-4">
-            <img src="/images/logo/logo-icon.svg" alt="" className="h-8 w-8" aria-hidden />
-            <Typography variant="subtitle">Gestão Financeira</Typography>
+          <div className="flex h-16 items-center border-b border-border px-4">
+            <BrandLogo size="md" />
           </div>
           <nav className="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Menu lateral">
             {sidebarNav.map((item) =>
@@ -123,10 +122,7 @@ export function AppShell({
 
         <div className="flex min-h-screen flex-1 flex-col lg:pl-64">
           <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-surface/95 px-4 backdrop-blur lg:px-6">
-            <div className="flex items-center gap-2 lg:hidden">
-              <img src="/images/logo/logo-icon.svg" alt="" className="h-7 w-7" aria-hidden />
-              <Typography variant="subtitle">Gestão Financeira</Typography>
-            </div>
+            <BrandLogo size="sm" className="lg:hidden" />
             <Typography variant="small" tone="muted" className="hidden lg:flex lg:items-center lg:gap-3">
               <span>
                 Olá, <span className="font-medium text-foreground">{user?.name?.split(" ")[0]}</span>

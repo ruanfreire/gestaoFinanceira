@@ -71,12 +71,14 @@ export class AuthController {
       }
       await this.authService.recordLogin(String(user._id), req.ip);
       const fullUser = await this.authService.getUserById(String(user._id));
+      const sessionUser = (fullUser ?? user) as Record<string, unknown>;
+      this.authService.assertClientAppUserReady(sessionUser);
       const accessToken = this.authService.signAccessToken(
-        this.authService.buildAccessPayload((fullUser ?? user) as Record<string, unknown>),
+        this.authService.buildAccessPayload(sessionUser),
       );
       const { token: refreshToken } = await this.authService.createAndStoreRefreshToken(user._id);
       res.cookie('refreshToken', refreshToken, cookieOptions());
-      return { ok: true, accessToken, user: fullUser ?? user };
+      return { ok: true, accessToken, user: sessionUser };
     } catch (error) {
       if (error instanceof UnauthorizedException) {
         return { ok: false, message: error.message };

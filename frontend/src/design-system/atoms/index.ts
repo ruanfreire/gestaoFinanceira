@@ -12,3 +12,4 @@ export { Checkbox } from "./checkbox/checkbox";
 export { Tooltip, TooltipProvider } from "./tooltip/tooltip";
 export { Avatar } from "./avatar/avatar";
 export { TrendBadge } from "./trend-badge/trend-badge";
+export { BrandLogo } from "./brand-logo";

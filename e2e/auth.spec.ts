@@ -12,7 +12,7 @@ test.describe("Autenticação", () => {
 
   test("login redireciona para o início", async ({ page }) => {
     await login(page);
-    await expect(page).toHaveTitle(/Início · Gestão Financeira/);
+    await expect(page).toHaveTitle(/Início · Fecho/);
   });
 
   test("sessão inválida sem slug não deixa tela em branco", async ({ page }) => {
