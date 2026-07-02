@@ -2,6 +2,8 @@ import path from "node:path";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
+const apiProxyTarget = process.env.E2E_API_PROXY ?? "http://localhost:4000";
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -21,7 +23,18 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       "/api": {
-        target: "http://localhost:4000",
+        target: apiProxyTarget,
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
+  preview: {
+    port: 4173,
+    strictPort: true,
+    proxy: {
+      "/api": {
+        target: apiProxyTarget,
         changeOrigin: true,
         secure: false,
       },

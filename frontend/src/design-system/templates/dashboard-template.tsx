@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { PageHeader } from "@/design-system/molecules";
 import { ErrorState } from "@/design-system/molecules";
 import { Skeleton } from "@/design-system/atoms";
+import { useFadeInMotion } from "@/lib/motion";
 
 export function DashboardTemplate({
   title,
@@ -30,8 +31,9 @@ export function DashboardTemplate({
   timeline?: React.ReactNode;
   children?: React.ReactNode;
 }) {
+  const fadeIn = useFadeInMotion(8);
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+    <motion.div {...fadeIn}>
       <PageHeader title={title} description={description} />
       {taskGuide && <div className="mb-4">{taskGuide}</div>}
       {loading && (

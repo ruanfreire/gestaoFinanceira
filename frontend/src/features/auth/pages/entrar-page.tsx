@@ -1,4 +1,4 @@
-import { useNavigate, useLocation, Navigate } from "react-router-dom";
+import { useLocation, Navigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
@@ -15,7 +15,6 @@ import { screenTasks } from "@/lib/screen-tasks";
 
 export default function EntrarPage() {
   const { isAuthenticated, login } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? ROUTES.home;
   const [showPassword, setShowPassword] = useState(false);
@@ -42,7 +41,6 @@ export default function EntrarPage() {
     setError(null);
     try {
       await login(data);
-      navigate(from, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível entrar");
     }
@@ -71,7 +69,7 @@ export default function EntrarPage() {
               type="button"
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              aria-label={showPassword ? "Ocultar caracteres" : "Exibir caracteres"}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -84,7 +82,7 @@ export default function EntrarPage() {
             onCheckedChange={(c) => setValue("remember", c === true)}
           />
           <label htmlFor="remember">
-            <Typography variant="small">Lembrar e-mail neste dispositivo</Typography>
+            <Typography variant="small">Lembrar neste dispositivo</Typography>
           </label>
         </div>
         <Button type="submit" className="w-full" loading={isSubmitting}>

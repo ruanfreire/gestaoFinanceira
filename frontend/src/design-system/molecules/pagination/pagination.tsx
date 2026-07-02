@@ -16,8 +16,8 @@ export function Pagination({
       <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
         Anterior
       </Button>
-      <Typography variant="small" tone="muted">
-        {page} / {totalPages}
+      <Typography variant="small" tone="muted" aria-current="page">
+        Página {page} de {totalPages}
       </Typography>
       <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
         Próxima

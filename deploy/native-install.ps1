@@ -67,6 +67,7 @@ Write-Host "==> Empacotando artefatos..."
   deploy/install-native.sh `
   deploy/maintenance.sh `
   deploy/backup-mongo.sh `
+  deploy/setup-backup-cron.sh `
   deploy/ssl/generate-selfsigned.sh `
   deploy/ssl/install-letsencrypt.sh `
   deploy/env.native.example `

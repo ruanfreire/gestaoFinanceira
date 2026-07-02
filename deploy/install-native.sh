@@ -314,6 +314,10 @@ else
 fi
 
 echo "==> Deploy concluído ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+if [[ -x "$APP_DIR/deploy/setup-backup-cron.sh" ]]; then
+  echo "==> Configurando cron de backup MongoDB"
+  APP_DIR="$APP_DIR" bash "$APP_DIR/deploy/setup-backup-cron.sh" || echo "AVISO: cron de backup não configurado"
+fi
 if is_maintenance_active; then
   echo "==> Manutenção ativa; serviços serão verificados em maintenance.sh off"
 else

@@ -13,7 +13,7 @@ Use antes de cada deploy em produção (`main` → GitHub Actions).
 - [ ] `curl -fsS https://<host>/api/health` → `ok: true`
 - [ ] Login com usuário admin funciona
 - [ ] `sudo systemctl status gestao-financeira-backend nginx mongod` → active
-- [ ] Cron de backup Mongo configurado (`deploy/backup-mongo.sh`)
+- [x] Cron de backup Mongo — `deploy/setup-backup-cron.sh` (automático no `install-native.sh`)
 
 ## Rollback
 

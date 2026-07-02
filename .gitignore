@@ -9,6 +9,10 @@ dist/
 .DS_Store
 .data/
 
+# Playwright
+test-results/
+playwright-report/
+
 # Chaves SSH — nunca commitar
 ssh/*.key
 ssh/*.pem

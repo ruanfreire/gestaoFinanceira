@@ -21,6 +21,7 @@ export function SegmentedTabs<T extends string>({
             type="button"
             role="tab"
             aria-selected={active}
+            tabIndex={active ? 0 : -1}
             onClick={() => onChange(opt.id)}
             className={cn(
               "flex-1 rounded-md px-3 py-2 text-small font-medium transition-default",

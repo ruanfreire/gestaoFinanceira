@@ -33,7 +33,7 @@
   --text-small--line-height: 1.25rem;
   --text-caption: 0.75rem;
   --text-caption--line-height: 1.125rem;
-  --text-overline: 0.6875rem;
+  --text-overline: 0.75rem;
   --text-overline--line-height: 1rem;
   --text-overline--font-weight: 600;
   --text-overline--letter-spacing: 0.06em;
@@ -100,9 +100,9 @@
   --color-input: #e2e8f0;
   --color-ring: #3b82f6;
 
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-primary-active: #1e40af;
+  --color-primary: #1e40af;
+  --color-primary-hover: #1e3a8a;
+  --color-primary-active: #172554;
   --color-primary-foreground: #ffffff;
   --color-primary-subtle: #eff6ff;
 
@@ -127,7 +127,7 @@
   --color-info-foreground: #ffffff;
 
   --color-muted: #f1f5f9;
-  --color-muted-foreground: #64748b;
+  --color-muted-foreground: #1e293b;
   --color-disabled: #94a3b8;
   --color-disabled-bg: #f1f5f9;
 

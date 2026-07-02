@@ -9,7 +9,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground shadow-xs hover:bg-primary-hover",
+        primary: "bg-primary text-white shadow-xs hover:bg-primary-hover",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary-hover",
         outline: "border border-border bg-surface hover:bg-muted",
         ghost: "hover:bg-muted text-foreground",
@@ -17,9 +17,9 @@ const buttonVariants = cva(
         danger: "bg-danger text-danger-foreground hover:bg-danger/90",
       },
       size: {
-        sm: "h-9 px-3 text-small rounded-md",
-        md: "h-11 px-4 text-body rounded-lg",
-        lg: "h-12 px-6 text-subtitle rounded-lg",
+        sm: "h-9 px-3 text-[length:var(--text-small)] rounded-md",
+        md: "h-11 px-4 text-[length:var(--text-body)] rounded-lg",
+        lg: "h-12 px-6 text-[length:var(--text-subtitle)] rounded-lg",
         icon: "h-11 w-11 rounded-lg",
       },
     },

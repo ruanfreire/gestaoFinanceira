@@ -21,8 +21,8 @@ export function TaskGuide({ goal, steps, minutes = 3, currentStep, className }: 
       aria-label="Guia da tarefa"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <ListChecks className="h-4 w-4 text-primary" aria-hidden />
-        <Typography variant="overline" className="text-primary">
+        <ListChecks className="h-4 w-4 text-foreground" aria-hidden />
+        <Typography variant="overline" className="text-foreground">
           Sua tarefa agora
         </Typography>
         <span className="inline-flex items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-caption text-muted-foreground">

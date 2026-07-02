@@ -30,6 +30,7 @@ export function MobileNav({ pendingRecebimentos = 0 }: { pendingRecebimentos?: n
             <PrefetchLink
               key={to}
               to={to}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 text-overline font-medium",
                 active ? "text-primary" : "text-muted-foreground",

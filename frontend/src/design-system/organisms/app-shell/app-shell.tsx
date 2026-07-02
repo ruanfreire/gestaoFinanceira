@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom";
 import { PrefetchLink, SkipToContent } from "@/design-system/molecules";
 import { Home, FileText, Link2, FolderOpen, BarChart3, LogOut, Upload, FileSpreadsheet } from "lucide-react";
 import { Button, Typography, Avatar, Badge } from "@/design-system/atoms";
@@ -147,6 +148,7 @@ function SidebarLink({
   return (
     <PrefetchLink
       to={to}
+      aria-current={active ? "page" : undefined}
       className={cn(
         "flex items-center gap-2 rounded-lg px-3 py-2 text-body transition-default",
         nested && "ml-3",

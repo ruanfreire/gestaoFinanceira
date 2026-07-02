@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       user,
-      isAuthenticated: Boolean(user && authApi.getToken()),
+      isAuthenticated: authApi.isAuthenticated(),
       login,
       logout,
     }),

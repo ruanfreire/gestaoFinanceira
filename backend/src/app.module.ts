@@ -41,7 +41,9 @@ import { JwtGuard } from './modules/auth/jwt.guard';
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtGuard },
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    ...(process.env.NODE_ENV !== 'test'
+      ? [{ provide: APP_GUARD, useClass: ThrottlerGuard }]
+      : []),
   ],
 })
 export class AppModule {}

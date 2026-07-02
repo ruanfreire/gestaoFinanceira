@@ -16,9 +16,13 @@
     "install:all": "npm install --workspaces",
     "lint": "echo \"No root lint configured\"",
     "build": "npm run build --workspace backend && npm run build --workspace frontend",
-    "test": "npm --workspace backend run test && npm --workspace frontend run test"
+    "test": "npm --workspace backend run test && npm --workspace frontend run test",
+    "e2e": "npm run build && playwright test",
+    "e2e:install": "playwright install chromium --with-deps"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.61.1",
     "concurrently": "^8.2.0",
     "mongoose": "^7.0.0",
     "puppeteer": "^25.2.1"

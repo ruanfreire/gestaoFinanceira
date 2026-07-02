@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppProviders } from "./providers";
+import { PageTitleSync } from "./page-title-sync";
 import { RequireAuth } from "@/features/auth/require-auth";
 import { ProtectedShell } from "@/app/protected-shell";
 import { ROUTES } from "@/lib/constants";
@@ -44,6 +45,7 @@ export function AppRouter() {
   return (
     <AppProviders>
       <BrowserRouter>
+        <PageTitleSync />
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/auth/entrar" element={<EntrarPage />} />
