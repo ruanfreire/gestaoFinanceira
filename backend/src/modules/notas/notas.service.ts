@@ -24,7 +24,7 @@ import { mapFromStoredJsonOriginal } from '../importacoes/nf-json.mapper';
 import { mesCompetenciaFromDate } from './competencia.util';
 import { NOTA_NAO_CANCELADA_FILTER } from './nota-cancelada.util';
 import { asLeanMany, asLeanOne } from '../../common/mongoose-lean.util';
-import { PlanLimitsService } from '../billing/billing.service';
+import { PlanLimitsService } from '../billing/plan-limits.service';
 import {
   buildPaymentDateMongoFilter,
   isDateInPaymentRange,
@@ -112,21 +112,19 @@ export class NotasService {
   async create(dto: any) {
     await this.planLimitsService.assertCanCreateNotas();
     const existsByApiId = dto.nota_api_id
-      ? await this.notaModel.findOne({ nota_api_id: dto.nota_api_id })
+      ? await this.notaModel.findOne({ nota_api_id: dto.nota_api_id }).lean()
       : null;
     if (existsByApiId) {
-      return this.notaModel.findByIdAndUpdate(existsByApiId._id, this.stripPaymentFields(dto), {
-        new: true,
-      });
+      return existsByApiId;
     }
-    const existsByEmpresaNumero = await this.notaModel.findOne({
-      empresa: dto.empresa,
-      numero: dto.numero,
-    });
+    const existsByEmpresaNumero = await this.notaModel
+      .findOne({
+        empresa: dto.empresa,
+        numero: dto.numero,
+      })
+      .lean();
     if (existsByEmpresaNumero) {
-      return this.notaModel.findByIdAndUpdate(existsByEmpresaNumero._id, this.stripPaymentFields(dto), {
-        new: true,
-      });
+      return existsByEmpresaNumero;
     }
     return this.notaModel.create({
       ...dto,
@@ -135,15 +133,15 @@ export class NotasService {
     });
   }
 
-  /** Importação em lote — evita OOM na VM 1 GB (centenas de notas). */
+  /** Importação em lote — apenas insere notas novas; existentes são ignoradas. */
   async importBulk(
     dtos: any[],
     options: { batchSize?: number } = {},
   ): Promise<{ imported: number; updated: number; ignored: number }> {
     const batchSize = Math.min(100, Math.max(10, options.batchSize ?? 40));
     let imported = 0;
-    let updated = 0;
-    const ignored = 0;
+    const updated = 0;
+    let ignored = 0;
 
     for (let offset = 0; offset < dtos.length; offset += batchSize) {
       const batch = dtos.slice(offset, offset + batchSize);
@@ -190,25 +188,20 @@ export class NotasService {
         }
 
         if (existing) {
-          bulkOps.push({
-            updateOne: {
-              filter: { _id: existing._id },
-              update: { $set: stripped },
-            },
-          });
-          updated++;
-        } else {
-          bulkOps.push({
-            insertOne: {
-              document: {
-                ...stripped,
-                status_pagamento: stripped.status_pagamento ?? 'em_aberto',
-                valor_pago: stripped.valor_pago ?? 0,
-              },
-            },
-          });
-          imported++;
+          ignored++;
+          continue;
         }
+
+        bulkOps.push({
+          insertOne: {
+            document: {
+              ...stripped,
+              status_pagamento: stripped.status_pagamento ?? 'em_aberto',
+              valor_pago: stripped.valor_pago ?? 0,
+            },
+          },
+        });
+        imported++;
       }
 
       if (bulkOps.length) {
@@ -775,5 +768,76 @@ export class NotasService {
 
   async findById(id: string) {
     return this.notaModel.findById(id).lean();
+  }
+
+  /** Remove notas criadas por uma importação JSON e desvincula pagamentos. */
+  async deleteByImportacaoFaturaId(importacaoId: string): Promise<{ deleted: number }> {
+    const notas = asLeanMany<{
+      _id: unknown;
+      pagamentos?: Array<{ lancamento_id?: unknown; source?: PagamentoSource }>;
+      asaas_lancamento_ids?: unknown[];
+      nubank_lancamento_ids?: unknown[];
+      asaas_lancamento_id?: unknown;
+      nubank_lancamento_id?: unknown;
+    }>(await this.notaModel.find({ importacao_fatura_id: importacaoId }).lean());
+
+    for (const nota of notas) {
+      const notaId = String(nota._id);
+      const seen = new Set<string>();
+      const refs: Array<{ id: string; source: PagamentoSource }> = [];
+
+      for (const pag of nota.pagamentos || []) {
+        if (!pag.lancamento_id || !pag.source) continue;
+        const key = `${pag.source}:${pag.lancamento_id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        refs.push({ id: String(pag.lancamento_id), source: pag.source });
+      }
+
+      for (const source of ['asaas', 'nubank'] as const) {
+        const idsField = source === 'nubank' ? 'nubank_lancamento_ids' : 'asaas_lancamento_ids';
+        const idField = source === 'nubank' ? 'nubank_lancamento_id' : 'asaas_lancamento_id';
+        const ids = [
+          ...(nota[idsField] || []),
+          ...(nota[idField] ? [nota[idField]] : []),
+        ].map(String);
+        for (const id of ids) {
+          const key = `${source}:${id}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          refs.push({ id, source });
+        }
+      }
+
+      for (const ref of refs) {
+        try {
+          await this.desvincularPagamento(notaId, ref.id, ref.source);
+        } catch {
+          const lancModel =
+            ref.source === 'nubank' ? this.nubankLancamentoModel : this.asaasLancamentoModel;
+          await lancModel.updateMany(
+            { _id: ref.id, nota_id: notaId },
+            {
+              $set: { nota_id: null, status_conciliacao: 'pendente_vinculo' },
+              $pull: { candidatas_nota_ids: notaId },
+            },
+          );
+        }
+      }
+
+      await Promise.all([
+        this.asaasLancamentoModel.updateMany(
+          { candidatas_nota_ids: notaId },
+          { $pull: { candidatas_nota_ids: notaId } },
+        ),
+        this.nubankLancamentoModel.updateMany(
+          { candidatas_nota_ids: notaId },
+          { $pull: { candidatas_nota_ids: notaId } },
+        ),
+      ]);
+    }
+
+    const result = await this.notaModel.deleteMany({ importacao_fatura_id: importacaoId });
+    return { deleted: result.deletedCount ?? 0 };
   }
 }

@@ -33,4 +33,16 @@ export class NotificationsController {
   markAllRead(@Req() req: any) {
     return this.notificationsService.markAllRead(req.user.sub);
   }
+
+  @Get('push-preferences')
+  @Roles('superadmin', 'client', 'admin', 'user')
+  getPushPreferences(@Req() req: any) {
+    return this.notificationsService.getPushPreferences(req.user.sub);
+  }
+
+  @Patch('push-preferences')
+  @Roles('superadmin', 'client', 'admin', 'user')
+  updatePushPreferences(@Req() req: any, @Body() body: Record<string, boolean>) {
+    return this.notificationsService.updatePushPreferences(req.user.sub, body);
+  }
 }

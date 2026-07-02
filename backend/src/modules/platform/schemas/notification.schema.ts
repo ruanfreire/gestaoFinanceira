@@ -1,14 +1,16 @@
 import { Schema } from 'mongoose';
+import { NOTIFICATION_TYPES } from '../../../common/notifications/notification-types';
 
 export const NotificationSchema = new Schema(
   {
     type: {
       type: String,
       required: true,
-      enum: ['signup', 'approved', 'rejected', 'suspended', 'system'],
+      enum: NOTIFICATION_TYPES,
     },
     title: { type: String, required: true },
     message: { type: String, required: true },
+    url: { type: String },
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
     targetUserId: { type: Schema.Types.ObjectId, ref: 'User' },
     read: { type: Boolean, default: false },

@@ -15,6 +15,7 @@ import {
 import { parseAsaasCsv } from '../extrato-asaas/asaas-csv.parser';
 import { parseNubankCsv } from '../extrato-nubank/nubank-csv.parser';
 import { asLeanMany, asLeanOne } from '../../common/mongoose-lean.util';
+import { NotasService, PagamentoSource } from '../notas/notas.service';
 
 type ListOptions = {
   banco?: BancoImportacao;
@@ -38,6 +39,7 @@ export class ImportacoesBancariasService {
     @InjectModel('NubankImportacao') private nubankImportModel: Model<any>,
     @InjectModel('AsaasLancamento') private asaasLancamentoModel: Model<any>,
     @InjectModel('NubankLancamento') private nubankLancamentoModel: Model<any>,
+    private readonly notasService: NotasService,
   ) {}
 
   private resolveBanco(banco: string): BancoImportacao {
@@ -178,21 +180,35 @@ export class ImportacoesBancariasService {
     const doc = await this.importModel(banco).findById(id).lean();
     if (!doc) throw new NotFoundException('Importação bancária não encontrada');
 
-    const conciliados = await this.lancamentoModel(banco).countDocuments({
-      importacao_id: id,
-      status_conciliacao: { $in: ['conciliado_auto', 'conciliado_manual'] },
-    });
+    const lancamentos = asLeanMany<{
+      _id: unknown;
+      nota_id?: unknown;
+      status_conciliacao?: string;
+    }>(await this.lancamentoModel(banco).find({ importacao_id: id }).lean());
 
-    if (conciliados > 0) {
-      throw new BadRequestException(
-        `Não é possível excluir: ${conciliados} lançamento(s) conciliado(s) vinculado(s) a notas.`,
-      );
+    const source: PagamentoSource = banco === 'nubank' ? 'nubank' : 'asaas';
+
+    for (const lancamento of lancamentos) {
+      if (
+        lancamento.nota_id &&
+        ['conciliado_auto', 'conciliado_manual'].includes(String(lancamento.status_conciliacao))
+      ) {
+        try {
+          await this.notasService.desvincularPagamento(
+            String(lancamento.nota_id),
+            String(lancamento._id),
+            source,
+          );
+        } catch {
+          // segue com exclusão do lançamento
+        }
+      }
     }
 
-    await this.lancamentoModel(banco).deleteMany({ importacao_id: id });
+    const deleted = await this.lancamentoModel(banco).deleteMany({ importacao_id: id });
     await this.importModel(banco).findByIdAndDelete(id);
 
-    return { ok: true, id, banco };
+    return { ok: true, id, banco, lancamentos_excluidos: deleted.deletedCount ?? 0 };
   }
 
   async listLancamentos(bancoRaw: string, importacaoId: string, options: LancamentosOptions = {}) {

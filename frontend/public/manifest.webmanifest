@@ -1,0 +1,18 @@
+{
+  "name": "Gestão Financeira",
+  "short_name": "Gestão",
+  "description": "Controle financeiro, notas fiscais e conciliação",
+  "theme_color": "#0f172a",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/images/logo/logo-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

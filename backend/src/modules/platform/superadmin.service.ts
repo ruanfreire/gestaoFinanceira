@@ -157,9 +157,7 @@ export class SuperadminService {
       },
     };
 
-    if (status !== 'pending') {
-      await this.notificationsService.createForUser(clientId, messages[status]);
-    }
+    await this.notificationsService.createForUser(clientId, messages[status]);
 
     return { ok: true, client: sanitizeClient(user.toObject()) };
   }

@@ -19,6 +19,8 @@ const importacaoBancariaBase = {
   originalCsv: { type: String, select: false },
   /** IDs de todas as linhas lidas do CSV (inclui já importadas anteriormente) */
   transacao_ids: { type: [String], default: [] },
+  /** Hash SHA-256 do CSV — impede reimportar o mesmo arquivo */
+  contentHash: { type: String, index: true },
 };
 
 export const NubankImportacaoSchema = new Schema(
@@ -43,5 +45,7 @@ export const NubankImportacaoSchema = new Schema(
   },
   { timestamps: true },
 );
+
+NubankImportacaoSchema.index({ tenantId: 1, contentHash: 1 }, { unique: true, sparse: true });
 
 NubankImportacaoSchema.plugin(tenantPlugin);

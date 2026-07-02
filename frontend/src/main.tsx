@@ -7,7 +7,9 @@ import "./styles/globals.css";
 
 document.documentElement.classList.toggle("dark", readStoredTheme() === "dark");
 
-registerSW({ immediate: true });
+if (import.meta.env.PROD) {
+  registerSW({ immediate: true });
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -55,7 +55,7 @@ function LegacyRedirect({ to }: { to: string }) {
 export function AppRouter() {
   return (
     <AppProviders>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <PageTitleSync />
         <Suspense fallback={<PageLoader />}>
           <Routes>

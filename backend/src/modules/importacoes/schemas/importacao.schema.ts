@@ -26,8 +26,12 @@ export const ImportacaoSchema = new Schema(
     startedAt: { type: Date, default: Date.now },
     finishedAt: { type: Date },
     originalJson: { type: Object },
+    /** Hash SHA-256 do JSON parseado — impede reimportar o mesmo arquivo */
+    contentHash: { type: String, index: true },
   },
   { timestamps: true },
 );
+
+ImportacaoSchema.index({ tenantId: 1, contentHash: 1 }, { unique: true, sparse: true });
 
 ImportacaoSchema.plugin(tenantPlugin);

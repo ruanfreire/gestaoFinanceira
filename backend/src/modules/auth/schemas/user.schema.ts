@@ -17,6 +17,13 @@ export const UserSchema = new Schema(
     refreshTokens: { type: [String], default: [] },
     lastLogin: { type: Date },
     lastLoginIp: { type: String },
+    pushCategories: {
+      platform: { type: Boolean, default: true },
+      imports: { type: Boolean, default: true },
+      conciliation: { type: Boolean, default: true },
+      billing: { type: Boolean, default: true },
+      team: { type: Boolean, default: true },
+    },
   },
   { timestamps: true },
 );

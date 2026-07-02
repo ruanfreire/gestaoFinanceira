@@ -1,12 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
+import { hashJsonValue } from '../../common/content-hash.util';
 import {
   extractNotaItemsFromJson,
   mapNfItemToNotaDto,
   mapNfItemToPreview,
 } from './nf-json.mapper';
 import { NotasService } from '../notas/notas.service';
+import { NotificationsService } from '../platform/notifications.service';
 import { asLeanOne } from '../../common/mongoose-lean.util';
 
 function sanitizeImportacao(doc: any, includeJson = false) {
@@ -20,13 +22,32 @@ function sanitizeImportacao(doc: any, includeJson = false) {
 
 @Injectable()
 export class ImportacoesService {
-  constructor(@InjectModel('Importacao') private importModel: Model<any>) {}
+  constructor(
+    @InjectModel('Importacao') private importModel: Model<any>,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async createRecord(metadata: Record<string, unknown>) {
     return this.importModel.create(metadata);
   }
 
-  async markFailed(importId: string, errorMessage?: string) {
+  async findByContentHash(contentHash: string) {
+    return asLeanOne<{ _id: unknown; originalName?: string; filename?: string }>(
+      await this.importModel.findOne({ contentHash }).select('_id originalName filename').lean(),
+    );
+  }
+
+  async assertJsonNotDuplicate(contentHash: string) {
+    const existing = await this.findByContentHash(contentHash);
+    if (existing) {
+      const label = existing.originalName || existing.filename || String(existing._id);
+      throw new BadRequestException(
+        `Este arquivo JSON já foi importado (${label}). Exclua a importação anterior para reenviar.`,
+      );
+    }
+  }
+
+  async markFailed(importId: string, errorMessage?: string, userId?: string) {
     await this.importModel.findByIdAndUpdate(importId, {
       $set: {
         status: 'failed',
@@ -34,6 +55,20 @@ export class ImportacoesService {
         errorMessage: errorMessage || 'Falha ao processar JSON',
       },
     });
+
+    if (userId) {
+      const doc = asLeanOne<{ tenantId?: unknown }>(
+        await this.importModel.findById(importId).select('tenantId').lean(),
+      );
+      const tenantId = doc?.tenantId;
+      const url = tenantId ? await this.notificationsService.tenantPath(String(tenantId), '/arquivos/notas') : '/arquivos/notas';
+      await this.notificationsService.notifyUser(userId, {
+        type: 'import_json_failed',
+        title: 'Falha na importação de notas',
+        message: errorMessage || 'Não foi possível processar o arquivo JSON.',
+        url,
+      });
+    }
   }
 
   async findAll(options: { page?: number; limit?: number; search?: string } = {}) {
@@ -88,12 +123,16 @@ export class ImportacoesService {
     return doc;
   }
 
-  async remove(id: string) {
-    const doc = await this.importModel.findByIdAndDelete(id).lean();
+  async remove(id: string, notasService: NotasService) {
+    const doc = await this.importModel.findById(id).lean();
     if (!doc) {
       throw new NotFoundException('Importação não encontrada');
     }
-    return { ok: true, id };
+
+    const { deleted } = await notasService.deleteByImportacaoFaturaId(id);
+    await this.importModel.findByIdAndDelete(id);
+
+    return { ok: true, id, notas_excluidas: deleted };
   }
 
   async listFaturas(id: string, options: { page?: number; limit?: number; search?: string } = {}) {
@@ -171,13 +210,14 @@ export class ImportacoesService {
       const stats = await this.processJson(id, doc.originalJson, doc.uploadedBy, notasService);
       return { ok: true, id, ...stats };
     } catch (error) {
-      await this.markFailed(id, (error as Error).message);
+      await this.markFailed(id, (error as Error).message, doc.uploadedBy ? String(doc.uploadedBy) : undefined);
       throw error;
     }
   }
 
   async processJson(importId: string, json: unknown, _userId: unknown, notasService: NotasService) {
     const start = Date.now();
+    const contentHash = hashJsonValue(json);
     const notaItems = extractNotaItemsFromJson(json);
     const dtos = notaItems.map(({ empresa, item }) => ({
       ...mapNfItemToNotaDto(empresa, item),
@@ -191,6 +231,7 @@ export class ImportacoesService {
     await this.importModel.findByIdAndUpdate(importId, {
       $set: {
         processingTimeMs,
+        contentHash,
         'stats.total_faturas': notaItems.length,
         'stats.imported': imported,
         'stats.updated': updated,
@@ -201,6 +242,23 @@ export class ImportacoesService {
         errorMessage: null,
       },
     });
+
+    if (_userId) {
+      const doc = asLeanOne<{ tenantId?: unknown }>(
+        await this.importModel.findById(importId).select('tenantId').lean(),
+      );
+      const tenantId = doc?.tenantId;
+      const url = tenantId
+        ? await this.notificationsService.tenantPath(String(tenantId), '/arquivos/notas')
+        : '/arquivos/notas';
+      await this.notificationsService.notifyUser(String(_userId), {
+        type: 'import_json_done',
+        title: 'Importação de notas concluída',
+        message: `${imported} nova(s), ${ignored} já existente(s) de ${notaItems.length} no arquivo.`,
+        url,
+      });
+    }
+
     return { imported, updated, ignored, total_faturas: notaItems.length, processingTimeMs };
   }
 }

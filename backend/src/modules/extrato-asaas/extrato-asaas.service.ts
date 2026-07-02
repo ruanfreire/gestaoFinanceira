@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
@@ -30,7 +30,8 @@ import {
 import { asLeanMany, asLeanOne } from '../../common/mongoose-lean.util';
 import { buildFluxoCaixaWorkbook, type FluxoCaixaReembolsoSection } from '../../common/fluxo-caixa.export';
 import { resolveSaldoInicialAutomatico } from '../../common/fluxo-caixa-saldo.resolver';
-import { PlanLimitsService } from '../billing/billing.service';
+import { PlanLimitsService } from '../billing/plan-limits.service';
+import { hashTextContent } from '../../common/content-hash.util';
 
 export type { FluxoCaixaExportParams };
 
@@ -47,6 +48,18 @@ export class ExtratoAsaasService {
 
   async processUpload(content: string, metadata: { filename: string; originalName?: string; uploadedBy?: string }) {
     await this.planLimitsService.assertCanImport();
+
+    const contentHash = hashTextContent(content);
+    const duplicate = asLeanOne<{ _id: unknown; originalName?: string; filename?: string }>(
+      await this.importModel.findOne({ contentHash }).select('_id originalName filename').lean(),
+    );
+    if (duplicate) {
+      const label = duplicate.originalName || duplicate.filename || String(duplicate._id);
+      throw new BadRequestException(
+        `Este arquivo CSV já foi importado (${label}). Exclua a importação anterior para reenviar.`,
+      );
+    }
+
     const { meta, rows } = parseAsaasCsv(content);
     const transacao_ids = rows.map((row) => row.transacao_id);
     const importacao = await this.importModel.create({
@@ -57,6 +70,7 @@ export class ExtratoAsaasService {
       saldo_inicial: meta.saldo_inicial,
       saldo_final: meta.saldo_final,
       transacao_ids,
+      contentHash,
       status: 'processing',
       stats: {
         total_linhas: rows.length,

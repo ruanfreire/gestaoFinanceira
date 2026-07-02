@@ -6,6 +6,7 @@ import { AsaasImportacaoSchema } from '../extrato-asaas/schemas/asaas-importacao
 import { AsaasLancamentoSchema } from '../extrato-asaas/schemas/asaas-lancamento.schema';
 import { NubankImportacaoSchema } from '../extrato-nubank/schemas/nubank-importacao.schema';
 import { NubankLancamentoSchema } from '../extrato-nubank/schemas/nubank-lancamento.schema';
+import { NotasModule } from '../notas/notas.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { NubankLancamentoSchema } from '../extrato-nubank/schemas/nubank-lancame
       { name: 'NubankImportacao', schema: NubankImportacaoSchema },
       { name: 'NubankLancamento', schema: NubankLancamentoSchema },
     ]),
+    NotasModule,
   ],
   providers: [ImportacoesBancariasService],
   controllers: [ImportacoesBancariasController],

@@ -3,6 +3,7 @@ import { useRecebimentosCounts } from "@/features/recebimentos/hooks";
 import { AppShell, CommandPalette, useCommandPaletteShortcut } from "@/design-system/organisms";
 import { OPEN_COMMAND_PALETTE_EVENT } from "@/lib/command-palette-events";
 import { BillingBanner } from "@/features/billing/components/billing-banner";
+import { PushPermissionPrompt } from "@/features/platform/components/push-permission-prompt";
 
 export function ProtectedShell({ children }: { children: React.ReactNode }) {
   const { data } = useRecebimentosCounts();
@@ -24,6 +25,7 @@ export function ProtectedShell({ children }: { children: React.ReactNode }) {
         <BillingBanner />
         {children}
       </AppShell>
+      <PushPermissionPrompt />
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </>
   );

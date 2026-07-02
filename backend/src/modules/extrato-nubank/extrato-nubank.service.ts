@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
@@ -30,7 +30,10 @@ import {
 } from '../../common/fluxo-caixa.export';
 import { resolveSaldoInicialAutomatico, persistNubankImportSaldos } from '../../common/fluxo-caixa-saldo.resolver';
 import { asLeanMany, asLeanOne } from '../../common/mongoose-lean.util';
-import { PlanLimitsService } from '../billing/billing.service';
+import { PlanLimitsService } from '../billing/plan-limits.service';
+import { hashTextContent } from '../../common/content-hash.util';
+import { NotificationsService } from '../platform/notifications.service';
+import { getCurrentTenantId } from '../../common/tenant/tenant-storage';
 
 export type { FluxoCaixaExportParams };
 
@@ -43,10 +46,23 @@ export class ExtratoNubankService {
     private readonly notasService: NotasService,
     private readonly config: ConfigService,
     private readonly planLimitsService: PlanLimitsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async processUpload(content: string, metadata: { filename: string; originalName?: string; uploadedBy?: string }) {
     await this.planLimitsService.assertCanImport();
+
+    const contentHash = hashTextContent(content);
+    const duplicate = asLeanOne<{ _id: unknown; originalName?: string; filename?: string }>(
+      await this.importModel.findOne({ contentHash }).select('_id originalName filename').lean(),
+    );
+    if (duplicate) {
+      const label = duplicate.originalName || duplicate.filename || String(duplicate._id);
+      throw new BadRequestException(
+        `Este arquivo CSV já foi importado (${label}). Exclua a importação anterior para reenviar.`,
+      );
+    }
+
     const { meta, rows } = parseNubankCsv(content);
     const transacao_ids = rows.map((row) => row.transacao_id);
     const importacao = await this.importModel.create({
@@ -56,6 +72,7 @@ export class ExtratoNubankService {
       periodo: meta.periodo,
       formato: meta.formato,
       transacao_ids,
+      contentHash,
       status: 'processing',
       stats: {
         total_linhas: rows.length,

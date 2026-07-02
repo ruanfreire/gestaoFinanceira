@@ -2,11 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { asLeanMany } from '../../common/mongoose-lean.util';
+import type { NotificationType } from '../../common/notifications/notification-types';
 
 type PushPayload = {
   title: string;
   message: string;
   url?: string;
+  type?: NotificationType;
 };
 
 @Injectable()
@@ -42,31 +44,41 @@ export class PushService {
     return { ok: true };
   }
 
-  async sendToUsers(userIds: string[], payload: PushPayload) {
+  async removeAllForUser(userId: string) {
+    await this.subscriptionModel.deleteMany({ userId: new Types.ObjectId(userId) });
+    return { ok: true };
+  }
+
+  private loadWebPush():
+    | {
+        setVapidDetails: (subject: string, publicKey: string, privateKey: string) => void;
+        sendNotification: (subscription: object, payload: string) => Promise<{ statusCode?: number }>;
+      }
+    | null {
     if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
       this.logger.debug('VAPID keys not configured — push skipped');
-      return;
+      return null;
     }
-
-    let webpush: {
-      setVapidDetails: (subject: string, publicKey: string, privateKey: string) => void;
-      sendNotification: (subscription: object, payload: string) => Promise<void>;
-    };
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      webpush = require('web-push');
+      return require('web-push');
     } catch {
       this.logger.warn('web-push package not installed — push skipped');
-      return;
+      return null;
     }
+  }
+
+  async sendToUsers(userIds: string[], payload: PushPayload) {
+    const webpush = this.loadWebPush();
+    if (!webpush) return;
 
     webpush.setVapidDetails(
       process.env.VAPID_SUBJECT || 'mailto:admin@finance.local',
-      process.env.VAPID_PUBLIC_KEY,
-      process.env.VAPID_PRIVATE_KEY,
+      process.env.VAPID_PUBLIC_KEY!,
+      process.env.VAPID_PRIVATE_KEY!,
     );
 
-    const subs = asLeanMany<{ endpoint: string; keys: { p256dh: string; auth: string } }>(
+    const subs = asLeanMany<{ _id: Types.ObjectId; endpoint: string; keys: { p256dh: string; auth: string } }>(
       await this.subscriptionModel
         .find({ userId: { $in: userIds.map((id) => new Types.ObjectId(id)) } })
         .lean(),
@@ -74,17 +86,24 @@ export class PushService {
 
     await Promise.allSettled(
       subs.map(async (sub) => {
-        await webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: sub.keys,
-          },
-          JSON.stringify({
-            title: payload.title,
-            body: payload.message,
-            url: payload.url || '/',
-          }),
-        );
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: sub.keys },
+            JSON.stringify({
+              title: payload.title,
+              body: payload.message,
+              url: payload.url || '/',
+              type: payload.type,
+            }),
+          );
+        } catch (error: unknown) {
+          const statusCode = (error as { statusCode?: number })?.statusCode;
+          if (statusCode === 404 || statusCode === 410) {
+            await this.subscriptionModel.deleteOne({ _id: sub._id });
+          } else {
+            this.logger.warn(`Push falhou (${statusCode ?? 'unknown'}): ${sub.endpoint}`);
+          }
+        }
       }),
     );
   }

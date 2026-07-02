@@ -24,6 +24,14 @@ export type PlatformNotification = {
   targetUserId?: string;
 };
 
+export type PushCategories = {
+  platform: boolean;
+  imports: boolean;
+  conciliation: boolean;
+  billing: boolean;
+  team: boolean;
+};
+
 export const platformApi = {
   async getDashboard() {
     const res = await api.get<{
@@ -88,5 +96,14 @@ export const platformApi = {
 
   async subscribePush(subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) {
     await api.post("/push/subscribe", subscription);
+  },
+
+  async getPushPreferences() {
+    const res = await api.get<PushCategories>("/notifications/push-preferences");
+    return res.data;
+  },
+
+  async updatePushPreferences(prefs: PushCategories) {
+    await api.patch("/notifications/push-preferences", prefs);
   },
 };

@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { Bell, LayoutDashboard, Users, LogOut } from "lucide-react";
 import { Button, Typography, Badge } from "@/design-system/atoms";
@@ -9,7 +8,7 @@ import { useUnreadNotifications, useNotifications } from "../hooks";
 import { useState } from "react";
 import { formatDateTime } from "@/lib/format";
 import { platformApi } from "../api";
-import { registerPushNotifications } from "@/lib/push-notifications";
+import { PushPermissionPrompt } from "./push-permission-prompt";
 
 const NAV = [
   { to: ROUTES.superadmin, label: "Painel", icon: LayoutDashboard, exact: true },
@@ -23,12 +22,9 @@ export function SuperadminShell() {
   const { data: notifications = [], refetch } = useNotifications();
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    registerPushNotifications().catch(() => undefined);
-  }, []);
-
   return (
     <div className="min-h-screen bg-background">
+      <PushPermissionPrompt />
       <header className="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur">
         <div className="container-app flex h-14 items-center justify-between gap-4">
           <Typography variant="subtitle">SuperAdmin</Typography>

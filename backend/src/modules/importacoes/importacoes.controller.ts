@@ -16,7 +16,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImportacoesService } from './importacoes.service';
 import { NotasService } from '../notas/notas.service';
-import { PlanLimitsService } from '../billing/billing.service';
+import { PlanLimitsService } from '../billing/plan-limits.service';
+import { hashJsonValue } from '../../common/content-hash.util';
 
 @Controller('importacoes')
 export class ImportacoesController {
@@ -89,7 +90,7 @@ export class ImportacoesController {
 
   @Delete(':id')
   async remove(@Param('id') id: string) {
-    return this.importService.remove(id);
+    return this.importService.remove(id, this.notasService);
   }
 
   @Post('upload')
@@ -99,21 +100,24 @@ export class ImportacoesController {
 
     await this.planLimitsService.assertCanImport();
 
+    const content = file.buffer.toString('utf-8');
+    let json: unknown;
+    try {
+      json = JSON.parse(content);
+    } catch {
+      throw new BadRequestException('Arquivo JSON inválido');
+    }
+
+    const contentHash = hashJsonValue(json);
+    await this.importService.assertJsonNotDuplicate(contentHash);
+
     const saved = await this.importService.createRecord({
       filename: file.originalname,
       originalName: file.originalname,
       uploadedBy: req.user?.sub,
       status: 'processing',
+      contentHash,
     });
-
-    const content = file.buffer.toString('utf-8');
-    let json: unknown;
-    try {
-      json = JSON.parse(content);
-    } catch (e) {
-      await this.importService.markFailed(String(saved._id), 'JSON inválido');
-      throw new BadRequestException('Arquivo JSON inválido');
-    }
 
     try {
       const stats = await this.importService.processJson(
@@ -124,7 +128,7 @@ export class ImportacoesController {
       );
       return { ok: true, id: saved._id, ...stats };
     } catch (e) {
-      await this.importService.markFailed(String(saved._id), (e as Error).message);
+      await this.importService.markFailed(String(saved._id), (e as Error).message, req.user?.sub);
       throw new BadRequestException((e as Error).message);
     }
   }

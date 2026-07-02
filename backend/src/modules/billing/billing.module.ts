@@ -7,7 +7,8 @@ import { AsaasImportacaoSchema } from '../extrato-asaas/schemas/asaas-importacao
 import { NubankImportacaoSchema } from '../extrato-nubank/schemas/nubank-importacao.schema';
 import { BillingController } from './billing.controller';
 import { BillingWebhookController } from './billing-webhook.controller';
-import { BillingService, PlanLimitsService } from './billing.service';
+import { BillingService } from './billing.service';
+import { PlanLimitsService } from './plan-limits.service';
 
 @Module({
   imports: [
