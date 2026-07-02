@@ -3,9 +3,11 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 import { Public } from '../../common/decorators/public.decorator';
+import { SkipTenant } from '../../common/tenant/skip-tenant.decorator';
 
 @Controller('health')
 @SkipThrottle()
+@SkipTenant()
 export class HealthController {
   constructor(@InjectConnection() private readonly connection: Connection) {}
 

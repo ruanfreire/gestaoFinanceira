@@ -1,14 +1,15 @@
 import { useLayoutEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { formatDocumentTitle, resolvePageTitle } from "@/lib/page-titles";
 
 export function usePageTitle() {
   const { pathname } = useLocation();
+  const { orgSlug } = useParams();
 
   useLayoutEffect(() => {
-    const title = resolvePageTitle(pathname);
+    const title = resolvePageTitle(pathname, orgSlug);
     document.title = formatDocumentTitle(title);
-  }, [pathname]);
+  }, [pathname, orgSlug]);
 }
 
 export function PageTitleSync() {

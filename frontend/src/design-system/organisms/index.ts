@@ -12,3 +12,4 @@ export type { AttentionItem } from "./attention-panel/attention-panel";
 export { SplitView } from "./split-view/split-view";
 export { Sheet } from "./sheet/sheet";
 export { VirtualList } from "./virtual-list/virtual-list";
+export { CommandPalette, useCommandPaletteShortcut } from "./command-palette/command-palette";

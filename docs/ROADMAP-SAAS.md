@@ -4,9 +4,14 @@
 **Design System:** `frontend/src/design-system/` (referência histórica `/UI`)  
 **Restrição:** zero alteração em APIs, regras de negócio, importadores ou persistência.
 
+> **Escopo deste documento:** reescrita do frontend do produto atual (single-tenant).  
+> Não cobre multi-tenant, billing, planos ou self-signup — ver seção [Pós-roadmap](#pós-roadmap).
+
+**Última revisão:** 2026-07-02
+
 ---
 
-## Status das fases (alinhado governança 12 fases)
+## Status das fases (governança 12 fases)
 
 | Fase | Escopo | Status | Gate |
 |------|--------|--------|------|
@@ -25,55 +30,73 @@
 
 ---
 
-## Fase 1 — Fundação ✅
+## Fase 1 — Arquitetura base, DS, Shell ✅
 
 - Atomic Design em `design-system/` (atoms → templates)
-- `AppShell` + `MobileNav` + lazy routes
+- `AppShell` + `MobileNav` + lazy routes (`lazy-routes.ts`)
 - Features isoladas (`features/*`)
-- Tokens, tipografia, espaçamentos
+- Tokens, tipografia, espaçamentos (`tokens.css`)
 
-## Fase 2 — Operação inicial ✅
+## Fase 2 — Autenticação ✅
 
-- Dashboard com KPIs, alertas, timeline, ações rápidas
-- Auth com `TaskGuide`, validação Zod, estados de erro
+- `/auth/entrar` com `AuthTemplate`, `TaskGuide`, Zod, estados de erro
+- `RequireAuth` + sessão em `localStorage`
+- Redirect pós-login preserva destino (`state.from`)
 
-## Fase 3 — Notas e importações ✅
+## Fase 3 — Dashboard ✅
 
-- Wizard JSON (selecionar → validar → prévia → importar → resultado)
-- `DataTable` com busca, paginação, painel lateral (modal)
-- `ConfirmDialog` para ações destrutivas
+- KPIs, alertas, timeline, ações rápidas (`home-page.tsx`)
+- `PeriodFilter`, skeleton, retry em erro
 
-## Fase 4 — Conciliação (prioridade atual) 🔄
+## Fase 4 — Notas ✅
+
+- Lista com busca debounced, paginação, split view desktop
+- Painel lateral (modal) + `ConfirmDialog` antes de desvincular
+- Registro manual (`/notas/nova`)
+
+## Fase 5 — Importações ✅
+
+- Wizard JSON notas (selecionar → validar → prévia → importar → resultado)
+- Histórico e detalhe de arquivo
+
+## Fase 6 — Extratos ✅
+
+- Wizard CSV Asaas/Nubank com preview
+- Histórico e detalhe financeiro por banco
+
+## Fase 7 — Conciliação ✅
 
 **Objetivo:** experiência CRM — split view, fila de pendências, score visual, atalhos.
 
 | Entrega | Status |
 |---------|--------|
-| Split view desktop (fila + painel) | 🔄 |
-| Sheet mobile para detalhe | 🔄 |
-| `MatchScore` visual | 🔄 |
-| Lista de candidatas com score | 🔄 |
-| Atalhos teclado (↑↓ navegar) | 🔄 |
-| Undo via desvincular (notas) | ✅ existente |
+| Split view desktop (fila + painel) | ✅ `recebimentos-page.tsx` |
+| Sheet mobile para detalhe | ✅ |
+| `MatchScore` visual | ✅ `movimento-panel.tsx` |
+| Lista de candidatas com score + busca debounced | ✅ |
+| Atalhos teclado (↑↓ / j k) + Enter para confirmar | ✅ |
+| `ConfirmDialog` antes de vincular | ✅ |
+| `role="radiogroup"` nas candidatas | ✅ |
+| Undo via toast + desvincular | ✅ |
+| Onboarding primeira visita (conciliação) | ✅ |
+| FAB “Próximo” no mobile | ✅ |
 
 **APIs utilizadas (inalteradas):**
 - `GET /extrato-{banco}/pendentes|sem-match`
 - `GET /extrato-{banco}/lancamentos/:id/notas?q=`
 - `POST /extrato-{banco}/vincular`
 - `POST /extrato-nubank/lancamentos/:id/pagador`
+- `POST /notas/desvincular-pagamento`
 
-## Fase 5 — Relatórios e configurações ⏳
+## Fase 8 — Relatórios ✅
 
-- Situação das notas: export CSV, filtros avançados
-- Fluxo de caixa: wizard já implementado
-- Tela de configurações (env overrides fluxo — somente UI sobre query params existentes)
-
-## Fase 6 — Qualidade ⏳
-
-- WCAG AA audit (contraste, focus, ARIA)
-- Virtualização em tabelas grandes
-- Prefetch de rotas críticas
-- Bottom FAB conciliação no mobile
+| Entrega | Status |
+|---------|--------|
+| Situação das notas — KPIs, preview, export CSV | ✅ `analises-situacao-page.tsx` |
+| Filtros: período, status pagamento, base data (pagamento/emissão) | ✅ |
+| Fluxo de caixa — wizard + export Excel | ✅ `analises-fluxo-page.tsx` |
+| Filtro `mes_competencia_nf` no export | ✅ |
+| Config. padrões export (localStorage) | ✅ `analises-config-page.tsx` |
 
 ## Fase 9 — Otimizações ✅
 
@@ -92,22 +115,34 @@
 | Throttler (login 8/min, global 120/min) | ✅ |
 | Swagger opcional (`SWAGGER_ENABLED=true`) | ✅ |
 | `SkipToContent` + `prefers-reduced-motion` | ✅ |
+| `AuthTemplate` respeita `useReducedMotion` (axe E2E) | ✅ |
+| Auditoria WCAG automatizada | ✅ `e2e/a11y.spec.ts` + `docs/WCAG-AUDIT.md` |
 
 ## Fase 11 — Testes finais ✅
 
 | Entrega | Status |
 |---------|--------|
-| `LoginDto` validation spec | ✅ |
-| `HealthController` spec | ✅ |
-| `SkipToContent` UI test | ✅ |
+| Backend unit tests (Vitest) | ✅ 61 testes |
+| Frontend unit tests (Vitest) | ✅ 25 testes |
+| E2E Playwright (auth, smoke, API health) | ✅ |
+| Gate axe WCAG 2 AA (critical/serious) | ✅ 8/8 E2E |
+| `LoginDto` / `HealthController` specs | ✅ |
+| `SkipToContent`, onboarding, undo specs | ✅ |
+
+```bash
+npm test          # unit
+npm run build && npm run e2e   # gate completo
+```
 
 ## Fase 12 — Deploy ✅
 
 | Entrega | Status |
 |---------|--------|
-| CI: `npm run build` no job de test | ✅ |
+| CI: `npm test` + `npm run build` | ✅ job `test` |
+| CI: `npm run e2e` com Mongo service | ✅ job `e2e` |
 | `docs/RELEASE-CHECKLIST.md` | ✅ |
-| Workflow `deploy-native.yml` (main) | ✅ existente |
+| Workflow `deploy-native.yml` (main) | ✅ |
+| Cron backup Mongo (`deploy/setup-backup-cron.sh`) | ✅ |
 
 ---
 
@@ -127,4 +162,46 @@
 
 ## Definition of Done global
 
-Ver checklist em conversa de entrega; cada fase só fecha quando testes passam e BDRE permanece compatível.
+Uma fase só fecha quando:
+
+1. `npm test` e `npm run build` passam sem erros
+2. `npm run e2e` passa (inclui axe em telas críticas)
+3. `docs/BDRE.md` permanece compatível (sem alteração de regras de negócio)
+4. Dívida técnica registrada em `docs/TECH-DEBT.md` está zerada ou justificada
+
+---
+
+## Pendências fora do escopo das 12 fases
+
+Itens conscientemente **não** bloqueantes do roadmap de frontend:
+
+| Item | Prioridade | Notas |
+|------|------------|-------|
+| Teste manual leitor de tela (NVDA/VoiceOver) | Baixa | `docs/WCAG-AUDIT.md` |
+| Contraste tema escuro (`.dark`) | Baixa | Tokens existem; tema não exposto na UI |
+| “Esqueci senha” | — | Fora de escopo de API (`PRODUCT-SPEC.md`) |
+| Boas-vindas primeira sessão no login | Baixa | Onboarding só na conciliação hoje |
+| Focus trap no formulário de login | Baixa | Dialogs já usam Radix FocusScope |
+| Checklist pós-deploy na VM | Operacional | `docs/RELEASE-CHECKLIST.md` — execução manual |
+
+---
+
+## Pós-roadmap
+
+Evolução comercial SaaS:
+
+| Fase | Escopo | Status |
+|------|--------|--------|
+| **2A** | Multi-tenant — Organization, `tenantId`, isolamento de queries | ✅ |
+| **2B** | Planos e billing (Stripe) | ✅ |
+| **2C** | Subdomínio / convites por org | ✅ |
+| **2D** | RBAC por tenant | ✅ |
+
+Detalhes: `docs/SAAS-FASE-2A.md`, `docs/SAAS-FASE-2B.md`, `docs/SAAS-FASE-2C.md`, `docs/SAAS-FASE-2D.md`
+
+- Multi-tenant / isolamento por organização
+- Planos, billing e self-signup
+- Gestão de usuários e permissões por tenant
+- Integrações bancárias além de CSV manual
+
+Referência de produto detalhada: `docs/PRODUCT-SPEC.md`.

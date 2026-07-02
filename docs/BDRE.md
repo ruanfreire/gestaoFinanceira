@@ -472,7 +472,7 @@ flowchart TB
 | Filtro competência no export | **Fato** | `filterLancamentosForFluxoCaixaExport` testado mas `mesCompetencia` passado `undefined` no export live |
 | `isIncomingCredit` não usado | **Fato** | Créditos Nubank podem incluir movimentos não-recebimento |
 | Cartão classificado como crédito | **Hipótese** | Compras cartão podem entrar erroneamente no motor de conciliação |
-| `ignorado` vs `extrato` | **Fato** | Enum `ignorado` existe mas código usa `extrato` |
+| `ignorado` vs `extrato` | **Resolvido** | Padronizado em `extrato`; enum `ignorado` removido |
 | Aba Reembolso | **Fato** | Modelo Excel sem implementação |
 | NF cancelada importada | **Recomendação** | Marcar visualmente; já excluída da conciliação |
 | Validação pré-import JSON | **Recomendação** | Schema JSON antes do upload (sem alterar regras) |
@@ -531,7 +531,8 @@ PÓS-IMPORT:
 | `pendente_vinculo` | Aguarda escolha do usuário |
 | `conciliado_manual` | Usuário confirmou |
 | `sem_match` | Nenhuma NF candidata |
-| `ignorado` | (schema apenas; não usado) |
+
+> **Nota:** o valor legado `ignorado` foi removido; movimentos não conciliáveis usam `extrato`.
 
 ### `status_pagamento` (nota)
 

@@ -7,7 +7,7 @@ import {
   type FluxoCaixaExportBanco,
   type FluxoCaixaExportParams,
 } from '../../common/fluxo-caixa.config';
-import { buildFluxoCaixaConsolidadoWorkbook } from '../../common/fluxo-caixa.export';
+import { buildFluxoCaixaConsolidadoWorkbook, type FluxoCaixaReembolsoSection } from '../../common/fluxo-caixa.export';
 
 @Injectable()
 export class FluxoCaixaExportService {
@@ -47,7 +47,11 @@ export class FluxoCaixaExportService {
       { banco: 'asaas' as const, header: asaasData.header, rows: asaasData.rows },
     ];
 
-    const buffer = await buildFluxoCaixaConsolidadoWorkbook(sections, nubankData.cartao);
+    const buffer = await buildFluxoCaixaConsolidadoWorkbook(
+      sections,
+      nubankData.cartao,
+      mergeReembolsoSections(nubankData.reembolso, asaasData.reembolso),
+    );
 
     return {
       buffer,
@@ -60,6 +64,17 @@ export class FluxoCaixaExportService {
       from: params.from,
       to: params.to,
       mes_pagamento: params.mes_pagamento ?? params.mes_competencia,
+      mes_competencia_nf: params.mes_competencia_nf,
     };
   }
+}
+
+function mergeReembolsoSections(
+  ...sections: Array<FluxoCaixaReembolsoSection | undefined>
+): FluxoCaixaReembolsoSection | undefined {
+  const rows = sections.flatMap((section) => section?.rows ?? []);
+  if (!rows.length) return undefined;
+  const header = sections.find((section) => section)?.header;
+  if (!header) return undefined;
+  return { header, rows };
 }

@@ -1,51 +1,68 @@
 import { useLocation } from "react-router-dom";
-import { PrefetchLink, SkipToContent } from "@/design-system/molecules";
-import { Home, FileText, Link2, FolderOpen, BarChart3, LogOut, Upload, FileSpreadsheet } from "lucide-react";
+import { PrefetchLink, SkipToContent, ThemeToggle } from "@/design-system/molecules";
+import { Home, FileText, Link2, FolderOpen, BarChart3, LogOut, Search } from "lucide-react";
 import { Button, Typography, Avatar, Badge } from "@/design-system/atoms";
 import { cn } from "@/design-system/lib/cn";
 import { ROUTES } from "@/lib/constants";
+import { stripOrgSlug } from "@/lib/org-path";
 import { useAuth } from "@/features/auth/context";
+import { isTenantOwner } from "@/features/auth/types";
+import { useOrgSlug } from "@/features/org/org-slug-context";
 import { MobileNav } from "./mobile-nav";
 
-const sidebarNav = [
-  { to: ROUTES.home, label: "Início", icon: Home },
-  { to: ROUTES.notas, label: "Minhas notas", icon: FileText },
-  { to: ROUTES.recebimentos, label: "Confirmar recebimentos", icon: Link2, badgeKey: "recebimentos" as const },
-  {
-    label: "Trazer dados",
-    icon: FolderOpen,
-    children: [
-      { to: ROUTES.arquivosNotas, label: "Enviar notas" },
-      { to: ROUTES.arquivosExtratos, label: "Enviar extrato bancário" },
-      { to: ROUTES.arquivosHistorico, label: "Histórico" },
-    ],
-  },
-  {
-    label: "Análises",
-    icon: BarChart3,
-    children: [
-      { to: ROUTES.analisesSituacao, label: "Situação das notas" },
-      { to: ROUTES.analisesFluxo, label: "Fluxo de caixa" },
-      { to: ROUTES.analisesConfig, label: "Config. exportação" },
-    ],
-  },
-];
+function buildSidebarNav(isOwner: boolean) {
+  const analisesChildren = [
+    { to: ROUTES.analisesSituacao, label: "Situação das notas" },
+    { to: ROUTES.analisesFluxo, label: "Fluxo de caixa" },
+    { to: ROUTES.analisesConfig, label: "Config. exportação" },
+  ];
+  if (isOwner) {
+    analisesChildren.push(
+      { to: ROUTES.plano, label: "Plano e assinatura" },
+      { to: ROUTES.equipe, label: "Equipe" },
+    );
+  }
+
+  return [
+    { to: ROUTES.home, label: "Início", icon: Home },
+    { to: ROUTES.notas, label: "Minhas notas", icon: FileText },
+    { to: ROUTES.recebimentos, label: "Recebimentos", icon: Link2, badgeKey: "recebimentos" as const },
+    {
+      label: "Trazer dados",
+      icon: FolderOpen,
+      children: [
+        { to: ROUTES.arquivosNotas, label: "Enviar notas" },
+        { to: ROUTES.arquivosExtratos, label: "Enviar extrato bancário" },
+        { to: ROUTES.arquivosHistorico, label: "Histórico" },
+      ],
+    },
+    {
+      label: "Análises",
+      icon: BarChart3,
+      children: analisesChildren,
+    },
+  ];
+}
 
 export function AppShell({
   children,
   pendingRecebimentos = 0,
+  onOpenCommandPalette,
 }: {
   children: React.ReactNode;
   pendingRecebimentos?: number;
+  onOpenCommandPalette?: () => void;
 }) {
   const { pathname } = useLocation();
   const { user, logout } = useAuth();
+  const orgSlug = useOrgSlug();
+  const sidebarNav = buildSidebarNav(isTenantOwner(user));
 
   return (
     <div className="min-h-screen bg-background">
       <SkipToContent />
       <div className="lg:flex">
-        <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface lg:fixed lg:inset-y-0 lg:flex">
+        <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-surface lg:fixed lg:inset-y-0 lg:flex">
           <div className="flex h-16 items-center gap-3 border-b border-border px-4">
             <img src="/images/logo/logo-icon.svg" alt="" className="h-8 w-8" aria-hidden />
             <Typography variant="subtitle">Gestão Financeira</Typography>
@@ -59,7 +76,7 @@ export function AppShell({
                     {item.label}
                   </Typography>
                   {item.children.map((child) => (
-                    <SidebarLink key={child.to} to={child.to} label={child.label} pathname={pathname} nested />
+                    <SidebarLink key={child.to} to={child.to} label={child.label} pathname={pathname} orgSlug={orgSlug} nested />
                   ))}
                 </div>
               ) : (
@@ -69,6 +86,7 @@ export function AppShell({
                   label={item.label}
                   icon={item.icon}
                   pathname={pathname}
+                  orgSlug={orgSlug}
                   badge={"badgeKey" in item && item.badgeKey === "recebimentos" ? pendingRecebimentos : undefined}
                 />
               ),
@@ -92,28 +110,44 @@ export function AppShell({
           </div>
         </aside>
 
-        <div className="flex min-h-screen flex-1 flex-col lg:pl-60">
+        <div className="flex min-h-screen flex-1 flex-col lg:pl-64">
           <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-surface/95 px-4 backdrop-blur lg:px-6">
             <div className="flex items-center gap-2 lg:hidden">
               <img src="/images/logo/logo-icon.svg" alt="" className="h-7 w-7" aria-hidden />
               <Typography variant="subtitle">Gestão Financeira</Typography>
             </div>
-            <Typography variant="small" tone="muted" className="hidden lg:block">
-              Olá, <span className="font-medium text-foreground">{user?.name?.split(" ")[0]}</span>
+            <Typography variant="small" tone="muted" className="hidden lg:flex lg:items-center lg:gap-3">
+              <span>
+                Olá, <span className="font-medium text-foreground">{user?.name?.split(" ")[0]}</span>
+              </span>
+              {pendingRecebimentos > 0 && (
+                <PrefetchLink
+                  to={ROUTES.recebimentos}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-danger/30 bg-danger-subtle px-2.5 py-1 text-small font-medium text-danger transition-default hover:bg-danger/10"
+                >
+                  <Badge variant="danger" className="tabular-nums">
+                    {pendingRecebimentos > 99 ? "99+" : pendingRecebimentos}
+                  </Badge>
+                  aguardam confirmação
+                </PrefetchLink>
+              )}
             </Typography>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="hidden sm:inline-flex" asChild>
-                <PrefetchLink to={ROUTES.arquivosNotas}>
-                  <Upload className="h-4 w-4 shrink-0" aria-hidden />
-                  Enviar notas
-                </PrefetchLink>
-              </Button>
-              <Button variant="outline" size="sm" className="hidden md:inline-flex" asChild>
-                <PrefetchLink to={ROUTES.arquivosExtratos}>
-                  <FileSpreadsheet className="h-4 w-4 shrink-0" aria-hidden />
-                  Enviar extrato bancário
-                </PrefetchLink>
-              </Button>
+              {onOpenCommandPalette && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="hidden sm:inline-flex"
+                  onClick={onOpenCommandPalette}
+                  aria-label="Abrir busca de telas"
+                >
+                  <Search className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="hidden md:inline">Buscar</span>
+                  <kbd className="ml-1 hidden rounded border px-1 text-caption text-muted-foreground lg:inline">⌘K</kbd>
+                </Button>
+              )}
+              <ThemeToggle />
               <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => logout()} aria-label="Sair">
                 <LogOut className="h-4 w-4" />
               </Button>
@@ -134,6 +168,7 @@ function SidebarLink({
   label,
   icon: Icon,
   pathname,
+  orgSlug,
   nested,
   badge,
 }: {
@@ -141,10 +176,14 @@ function SidebarLink({
   label: string;
   icon?: React.ComponentType<{ className?: string }>;
   pathname: string;
+  orgSlug?: string;
   nested?: boolean;
   badge?: number;
 }) {
-  const active = pathname === to || (to !== ROUTES.home && pathname.startsWith(to));
+  const path = stripOrgSlug(pathname, orgSlug);
+  const active =
+    path === to ||
+    (to !== ROUTES.home && path.startsWith(to));
   return (
     <PrefetchLink
       to={to}

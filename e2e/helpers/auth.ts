@@ -16,7 +16,7 @@ export async function login(page: Page) {
   await page.getByRole("button", { name: "Entrar" }).click();
   await loginResponse;
 
-  await expect(page).toHaveURL("/", { timeout: 15_000 });
+  await expect(page).toHaveURL(/\/(empresa-demo)?\/?$/, { timeout: 15_000 });
   await page.waitForFunction(() => Boolean(localStorage.getItem("accessToken")));
   await expect(page.getByRole("heading", { name: "Início", level: 1 })).toBeVisible({ timeout: 15_000 });
 }

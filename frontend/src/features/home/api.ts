@@ -1,6 +1,7 @@
 import api from "@/lib/api-client";
 import { paymentDateApiParams } from "@/design-system/molecules";
-import { formatCompetencia } from "@/lib/format";
+import { formatCompetencia, formatDate } from "@/lib/format";
+import { isDateInFilterPeriod, isToday } from "@/lib/period-utils";
 
 export type DashboardFilters = import("@/design-system/molecules").PeriodFilterValue;
 export type DashboardDateBasis = "pagamento" | "emissao";
@@ -75,34 +76,43 @@ export type PendingMovement = {
   variant: "pendente" | "sem_match";
 };
 
+export type TodaySummary = {
+  notasImportadas: number;
+  extratosImportados: number;
+  importacoesComErro: number;
+};
+
+export type NotaStatusBreakdown = {
+  emAberto: number;
+  parcial: number;
+  pago: number;
+};
+
+export type DashboardKpis = {
+  valorNf: number;
+  valorRecebido: number;
+  saldoAberto: number;
+  totalNotas: number;
+  notasPagas: number;
+  notasEmAberto: number;
+  notasParciais: number;
+  overdueNotas: number;
+  pendentesConciliacao: number;
+  semMatch: number;
+  importsInPeriod: number;
+  percentRecebido: number;
+};
+
 export type DashboardData = {
   dateBasis: DashboardDateBasis;
-  kpis: {
-    valorNf: number;
-    valorRecebido: number;
-    saldoAberto: number;
-    totalNotas: number;
-    notasPagas: number;
-    notasEmAberto: number;
-    pendentesConciliacao: number;
-    semMatch: number;
-  };
+  kpis: DashboardKpis;
+  notaStatus: NotaStatusBreakdown;
   competenciaChart: { categories: string[]; emitido: number[]; recebido: number[] };
   recentImports: RecentImport[];
   pendingMovements: PendingMovement[];
   alerts: DashboardAlert[];
+  todaySummary: TodaySummary;
 };
-
-function isDateInPeriod(dateStr: string | undefined, filters: DashboardFilters): boolean {
-  if (!dateStr) return true;
-  const d = dateStr.slice(0, 10);
-  if (filters.filterMode === "mes" && filters.mesPagamento) {
-    return d.startsWith(filters.mesPagamento);
-  }
-  if (filters.from && d < filters.from) return false;
-  if (filters.to && d > filters.to) return false;
-  return true;
-}
 
 function paymentMonthKey(value: string | Date): string {
   const date = new Date(value);
@@ -153,11 +163,29 @@ async function loadExtracao(filters: DashboardFilters, dateBasis: DashboardDateB
   return res.data;
 }
 
+const INTERNAL_NAME = /^(?:[0-9a-f]{8}-[0-9a-f]{4}|[0-9a-f-]{24,})/i;
+
+function friendlyImportTitle(
+  candidates: Array<string | undefined>,
+  fallback: string,
+): string {
+  for (const raw of candidates) {
+    const name = raw?.trim();
+    if (!name || INTERNAL_NAME.test(name)) continue;
+    if (name.length > 52) return `${name.slice(0, 49)}…`;
+    return name;
+  }
+  return fallback;
+}
+
 function mergeRecentImports(faturas: ImportacaoFatura[], extratos: ImportacaoBancaria[]): RecentImport[] {
   const faturaItems: RecentImport[] = faturas.map((item) => ({
     id: item._id,
     kind: "fatura",
-    title: item.label || item.originalName || item.filename || "Importação de notas",
+    title: friendlyImportTitle(
+      [item.label, item.originalName, item.filename],
+      item.createdAt ? `Notas · ${formatDate(item.createdAt)}` : "Lote de notas",
+    ),
     subtitle: `${item.stats?.imported ?? 0} nota(s) importada(s)`,
     status: item.status,
     createdAt: item.createdAt,
@@ -169,7 +197,10 @@ function mergeRecentImports(faturas: ImportacaoFatura[], extratos: ImportacaoBan
     return {
       id: `${item.banco}-${item._id}`,
       kind: "extrato",
-      title: item.label || item.originalName || item.filename || `Extrato ${banco}`,
+      title: friendlyImportTitle(
+        [item.label, item.originalName, item.filename],
+        item.createdAt ? `Extrato ${banco} · ${formatDate(item.createdAt)}` : `Extrato ${banco}`,
+      ),
       subtitle: `${movimentos} movimento(s) · ${banco}`,
       status: item.status,
       createdAt: item.createdAt,
@@ -181,8 +212,18 @@ function mergeRecentImports(faturas: ImportacaoFatura[], extratos: ImportacaoBan
     .slice(0, 8);
 }
 
-function buildAlerts(kpis: DashboardData["kpis"], recentImports: RecentImport[]): DashboardAlert[] {
+function buildAlerts(kpis: DashboardKpis, recentImports: RecentImport[]): DashboardAlert[] {
   const alerts: DashboardAlert[] = [];
+  if (kpis.overdueNotas > 0) {
+    alerts.push({
+      id: "overdue-notas",
+      type: "warning",
+      title: "Notas em aberto há mais de 30 dias",
+      message: `${kpis.overdueNotas} nota(s) aguardam recebimento há mais de um mês.`,
+      link: "/analises/situacao",
+      linkLabel: "Ver situação",
+    });
+  }
   if (kpis.semMatch > 0) {
     alerts.push({
       id: "sem-match",
@@ -250,7 +291,7 @@ export const homeApi = {
       ]);
 
     const filterConc = (res: ConciliacaoListResponse) => ({
-      items: res.items.filter((i) => isDateInPeriod(i.lancamento.data, filters)),
+      items: res.items.filter((i) => isDateInFilterPeriod(i.lancamento.data, filters)),
       total: 0,
     });
     const pa = filterConc(pendentesAsaas.data);
@@ -264,26 +305,57 @@ export const homeApi = {
 
     let pagas = 0;
     let emAberto = 0;
+    let parciais = 0;
+    let overdue = 0;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
     for (const item of extracao.items) {
-      if (item.status_pagamento === "pago" || (item.saldo_aberto ?? 0) <= 0) pagas++;
+      const saldo = Number(item.saldo_aberto ?? 0);
+      const pago = Number(item.valor_pago_efetivo ?? item.valor_pago ?? 0);
+      const status = item.status_pagamento;
+
+      if (status === "parcial" || (saldo > 0 && pago > 0)) parciais++;
+      else if (status === "pago" || saldo <= 0) pagas++;
       else emAberto++;
+
+      if (saldo > 0 && item.data_emissao) {
+        const emission = new Date(item.data_emissao);
+        if (!Number.isNaN(emission.getTime()) && emission < thirtyDaysAgo) overdue++;
+      }
     }
 
     const pendentesTotal = pa.total + pn.total;
     const semMatchTotal = sa.total + sn.total;
+    const valorNf = extracao.totais.valor_nf;
+    const valorRecebido = extracao.totais.valor_pago;
 
-    const kpis = {
-      valorNf: extracao.totais.valor_nf,
-      valorRecebido: extracao.totais.valor_pago,
+    const importsInPeriod =
+      importacoes.data.items.filter((i) => isDateInFilterPeriod(i.createdAt, filters)).length +
+      extratos.data.items.filter((i) => isDateInFilterPeriod(i.createdAt, filters)).length;
+
+    const kpis: DashboardKpis = {
+      valorNf,
+      valorRecebido,
       saldoAberto: extracao.totais.saldo_aberto,
       totalNotas: extracao.total,
       notasPagas: pagas,
       notasEmAberto: emAberto,
+      notasParciais: parciais,
+      overdueNotas: overdue,
       pendentesConciliacao: pendentesTotal,
       semMatch: semMatchTotal,
+      importsInPeriod,
+      percentRecebido: valorNf > 0 ? (valorRecebido / valorNf) * 100 : 0,
     };
 
     const recentImports = mergeRecentImports(importacoes.data.items, extratos.data.items);
+
+    const todaySummary: TodaySummary = {
+      notasImportadas: importacoes.data.items.filter((i) => isToday(i.createdAt)).length,
+      extratosImportados: extratos.data.items.filter((i) => isToday(i.createdAt)).length,
+      importacoesComErro: recentImports.filter((i) => i.status === "failed" && isToday(i.createdAt)).length,
+    };
 
     const pendingMovements = [
       ...pa.items.map((item) => ({
@@ -329,10 +401,12 @@ export const homeApi = {
     return {
       dateBasis,
       kpis,
+      notaStatus: { emAberto, parcial: parciais, pago: pagas },
       competenciaChart: buildMonthChart(extracao.items, dateBasis),
       recentImports,
       pendingMovements,
       alerts: buildAlerts(kpis, recentImports),
+      todaySummary,
     };
   },
 };

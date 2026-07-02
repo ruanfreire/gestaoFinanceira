@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import ExcelJS from 'exceljs';
 import { buildFluxoCaixaWorkbook, buildFluxoCaixaConsolidadoWorkbook } from './fluxo-caixa.export';
-import { CARTAO_CREDITO_SHEET } from './fluxo-caixa-lista';
+import { CARTAO_CREDITO_SHEET, REEMBOLSO_SHEET } from './fluxo-caixa-lista';
 
 describe('fluxo-caixa.export', () => {
   it('gera planilha com aba Lista, validações e totais', async () => {
@@ -154,6 +154,57 @@ describe('fluxo-caixa.export', () => {
     const cartao = workbook.getWorksheet(CARTAO_CREDITO_SHEET);
     expect(cartao?.getCell('C5').value).toBe('Cartão de crédito');
     expect(cartao?.getCell('G8').value).toBe(163.6);
+  });
+
+  it('preenche aba Reembolso de despesas quando houver lançamentos', async () => {
+    const buffer = await buildFluxoCaixaWorkbook(
+      'asaas',
+      {
+        empresaNome: 'EMPRESA',
+        empresaCnpj: '00.000.000/0001-00',
+        banco: 'ASAAS',
+        contaCorrente: '',
+        saldoInicial: 0,
+      },
+      [
+        {
+          data: new Date('2026-06-01'),
+          tipo: 'Entrada',
+          categoria: 'Recebimento',
+          numeroDocumento: '',
+          clienteFornecedor: '',
+          historico: 'Recebimento',
+          valor: 100,
+        },
+      ],
+      undefined,
+      {
+        header: {
+          empresaNome: 'EMPRESA',
+          empresaCnpj: '00.000.000/0001-00',
+          banco: 'ASAAS',
+          contaCorrente: '',
+          saldoInicial: 0,
+        },
+        rows: [
+          {
+            data: new Date('2026-06-03'),
+            tipo: 'Saída',
+            categoria: 'Reembolso de Despesas',
+            numeroDocumento: '',
+            clienteFornecedor: 'Colaborador',
+            historico: 'Reembolso viagem',
+            valor: 45,
+          },
+        ],
+      },
+    );
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const reembolso = workbook.getWorksheet(REEMBOLSO_SHEET);
+    expect(reembolso?.getCell('C5').value).toBe('Reembolso de despesas');
+    expect(reembolso?.getCell('G8').value).toBe(45);
   });
 
   it('coloca totais e saldo final sempre após o último lançamento', async () => {

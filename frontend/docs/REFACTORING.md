@@ -1,7 +1,8 @@
 # Reescrita do Frontend — Gestão Financeira
 
-Documento vivo da refatoração arquitetural do frontend.  
-**Regra de ouro:** a pasta `/UI` é a fonte oficial de componentes — reutilizar e evoluir, nunca duplicar.
+Documento da refatoração arquitetural do frontend.  
+**Status:** concluída (fases 0–12). Fonte de componentes: `frontend/src/design-system/`.  
+**Roadmap operacional:** `docs/ROADMAP-SAAS.md` · **Última revisão:** 2026-07-02
 
 ---
 
@@ -20,43 +21,42 @@ Documento vivo da refatoração arquitetural do frontend.
 | React 18 | UI |
 | Vite 6 | Build |
 | TypeScript 5.7 | Tipagem |
-| Tailwind 4 | Estilos (tokens em `UI/src/index.css`) |
+| Tailwind 4 | Estilos (`design-system/tokens.css`) |
 | React Router 6 | Rotas |
-| Axios | HTTP (`shared/services/api.client.ts`) |
-| TanStack Query | Cache e estado servidor (a partir da Fase 0) |
-| react-dropzone | Upload (primitivo `DropZone` em `/UI`) |
+| Axios | HTTP (`lib/api-client.ts`) |
+| TanStack Query | Cache e estado servidor |
 
 ## Estrutura alvo
 
 ```
 frontend/src/
-├── app/                 # Bootstrap, providers, router
-├── layouts/             # AppShell, sidebar, header
-├── features/            # Domínios (auth, notas, importações, …)
-├── shared/              # Componentes/hooks/utils transversais
-└── utils/               # Utilitários compartilhados (formatação, CSV, download)
-
-UI/                      # Design system TailAdmin — fonte oficial
+├── app/                 # Bootstrap, providers, router, PageTitleSync
+├── design-system/       # Atoms, molecules, organisms, templates, tokens
+├── features/            # Domínios (auth, notas, recebimentos, arquivos, analises, home)
+└── lib/                 # API, rotas, formatação, page-titles, motion
 ```
 
 ## Mapa de rotas (atual)
 
-| Rota | Feature alvo | Status migração |
-|------|--------------|-----------------|
-| `/auth/signin` | `features/auth` | ✅ Fase 1 |
-| `/` | `features/dashboard` | ✅ Fase 2 |
-| `/notas` | `features/notas` | ✅ Fase 3 |
-| `/notas/new` | `features/notas` | ✅ Fase 3 |
-| `/importacoes` | `features/importacoes-faturas` | ✅ Fase 4 |
-| `/importacoes/historico` | `features/importacoes-faturas` | ✅ Fase 4 |
-| `/importacoes/historico/:id` | `features/importacoes-faturas` | ✅ Fase 4 |
-| `/importacoes-bancarias` | `features/importacoes-extratos` | ✅ Fase 5 |
-| `/importacoes-bancarias/historico` | `features/importacoes-extratos` | ✅ Fase 5 |
-| `/importacoes-bancarias/historico/:banco/:id` | `features/importacoes-extratos` | ✅ Fase 5 |
-| `/conciliacao` | `features/conciliacao` | ✅ Fase 6 |
-| `/conciliacao/sem-match` | `features/conciliacao` | ✅ Fase 6 |
-| `/relatorios/extracao` | `features/relatorios` | ✅ Fase 7 |
-| `/relatorios/fluxo-caixa` | `features/relatorios` | ✅ Fase 7 |
+| Rota | Feature | Página |
+|------|---------|--------|
+| `/auth/entrar` | `features/auth` | Login |
+| `/auth/signin` | — | Redirect → `/auth/entrar` |
+| `/` | `features/home` | Dashboard |
+| `/notas` | `features/notas` | Lista + detalhe |
+| `/notas/nova` | `features/notas` | Registrar nota |
+| `/recebimentos` | `features/recebimentos` | Pendentes de confirmação |
+| `/recebimentos/sem-correspondencia` | `features/recebimentos` | Pagamentos sem nota |
+| `/arquivos/notas` | `features/arquivos` | Wizard JSON |
+| `/arquivos/extratos` | `features/arquivos` | Wizard CSV |
+| `/arquivos/historico` | `features/arquivos` | Histórico (tabs) |
+| `/arquivos/historico/notas/:id` | `features/arquivos` | Detalhe importação NF |
+| `/arquivos/historico/extratos/:banco/:id` | `features/arquivos` | Detalhe extrato |
+| `/analises/situacao` | `features/analises` | Situação + CSV |
+| `/analises/fluxo-caixa` | `features/analises` | Export Excel |
+| `/analises/configuracoes` | `features/analises` | Padrões export (localStorage) |
+
+> Rotas legadas (`/importacoes`, `/conciliacao`, `/relatorios`) foram substituídas na reescrita greenfield.
 
 ## Fases de migração
 
@@ -133,9 +133,9 @@ UI/                      # Design system TailAdmin — fonte oficial
 
 - [x] Remoção de `pages/`, `layout/` e `components/` legados
 - [x] `download.util` migrado para `api.client` direto
-- [x] A11y: `DataTable` com caption, `PageLoader` com `role="status"`, conciliação com regiões e listbox
-- [ ] Virtualização de tabelas grandes (quando necessário)
-- [x] Suite de testes automatizados (Vitest + Testing Library) — `npm run test --workspace frontend`
+- [x] A11y: `DataTable` com caption, `PageLoader` com `role="status"`, conciliação com regiões e radiogroup
+- [x] Virtualização de tabelas grandes (`VirtualList`, Fase 9)
+- [x] Suite de testes automatizados (Vitest + E2E Playwright) — `npm test` + `npm run e2e`
 
 ---
 
@@ -144,21 +144,20 @@ UI/                      # Design system TailAdmin — fonte oficial
 ### Imports
 
 ```ts
-import Button from "@ui/components/ui/button/Button";
-import { PageHeader } from "@/shared/components/PageHeader";
-import api from "@/shared/services/api.client";
+import { Button, Typography } from "@/design-system/atoms";
+import { PageHeader } from "@/design-system/molecules";
+import api from "@/lib/api-client";
 ```
 
 ### Camada de API
 
-- **Proibido:** `axios`/`fetch` direto em páginas (exceto migração temporária).
-- **Obrigatório:** services por feature chamando `api.client`.
+- **Proibido:** `axios`/`fetch` direto em páginas.
+- **Obrigatório:** módulos `api.ts` por feature chamando `@/lib/api-client`.
 
 ### Componentes
 
-1. Existe em `/UI`? → usar.
-2. Precisa evoluir? → evoluir em `/UI`.
-3. Específico do app? → `shared/components` ou `features/*/components`.
+1. Existe em `design-system/`? → usar e evoluir lá.
+2. Específico do domínio? → `features/*/components`.
 
 ### Estado servidor
 
@@ -175,15 +174,16 @@ const { data, isLoading, error } = useQuery({
 
 | Categoria | Componentes |
 |-----------|-------------|
-| Layout | `AppLayout`, `AppSidebar`, `AppHeader`, `Backdrop`, `PageMeta`, `PageBreadcrumb` |
-| Form | `Input`, `Select`, `DatePicker`, `DropZone`, `Form`, `Label`, … |
-| Ação | `Button`, `Badge`, `Modal`, `Dropdown` |
-| Dados | `Table` (+ `DataTable` no shared) |
-| Feedback | `Alert`, `Spinner`, `Skeleton`, `EmptyState`, `Toast`, `ConfirmDialog`, `Pagination` |
-| Métricas / Gráficos | `MetricCard`, `FinanceAreaChart`, `FinanceBarChart`, `ComponentCard` |
-| Contextos | `ThemeProvider`, `SidebarProvider`, `ToastProvider` |
+| Layout | `AppShell`, `MobileNav`, `SplitView`, `AuthTemplate` |
+| Form | `Input`, `Label`, `Checkbox`, `FormGroup`, `PeriodFilter` |
+| Ação | `Button`, `Badge`, `Modal`, `Sheet`, `ConfirmDialog` |
+| Dados | `DataTable`, `VirtualList`, `KPIGrid` |
+| Feedback | `Skeleton`, `Spinner`, `EmptyState`, `ErrorState`, `Callout`, `Toast` |
+| Conciliação | `MatchScore`, `TaskGuide`, `NextStepBanner` |
+| Global | `CommandPalette`, `ThemeToggle`, `PrefetchLink`, `SkipToContent` |
+| Tema | `ThemeProvider` (`@/lib/theme`) |
 
-Detalhes completos: ver relatório de análise na conversa de arquitetura (jun/2026).
+Detalhes: `frontend/docs/UI-COMPONENTS.md`.
 
 ---
 
@@ -196,15 +196,12 @@ Detalhes completos: ver relatório de análise na conversa de arquitetura (jun/2
 
 ## Changelog
 
-| Data | Fase | Alteração |
-|------|------|-----------|
-| 2026-06-30 | 8 | Vitest + Testing Library: utils, services, componentes e smoke de páginas |
-| 2026-06-30 | 8 | Limpeza do legado (`pages/`, shims), a11y em tabelas e conciliação |
-| 2026-06-30 | 7 | Relatórios: extração de notas com KPIs e CSV; fluxo de caixa com export Excel |
-| 2026-06-30 | 6 | Conciliação unificada: split-view, abas pendentes/sem-match, TanStack Query |
-| 2026-06-30 | 5 | Extratos CSV: upload com preview, histórico, detalhe financeiro Asaas/Nubank com timeline |
-| 2026-06-30 | 4 | Importação JSON: upload com preview, histórico CRUD, detalhe com timeline e reprocessamento |
-| 2026-06-30 | 3 | Notas fiscais: service, listagem com tabela expansível, formulário validado, TanStack Query |
-| 2026-06-30 | 2 | Dashboard executivo com KPIs, gráficos, importações recentes, alertas e conciliação |
-| 2026-06-30 | 1 | Auth unificado, sidebar agrupada, breadcrumbs no layout, SignInForm evoluído |
-| 2026-06-30 | 0 | Documentação, fundação arquitetural, componentes UI de feedback, lazy routes, TanStack Query |
+| Data | Alteração |
+|------|-----------|
+| 2026-07-02 | Polish: command palette, tema claro/escuro, focus trap login, wizard inconsistências JSON, docs sincronizados |
+| 2026-07-02 | Dívida técnica zerada; E2E Playwright + axe (8/8) |
+| 2026-07-01 | Greenfield concluído: `design-system/`, features por domínio, rotas `/arquivos/*` e `/analises/*` |
+| 2026-06-30 | 8 | Vitest + E2E; limpeza legado; a11y |
+| 2026-06-30 | 7 | Relatórios: extração CSV + fluxo Excel |
+| 2026-06-30 | 6 | Conciliação split-view |
+| 2026-06-30 | 0–5 | Migração incremental (pré-greenfield) |

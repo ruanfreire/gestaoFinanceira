@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
-import { parseNubankCsv } from './nubank-csv.parser';
+import { parseNubankCsv, isIncomingCredit } from './nubank-csv.parser';
 import { normalizeName } from '../extrato-asaas/name-match.util';
 import { mapScoredCandidata } from '../extrato-asaas/conciliacao-response.util';
 import { NotasService } from '../notas/notas.service';
@@ -19,11 +19,18 @@ import {
   splitNubankLancamentosFluxoCaixa,
   mapLancamentosToFluxoCaixaRows,
   resolveExportDateRange,
+  resolveMesCompetenciaNf,
 } from '../../common/fluxo-caixa-data.util';
+import { splitFluxoRowsByReembolso, resolveFluxoCaixaCategoriaCartao } from '../../common/fluxo-caixa-lista';
 import { tipoMovimentoFromNubank, type TipoMovimento } from '../../common/movimento-bancario.util';
-import { buildFluxoCaixaWorkbook, type FluxoCaixaCartaoSection } from '../../common/fluxo-caixa.export';
+import {
+  buildFluxoCaixaWorkbook,
+  type FluxoCaixaCartaoSection,
+  type FluxoCaixaReembolsoSection,
+} from '../../common/fluxo-caixa.export';
 import { resolveSaldoInicialAutomatico, persistNubankImportSaldos } from '../../common/fluxo-caixa-saldo.resolver';
 import { asLeanMany, asLeanOne } from '../../common/mongoose-lean.util';
+import { PlanLimitsService } from '../billing/billing.service';
 
 export type { FluxoCaixaExportParams };
 
@@ -35,9 +42,11 @@ export class ExtratoNubankService {
     @InjectModel('Nota') private notaModel: Model<any>,
     private readonly notasService: NotasService,
     private readonly config: ConfigService,
+    private readonly planLimitsService: PlanLimitsService,
   ) {}
 
   async processUpload(content: string, metadata: { filename: string; originalName?: string; uploadedBy?: string }) {
+    await this.planLimitsService.assertCanImport();
     const { meta, rows } = parseNubankCsv(content);
     const transacao_ids = rows.map((row) => row.transacao_id);
     const importacao = await this.importModel.create({
@@ -88,7 +97,41 @@ export class ExtratoNubankService {
       if (tipo_movimento === 'entrada') stats.entradas += 1;
       else stats.saidas += 1;
 
+      if (row.origem === 'cartao') {
+        stats.extrato += 1;
+        await this.lancamentoModel.create({
+          importacao_id: importacao._id,
+          transacao_id: row.transacao_id,
+          data: row.data,
+          descricao: row.descricao,
+          valor: row.valor,
+          categoria: row.categoria,
+          origem: row.origem,
+          tipo_movimento,
+          status_conciliacao: 'extrato',
+          json_original: row,
+        });
+        continue;
+      }
+
       if (tipo_movimento === 'saida') {
+        stats.extrato += 1;
+        await this.lancamentoModel.create({
+          importacao_id: importacao._id,
+          transacao_id: row.transacao_id,
+          data: row.data,
+          descricao: row.descricao,
+          valor: row.valor,
+          categoria: row.categoria,
+          origem: row.origem,
+          tipo_movimento,
+          status_conciliacao: 'extrato',
+          json_original: row,
+        });
+        continue;
+      }
+
+      if (!isIncomingCredit(row.descricao, row.valor, row.origem)) {
         stats.extrato += 1;
         await this.lancamentoModel.create({
           importacao_id: importacao._id,
@@ -471,7 +514,12 @@ export class ExtratoNubankService {
       : [];
 
     const notaById = new Map(notas.map((nota) => [String(nota._id), nota]));
-    const { conta, cartao } = splitNubankLancamentosFluxoCaixa(lancamentos, undefined, notaById);
+    const mesCompetenciaNf = resolveMesCompetenciaNf(params);
+    const { conta, cartao } = splitNubankLancamentosFluxoCaixa(
+      lancamentos,
+      mesCompetenciaNf,
+      notaById,
+    );
 
     const mapRow = (lancamento: (typeof lancamentos)[number]) => {
       if (lancamento.tipo_movimento) return lancamento.tipo_movimento;
@@ -479,20 +527,22 @@ export class ExtratoNubankService {
       return tipoMovimentoFromNubank(original.json_original?.tipo);
     };
 
-    const { rows } = mapLancamentosToFluxoCaixaRows(
+    const { rows: contaRows } = mapLancamentosToFluxoCaixaRows(
       conta,
       notaById,
       (lancamento) => lancamento.descricao || lancamento.pagador_nome || '',
       undefined,
       mapRow,
     );
+    const { principal: rows, reembolso: reembolsoRows } = splitFluxoRowsByReembolso(contaRows);
 
     const { rows: cartaoRows } = mapLancamentosToFluxoCaixaRows(
       cartao,
       notaById,
       (lancamento) => lancamento.descricao || '',
-      (lancamento) => lancamento.categoria,
+      undefined,
       mapRow,
+      (tipo, historico) => resolveFluxoCaixaCategoriaCartao(tipo, historico),
     );
 
     const header = resolveFluxoCaixaHeader(
@@ -534,12 +584,17 @@ export class ExtratoNubankService {
       cartaoSection = { header: cartaoHeader, rows: cartaoRows };
     }
 
-    return { header, rows, cartao: cartaoSection };
+    let reembolsoSection: FluxoCaixaReembolsoSection | undefined;
+    if (reembolsoRows.length > 0) {
+      reembolsoSection = { header: { ...header }, rows: reembolsoRows };
+    }
+
+    return { header, rows, cartao: cartaoSection, reembolso: reembolsoSection };
   }
 
   async exportFluxoCaixa(params: FluxoCaixaExportParams): Promise<{ buffer: Buffer; filename: string }> {
-    const { header, rows, cartao } = await this.prepareFluxoCaixaData(params);
-    const buffer = await buildFluxoCaixaWorkbook('nubank', header, rows, cartao);
+    const { header, rows, cartao, reembolso } = await this.prepareFluxoCaixaData(params);
+    const buffer = await buildFluxoCaixaWorkbook('nubank', header, rows, cartao, reembolso);
 
     return {
       buffer,

@@ -30,7 +30,20 @@ npm run dev
 - Seed admin: `npm --workspace backend run seed`
 - Frontend: `npm --workspace frontend run dev`
 
-## Credenciais padrão
+## Credenciais padrão (após `npm --workspace backend run seed`)
 
-- E-mail: `admin@finance.local`
-- Senha: `123456` (ou `SEED_ADMIN_PASSWORD` no `.env` do backend)
+Senha de todas as contas: `123456` (ou `SEED_ADMIN_PASSWORD` no `.env` do backend).
+
+| Papel | E-mail | Destino |
+|-------|--------|---------|
+| SuperAdmin | `superadmin@finance.local` | `/superadmin` |
+| Admin | `admin@finance.local` | App — Empresa Demo |
+| Client | `client@finance.local` | App — Empresa Demo |
+| User | `user@finance.local` | App — Empresa Demo |
+| Admin (2ª org) | `admin@acme.local` | App — Acme Consultoria |
+| Client (2ª org) | `client@acme.local` | App — Acme Consultoria |
+| Pendente | `pending@finance.local` | Login bloqueado |
+| Rejeitado | `rejected@finance.local` | Login bloqueado |
+| Suspenso | `suspended@finance.local` | Login bloqueado |
+
+Para forçar atualização de senhas em contas já existentes: `SEED_RESET_PASSWORD=true`.

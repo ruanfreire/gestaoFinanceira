@@ -1,9 +1,11 @@
 import { Schema } from 'mongoose';
+import { tenantPlugin } from '../../../common/tenant/tenant.plugin';
 
 export const AsaasLancamentoSchema = new Schema(
   {
+    tenantId: { type: Schema.Types.ObjectId, ref: 'Organization', index: true },
     importacao_id: { type: Schema.Types.ObjectId, ref: 'AsaasImportacao', index: true },
-    transacao_id: { type: String, required: true, unique: true, index: true },
+    transacao_id: { type: String, required: true, index: true },
     data: { type: Date, index: true },
     tipo_transacao: { type: String, index: true },
     descricao: { type: String },
@@ -17,7 +19,7 @@ export const AsaasLancamentoSchema = new Schema(
     tipo_movimento: { type: String, enum: ['entrada', 'saida'], index: true },
     status_conciliacao: {
       type: String,
-      enum: ['extrato', 'ignorado', 'conciliado_auto', 'pendente_vinculo', 'conciliado_manual', 'sem_match'],
+      enum: ['extrato', 'conciliado_auto', 'pendente_vinculo', 'conciliado_manual', 'sem_match'],
       default: 'extrato',
       index: true,
     },
@@ -27,3 +29,6 @@ export const AsaasLancamentoSchema = new Schema(
   },
   { timestamps: true },
 );
+
+AsaasLancamentoSchema.plugin(tenantPlugin);
+AsaasLancamentoSchema.index({ tenantId: 1, transacao_id: 1 }, { unique: true });

@@ -86,6 +86,17 @@ export function resolveFluxoCaixaCategoria(
   return 'Despesas Diversas';
 }
 
+/** Categorias da aba Cartão de Crédito no fluxo de caixa (Nubank CSV cartão). */
+export function resolveFluxoCaixaCategoriaCartao(
+  tipo: 'Entrada' | 'Saída',
+  historico: string,
+): string {
+  if (tipo === 'Saída') return 'Cartão de crédito';
+  const hist = normalizeLookup(historico);
+  if (hist.includes('estorno')) return 'Estorno';
+  return 'Pagamento de cartão';
+}
+
 /** Linhas de dados do template por banco (inclui linhas em branco para edição manual). */
 export const FLUXO_CAIXA_TEMPLATE_ROWS: Record<'nubank' | 'asaas', number> = {
   nubank: 36,
@@ -98,6 +109,21 @@ export const FLUXO_CAIXA_SHEET_NAMES: Record<'nubank' | 'asaas', string> = {
 };
 
 export const CARTAO_CREDITO_SHEET = 'Cartão de Crédito';
+export const REEMBOLSO_SHEET = 'Reembolso de despesas';
+
+export function splitFluxoRowsByReembolso<T extends { categoria: string }>(
+  rows: T[],
+): { principal: T[]; reembolso: T[] } {
+  const reembolso: T[] = [];
+  const principal = rows.filter((row) => {
+    if (row.categoria === 'Reembolso de Despesas') {
+      reembolso.push(row);
+      return false;
+    }
+    return true;
+  });
+  return { principal, reembolso };
+}
 
 /**
  * Fórmula de saldo corrido conforme o modelo (valores em G sempre positivos;

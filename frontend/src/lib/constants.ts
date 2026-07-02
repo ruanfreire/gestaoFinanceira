@@ -1,6 +1,7 @@
 export const queryKeys = {
   auth: ["auth"] as const,
   home: (filters: unknown) => ["home", filters] as const,
+  homePrevious: (filters: unknown) => ["home", "previous", filters] as const,
   notas: (params: unknown) => ["notas", params] as const,
   recebimentos: (tab: string) => ["recebimentos", tab] as const,
   recebimentosCounts: ["recebimentos", "counts"] as const,
@@ -19,7 +20,10 @@ export const queryKeys = {
 
 export const ROUTES = {
   entrar: "/auth/entrar",
+  signup: "/auth/signup",
   home: "/",
+  superadmin: "/superadmin",
+  superadminClients: "/superadmin/clients",
   notas: "/notas",
   notaNova: "/notas/nova",
   recebimentos: "/recebimentos",
@@ -30,6 +34,9 @@ export const ROUTES = {
   analisesSituacao: "/analises/situacao",
   analisesFluxo: "/analises/fluxo-caixa",
   analisesConfig: "/analises/configuracoes",
+  plano: "/configuracoes/plano",
+  equipe: "/configuracoes/equipe",
+  convite: "/convite",
 } as const;
 
 export const PAYMENT_STATUS_LABELS: Record<string, string> = {
@@ -51,5 +58,4 @@ export const CONCILIACAO_STATUS_LABELS: Record<string, string> = {
   conciliado_manual: "Correspondência manual",
   pendente_vinculo: "Precisa da sua confirmação",
   sem_match: "Pagamentos sem nota",
-  ignorado: "Ignorado",
 };

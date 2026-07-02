@@ -129,7 +129,9 @@ export function extractPayerFromNubankDescription(descricao: string): string | u
   return undefined;
 }
 
-function isIncomingCredit(descricao: string, valor: number, origem: NubankCsvRow['origem']): boolean {
+export function isIncomingCredit(descricao: string, valor: number, origem: NubankCsvRow['origem']): boolean {
+  if (origem === 'cartao') return false;
+
   if (valor <= 0) return false;
 
   const d = descricao.toLowerCase();
@@ -184,6 +186,14 @@ function detectColumns(headers: string[]): { map: ColumnMap; origem: 'conta' | '
   return { map, origem };
 }
 
+function classifyNubankTipo(signedValor: number, origem: 'conta' | 'cartao'): NubankCsvRow['tipo'] {
+  if (origem === 'cartao') {
+    // Cartão: amount > 0 = compra (saída); amount < 0 = pagamento/estorno (entrada)
+    return signedValor > 0 ? 'debito' : 'credito';
+  }
+  return signedValor > 0 ? 'credito' : 'debito';
+}
+
 function parseRow(cells: string[], map: ColumnMap, origem: 'conta' | 'cartao'): NubankCsvRow | null {
   const dataRaw = map.data != null ? cells[map.data] : '';
   const data = parseDateBR(dataRaw) ?? parseDateISO(dataRaw);
@@ -203,7 +213,7 @@ function parseRow(cells: string[], map: ColumnMap, origem: 'conta' | 'cartao'): 
   const identificador = map.identificador != null ? cells[map.identificador]?.trim() : undefined;
   const categoria = map.categoria != null ? cells[map.categoria] : undefined;
   const absValor = Math.abs(signedValor);
-  const tipo: NubankCsvRow['tipo'] = signedValor > 0 ? 'credito' : 'debito';
+  const tipo = classifyNubankTipo(signedValor, origem);
 
   return {
     data,

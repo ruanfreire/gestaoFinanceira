@@ -1,7 +1,9 @@
 import { Schema } from 'mongoose';
+import { tenantPlugin } from '../../../common/tenant/tenant.plugin';
 
 export const ImportacaoSchema = new Schema(
   {
+    tenantId: { type: Schema.Types.ObjectId, ref: 'Organization', index: true },
     filename: { type: String, required: true },
     originalName: { type: String },
     label: { type: String },
@@ -27,3 +29,5 @@ export const ImportacaoSchema = new Schema(
   },
   { timestamps: true },
 );
+
+ImportacaoSchema.plugin(tenantPlugin);

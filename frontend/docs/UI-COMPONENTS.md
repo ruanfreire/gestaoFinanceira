@@ -1,47 +1,74 @@
 # Componentes UI — referência rápida
 
-Fonte oficial: `UI/src/components/`
+Fonte oficial: `frontend/src/design-system/` (atoms → molecules → organisms → templates).  
+**Última revisão:** 2026-07-02
 
-## Novos na Fase 0
-
-| Componente | Import | Uso |
-|----------|--------|-----|
-| `Spinner` | `@ui/components/ui/spinner/Spinner` | Loading inline e páginas |
-| `Skeleton` | `@ui/components/ui/skeleton/Skeleton` | Placeholder de conteúdo |
-| `EmptyState` | `@ui/components/ui/empty-state/EmptyState` | Listas vazias |
-| `Pagination` | `@ui/components/ui/pagination/Pagination` | Navegação de páginas |
-| `ToastProvider` / `useToast` | `@ui/components/ui/toast/ToastContext` | Notificações |
-| `ConfirmDialog` | `@ui/components/ui/confirm-dialog/ConfirmDialog` | Confirmações |
-| `DropZone` | `@ui/components/form/DropZone` | Upload drag-and-drop |
-
-## Shared (app)
+## Atoms
 
 | Componente | Import | Uso |
 |----------|--------|-----|
-| `PageHeader` | `@/shared/components/PageHeader` | Título + breadcrumb + ações |
-| `FilterBar` | `@/shared/components/FilterBar` | Barra de filtros |
-| `DataTable` | `@/shared/components/DataTable` | Tabela com skeleton/empty/pagination |
-| `PageLoader` | `@/shared/components/DataTable` | Suspense fallback |
-| `useConfirm` | `@/shared/hooks/useConfirm` | Confirmação programática |
-| `api` | `@/shared/services/api.client` | Cliente HTTP |
-| `getApiErrorMessage` | `@/shared/services/api.client` | Mensagens de erro |
+| `Button` | `@/design-system/atoms` | Primário, outline, ghost, link, danger |
+| `Input`, `Label`, `Checkbox` | `@/design-system/atoms` | Formulários |
+| `Typography` | `@/design-system/atoms` | Hierarquia tipográfica (h1–caption) |
+| `Skeleton`, `Spinner` | `@/design-system/atoms` | Loading |
+| `Badge`, `Avatar` | `@/design-system/atoms` | Status e usuário |
 
-## Exemplo Toast
+## Molecules
 
-```tsx
-import { useToast } from "@ui/components/ui/toast/ToastContext";
+| Componente | Import | Uso |
+|----------|--------|-----|
+| `PageHeader` | `@/design-system/molecules` | Título + descrição + ações |
+| `PeriodFilter` | `@/design-system/molecules` | Filtro por mês ou intervalo |
+| `EmptyState`, `ErrorState` | `@/design-system/molecules` | Estados vazios e erro |
+| `Callout` | `@/design-system/molecules` | Avisos info/success/warning/danger |
+| `TaskGuide`, `StepHint`, `NextStepBanner` | `@/design-system/molecules` | Onboarding e próximo passo |
+| `MatchScore` | `@/design-system/molecules` | Barra de compatibilidade (conciliação) |
+| `SegmentedTabs`, `Pagination` | `@/design-system/molecules` | Abas e paginação |
+| `PrefetchLink`, `SkipToContent` | `@/design-system/molecules` | Performance e a11y |
+| `ThemeToggle` | `@/design-system/molecules` | Alternar tema claro/escuro |
+| `UploadArea` | `@/design-system/molecules` | Arrastar arquivo (wizards) |
 
-const { showToast } = useToast();
-showToast({ variant: "success", title: "Salvo com sucesso" });
-```
+## Organisms
+
+| Componente | Import | Uso |
+|----------|--------|-----|
+| `AppShell`, `MobileNav` | `@/design-system/organisms` | Layout autenticado |
+| `DataTable` | `@/design-system/organisms` | Tabela ordenável + virtualização (50+ linhas) |
+| `VirtualList` | `@/design-system/organisms` | Filas longas (conciliação, notas) |
+| `Card`, `Modal`, `Sheet` | `@/design-system/organisms` | Superfícies e overlays |
+| `SplitView` | `@/design-system/organisms` | Lista + painel (desktop) |
+| `ConfirmDialog` | `@/design-system/organisms` | Confirmação destrutiva |
+| `CommandPalette` | `@/design-system/organisms` | Busca global de telas (`Ctrl+K`) |
+| `AttentionPanel`, `KPIGrid`, `Wizard` | `@/design-system/organisms` | Dashboard e wizards |
+
+## Templates
+
+| Componente | Import | Uso |
+|----------|--------|-----|
+| `AuthTemplate` | `@/design-system/templates` | Login |
+| `DashboardTemplate` | `@/design-system/templates` | Página inicial |
+| `ListTemplate`, `FormTemplate` | `@/design-system/templates` | Listagens e formulários |
+| `WizardTemplate` | `@/design-system/templates` | Fluxos em passos |
+| `ConciliationTemplate`, `ReportTemplate` | `@/design-system/templates` | Conciliação e relatórios |
+
+## App & lib
+
+| Recurso | Import | Uso |
+|--------|--------|-----|
+| `useToast` | `@/app/toast-provider` | Notificações |
+| `useAuth` | `@/features/auth/context` | Sessão do usuário |
+| `useTheme` | `@/lib/theme` | Tema claro/escuro |
+| `api` | `@/lib/api-client` | Cliente HTTP com refresh |
+| `ROUTES`, labels | `@/lib/constants` | Rotas e rótulos de domínio |
+| `COMMAND_ROUTES` | `@/lib/command-routes` | Itens da command palette |
 
 ## Exemplo DataTable
 
 ```tsx
-import { DataTable, type DataTableColumn } from "@/shared/components";
+import { DataTable, type DataTableColumn } from "@/design-system/organisms";
 
 const columns: DataTableColumn<Nota>[] = [
-  { key: "numero", header: "Número", cell: (row) => row.numero },
+  { id: "numero", header: "Número", cell: (row) => row.numero, sortable: true },
 ];
 
 <DataTable
@@ -49,8 +76,9 @@ const columns: DataTableColumn<Nota>[] = [
   data={items}
   rowKey={(row) => row._id}
   loading={isLoading}
-  page={page}
-  totalPages={totalPages}
-  onPageChange={setPage}
+  emptyTitle="Nenhuma nota"
+  emptyDescription="Envie suas notas ou registre uma manualmente."
 />
 ```
+
+Tokens: `frontend/src/design-system/tokens.css`. WCAG: `docs/WCAG-AUDIT.md`.

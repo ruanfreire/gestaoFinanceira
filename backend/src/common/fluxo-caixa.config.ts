@@ -90,6 +90,8 @@ export type FluxoCaixaExportParams = FluxoCaixaQueryOverrides & {
   mes_pagamento?: string;
   /** @deprecated use mes_pagamento — interpretado como mês da data de pagamento */
   mes_competencia?: string;
+  /** Mês de competência da NF (AAAA-MM) — filtra lançamentos vinculados às notas do mês */
+  mes_competencia_nf?: string;
 };
 
 /** Exige mês de pagamento (AAAA-MM) ou intervalo completo (from + to). */

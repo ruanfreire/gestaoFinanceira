@@ -1,48 +1,56 @@
 # Auth — Gestão Financeira
 
+**Última revisão:** 2026-07-02
+
 ## Estrutura
 
 ```
 features/auth/
-├── components/
-│   ├── RequireAuth.tsx    # Guard de rotas protegidas
-│   └── UserMenu.tsx       # Menu do usuário no header
-├── context/
-│   └── AuthContext.tsx    # AuthProvider + useAuth()
+├── context.tsx              # AuthProvider + useAuth()
+├── api.ts                   # Login, logout, sessão, lembrar e-mail
+├── hooks/
+│   └── use-auth-welcome.ts  # Boas-vindas na primeira visita
 ├── pages/
-│   └── SignInPage.tsx     # Tela de login
-├── services/
-│   └── auth.service.ts    # Login, logout, sessão, lembrar e-mail
-└── types/
-    └── auth.types.ts
+│   └── entrar-page.tsx      # Tela de login
+├── require-auth.tsx         # Guard de rotas protegidas
+├── schema.ts                # Validação Zod do formulário
+└── types.ts
 ```
 
 ## Uso
 
 ```tsx
-import { useAuth } from "@/features/auth/context/AuthContext";
+import { useAuth } from "@/features/auth/context";
 
 const { user, isAuthenticated, login, logout } = useAuth();
 ```
 
-## Login
+## Login (`/auth/entrar`)
 
-- `SignInPage` injeta `onLogin` no `SignInForm` da UI
-- Credenciais vão para `POST /api/auth/login` via `api.client`
-- **Lembrar e-mail:** salva apenas o e-mail em `localStorage` (`finance.rememberEmail`)
-- Após login, redireciona para a rota de origem (`state.from`) ou `/`
+- Alias legado: `/auth/signin` → redireciona para `/auth/entrar`
+- Credenciais: `POST /api/auth/login` via `@/lib/api-client`
+- **Lembrar e-mail:** `localStorage` (`finance.rememberEmail`) — apenas o e-mail
+- Após login bem-sucedido, redireciona para `state.from` ou `/`
+- `isAuthenticated` baseia-se no token em `localStorage` (`accessToken`)
+- **Focus trap** no formulário (`useFocusTrap`) — Tab circula só nos campos do login
+- **Boas-vindas** na primeira visita (`Callout` + `gf.auth.welcome.dismissed`)
+- **Tema:** `ThemeToggle` no canto superior direito (`AuthTemplate`)
+- Sem `TaskGuide` na tela de login (formulário direto)
 
 ## Logout
 
-`UserMenu` → `authService.logout()` → limpa token e usuário → `/auth/signin`
+`AppShell` → `logout()` → `POST /api/auth/logout` → limpa token e usuário → `/auth/entrar`
 
-## SignInForm (UI)
+## Rotas protegidas
 
-Props opcionais para integração com o app:
+`RequireAuth` em `features/auth/require-auth.tsx` envolve todas as páginas autenticadas via `ProtectedShell` (`app/protected-shell.tsx`).
 
-| Prop | Tipo | Descrição |
-|------|------|-----------|
-| `onLogin` | `(credentials) => Promise<void>` | Handler de login do app |
-| `initialEmail` | `string` | E-mail pré-preenchido |
+## Contrato backend
 
-Sem `onLogin`, mantém comportamento legado (fetch direto) para o demo TailAdmin.
+```
+POST /api/auth/login   → { email, password } → { ok, accessToken, user } + cookie refreshToken
+POST /api/auth/refresh → cookie → { ok, accessToken }
+POST /api/auth/logout  → revoga sessão
+```
+
+Em 401: tenta refresh uma vez; falha → limpa sessão → `/auth/entrar`.

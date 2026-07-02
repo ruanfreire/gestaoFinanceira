@@ -1,36 +1,128 @@
-import { Link } from "react-router-dom";
-import { Upload, FileSpreadsheet, Link2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { useHomeQuery } from "../hooks";
-import { DashboardTemplate } from "@/design-system/templates";
-import { AttentionPanel, Card, CardBody, CardHeader, KPIGrid } from "@/design-system/organisms";
-import { Button, Typography } from "@/design-system/atoms";
-import { EmptyState, PeriodFilter, TaskGuide } from "@/design-system/molecules";
-import { formatMoney, formatDate, bancoLabel } from "@/lib/format";
-import { ROUTES } from "@/lib/constants";
-import { screenTasks } from "@/lib/screen-tasks";
+import { AttentionPanel } from "@/design-system/organisms";
+import { ErrorState } from "@/design-system/molecules";
+import { KPIGrid } from "@/design-system/organisms";
+import { TrendBadge } from "@/design-system/atoms";
+import { formatMoney } from "@/lib/format";
+import { percentChange } from "@/lib/period-utils";
+import { useFadeInMotion } from "@/lib/motion";
+import { DashboardHeader } from "../components/dashboard-header";
+import { QuickActionsStrip } from "../components/quick-actions-strip";
+import { FinanceFlowChart } from "../components/finance-flow-chart";
+import { NotaStatusChart } from "../components/nota-status-chart";
+import { PendingTasksList } from "../components/pending-tasks-list";
+import { RecentImportsList } from "../components/activity-timeline";
+import { DashboardSkeleton } from "../components/dashboard-skeleton";
+import { MobileQuickActionsBar } from "../components/mobile-quick-actions-bar";
+import type { DashboardKpis } from "../api";
+
+function buildKpiItems(kpis: DashboardKpis, previous?: DashboardKpis) {
+  const trend = (current: number, prevKey: keyof DashboardKpis, invert = false) => {
+    const prev = previous?.[prevKey];
+    if (typeof prev !== "number") return undefined;
+    const delta = percentChange(current, prev);
+    if (delta == null) return undefined;
+    return <TrendBadge delta={invert && delta !== 0 ? -delta : delta} />;
+  };
+
+  return [
+    {
+      label: "Valor emitido",
+      value: formatMoney(kpis.valorNf),
+      trend: trend(kpis.valorNf, "valorNf"),
+    },
+    {
+      label: "Valor recebido",
+      value: formatMoney(kpis.valorRecebido),
+      trend: trend(kpis.valorRecebido, "valorRecebido"),
+    },
+    {
+      label: "Valor em aberto",
+      value: formatMoney(kpis.saldoAberto),
+      highlight: kpis.saldoAberto > 0,
+      trend: trend(kpis.saldoAberto, "saldoAberto", true),
+    },
+    {
+      label: "% recebido",
+      value: `${kpis.percentRecebido.toFixed(1)}%`,
+      hint: `${kpis.notasPagas}/${kpis.totalNotas} pagas`,
+      trend: trend(kpis.percentRecebido, "percentRecebido"),
+    },
+    {
+      label: "A confirmar",
+      value: String(kpis.pendentesConciliacao),
+      highlight: kpis.pendentesConciliacao > 0,
+      trend: trend(kpis.pendentesConciliacao, "pendentesConciliacao", true),
+    },
+    {
+      label: "Importações",
+      value: String(kpis.importsInPeriod),
+      trend: trend(kpis.importsInPeriod, "importsInPeriod"),
+    },
+  ];
+}
+
+function Widget({ children, className }: { children: React.ReactNode; className?: string }) {
+  const fadeIn = useFadeInMotion(6);
+  return (
+    <motion.div {...fadeIn} className={className}>
+      {children}
+    </motion.div>
+  );
+}
 
 export default function HomePage() {
-  const { data, isLoading, isError, filters, setFilters, refetch } = useHomeQuery();
-  const hasAlerts = Boolean(data?.alerts.length);
-  const task = screenTasks.home;
+  const { data, isLoading, isError, filters, setFilters, refetch, previousKpis } = useHomeQuery();
+  const pageMotion = useFadeInMotion(4);
+
+  if (isLoading && !data) {
+    return (
+      <motion.div {...pageMotion}>
+        <DashboardHeader
+          filters={filters}
+          onFiltersChange={setFilters}
+          onApplyFilters={() => refetch()}
+          loading
+        />
+        <div className="mt-6">
+          <DashboardSkeleton />
+        </div>
+      </motion.div>
+    );
+  }
+
+  if (isError && !data) {
+    return (
+      <motion.div {...pageMotion} className="stack-gap">
+        <DashboardHeader
+          filters={filters}
+          onFiltersChange={setFilters}
+          onApplyFilters={() => refetch()}
+        />
+        <ErrorState message="Não foi possível carregar o início." onRetry={() => refetch()} />
+      </motion.div>
+    );
+  }
+
+  if (!data) return null;
+
+  const kpiItems = buildKpiItems(data.kpis, previousKpis);
 
   return (
-    <DashboardTemplate
-      title="Início"
-      description="O que precisa da sua atenção hoje"
-      taskGuide={
-        <TaskGuide
-          goal={task.goal}
-          steps={task.steps}
-          minutes={task.minutes}
-          currentStep={hasAlerts ? 0 : 2}
-        />
-      }
-      loading={isLoading}
-      error={isError ? "Não foi possível carregar o início." : undefined}
-      onRetry={() => refetch()}
-      attention={
-        data ? (
+    <motion.div {...pageMotion} className="space-y-6 pb-20 lg:pb-8">
+      <DashboardHeader
+        filters={filters}
+        onFiltersChange={setFilters}
+        onApplyFilters={() => refetch()}
+        loading={isLoading}
+        dateBasis={data.dateBasis}
+      />
+
+      <QuickActionsStrip />
+
+      {data.alerts.length > 0 && (
+        <div aria-live="polite">
           <AttentionPanel
             items={data.alerts.map((a) => ({
               id: a.id,
@@ -41,97 +133,37 @@ export default function HomePage() {
               type: a.type,
             }))}
           />
-        ) : null
-      }
-      quickActions={
-        !hasAlerts ? (
-          <section className="stack-gap">
-            <Typography variant="overline">Comece por aqui</Typography>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Button variant="outline" className="h-auto justify-start py-3" asChild>
-                <Link to={ROUTES.arquivosNotas}>
-                  <Upload className="h-4 w-4 shrink-0" aria-hidden />
-                  Enviar notas
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-auto justify-start py-3" asChild>
-                <Link to={ROUTES.arquivosExtratos}>
-                  <FileSpreadsheet className="h-4 w-4 shrink-0" aria-hidden />
-                  Enviar extrato bancário
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-auto justify-start py-3" asChild>
-                <Link to={ROUTES.recebimentos}>
-                  <Link2 className="h-4 w-4 shrink-0" aria-hidden />
-                  Confirmar recebimentos
-                </Link>
-              </Button>
-            </div>
-          </section>
-        ) : null
-      }
-      filters={<PeriodFilter value={filters} onChange={setFilters} onApply={() => refetch()} />}
-      kpis={
-        data ? (
-          <KPIGrid
-            items={[
-              { label: "Emitido", value: formatMoney(data.kpis.valorNf) },
-              { label: "Recebido", value: formatMoney(data.kpis.valorRecebido) },
-              { label: "Em aberto", value: formatMoney(data.kpis.saldoAberto), highlight: true },
-            ]}
-          />
-        ) : null
-      }
-      timeline={
-        data ? (
-          data.recentImports.length > 0 ? (
-            <Card>
-              <CardHeader title="Atividade recente" />
-              <CardBody className="space-y-1">
-                {data.recentImports.map((item) => (
-                  <Link key={item.id} to={item.link} className="block rounded-lg p-2 transition-default hover:bg-muted">
-                    <Typography variant="subtitle">{item.title}</Typography>
-                    <Typography variant="caption">{item.subtitle}</Typography>
-                  </Link>
-                ))}
-              </CardBody>
-            </Card>
-          ) : (
-            <EmptyState
-              title="Nenhuma atividade recente"
-              description="Importe notas ou extratos para ver o histórico aqui."
-            />
-          )
-        ) : null
-      }
-    >
-      {data && data.pendingMovements.length > 0 && (
-        <Card>
-          <CardHeader
-            title="Movimentos recentes"
-            actions={
-              <Button size="sm" variant="outline" asChild>
-                <Link to={ROUTES.recebimentos}>Resolver agora</Link>
-              </Button>
-            }
-          />
-          <CardBody className="space-y-3">
-            {data.pendingMovements.slice(0, 3).map((m) => (
-              <div key={m.id} className="flex items-center justify-between gap-2 rounded-lg border border-border p-3">
-                <div className="min-w-0">
-                  <Typography variant="subtitle" className="truncate">
-                    {m.pagador || "Pagador não identificado"}
-                  </Typography>
-                  <Typography variant="caption">
-                    {bancoLabel(m.source)} · {formatDate(m.data)}
-                  </Typography>
-                </div>
-                <Typography variant="subtitle">{formatMoney(m.valor)}</Typography>
-              </div>
-            ))}
-          </CardBody>
-        </Card>
+        </div>
       )}
-    </DashboardTemplate>
+
+      <Widget>
+        <section aria-labelledby="dashboard-kpis">
+          <h2 id="dashboard-kpis" className="sr-only">
+            Indicadores financeiros
+          </h2>
+          <KPIGrid items={kpiItems} columns={3} carouselOnMobile />
+        </section>
+      </Widget>
+
+      <div className="grid gap-6 lg:grid-cols-12">
+        <Widget className="lg:col-span-8">
+          <FinanceFlowChart data={data.competenciaChart} />
+        </Widget>
+        <Widget className="lg:col-span-4">
+          <NotaStatusChart status={data.notaStatus} />
+        </Widget>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-12">
+        <Widget className="lg:col-span-7">
+          <PendingTasksList items={data.pendingMovements} />
+        </Widget>
+        <Widget className="lg:col-span-5">
+          <RecentImportsList items={data.recentImports} />
+        </Widget>
+      </div>
+
+      <MobileQuickActionsBar />
+    </motion.div>
   );
 }

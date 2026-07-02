@@ -5,6 +5,7 @@ import { ExtratoAsaasController } from './extrato-asaas.controller';
 import { AsaasImportacaoSchema } from './schemas/asaas-importacao.schema';
 import { AsaasLancamentoSchema } from './schemas/asaas-lancamento.schema';
 import { NotasModule } from '../notas/notas.module';
+import { BillingModule } from '../billing/billing.module';
 import { NotaSchema } from '../notas/schemas/nota.schema';
 
 @Module({
@@ -15,6 +16,7 @@ import { NotaSchema } from '../notas/schemas/nota.schema';
       { name: 'Nota', schema: NotaSchema },
     ]),
     NotasModule,
+    BillingModule,
   ],
   providers: [ExtratoAsaasService],
   controllers: [ExtratoAsaasController],

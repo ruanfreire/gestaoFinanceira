@@ -1,22 +1,15 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { Building2, Check, ChevronRight, Download, Landmark } from "lucide-react";
 import { analisesApi, defaultFluxoFilters } from "../api";
 import { loadFluxoDefaults } from "../hooks/use-fluxo-defaults";
 import { WizardTemplate } from "@/design-system/templates";
-import {
-  PeriodFilter,
-  validatePeriodFilter,
-  TaskGuide,
-  StepHint,
-  ChoiceCard,
-  ChoiceCardGrid,
-} from "@/design-system/molecules";
+import { CompactPeriodToolbar, validatePeriodFilter } from "@/design-system/molecules";
 import { Button, Input, Label, Typography } from "@/design-system/atoms";
-import { Card, CardBody } from "@/design-system/organisms";
 import { useToast } from "@/app/toast-provider";
 import { bancoLabel } from "@/lib/format";
 import { ROUTES } from "@/lib/constants";
-import { screenTasks } from "@/lib/screen-tasks";
+import { cn } from "@/design-system/lib/cn";
 
 const STEPS = [
   { id: "period", label: "Período" },
@@ -24,17 +17,40 @@ const STEPS = [
   { id: "export", label: "Baixar" },
 ];
 
-const STEP_HINTS = [
-  "O mês atual já vem selecionado. Ajuste se precisar e toque em Continuar.",
-  "Escolha o banco ou deixe consolidado para ver tudo junto.",
-  "Revise o resumo e toque em Baixar Excel.",
+const STEP_DESCRIPTIONS = [
+  "Defina o período de pagamento e, se quiser, filtre também pela competência da nota fiscal.",
+  "Escolha de qual banco exportar ou use o consolidado.",
+  "Confira o resumo e baixe o arquivo Excel.",
+];
+
+const BANK_OPTIONS = [
+  {
+    value: "consolidado" as const,
+    label: "Consolidado",
+    description: "Nubank + Asaas em um único arquivo",
+    icon: Landmark,
+  },
+  {
+    value: "nubank" as const,
+    label: "Nubank",
+    description: "Somente movimentos do Nubank",
+    icon: Building2,
+  },
+  {
+    value: "asaas" as const,
+    label: "Asaas",
+    description: "Somente movimentos do Asaas",
+    icon: Building2,
+  },
 ];
 
 function formatPeriodLabel(filters: ReturnType<typeof defaultFluxoFilters>) {
   if (filters.filterMode === "mes" && filters.mesPagamento) {
-    return `Mês ${filters.mesPagamento}`;
+    const [year, month] = filters.mesPagamento.split("-");
+    const date = new Date(Number(year), Number(month) - 1, 1);
+    return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
   }
-  return `${filters.from} a ${filters.to}`;
+  return `${filters.from.split("-").reverse().join("/")} – ${filters.to.split("-").reverse().join("/")}`;
 }
 
 export default function AnalisesFluxoPage() {
@@ -46,7 +62,6 @@ export default function AnalisesFluxoPage() {
   }));
   const [exporting, setExporting] = useState(false);
   const { toast } = useToast();
-  const task = screenTasks.analisesFluxo;
 
   const nextFromPeriod = () => {
     const err = validatePeriodFilter(filters);
@@ -74,130 +89,175 @@ export default function AnalisesFluxoPage() {
   return (
     <WizardTemplate
       title="Fluxo de caixa"
-      description="Baixe o relatório em Excel em 3 passos"
+      description="Exporte o relatório em Excel em poucos passos"
       steps={STEPS}
       currentStep={step}
-      taskGuide={
-        <TaskGuide goal={task.goal} steps={task.steps} minutes={task.minutes} currentStep={step} />
-      }
-      stepHint={<StepHint>{STEP_HINTS[step]}</StepHint>}
+      stepDescription={STEP_DESCRIPTIONS[step]}
     >
       {step === 0 && (
-        <div className="stack-gap">
-          <PeriodFilter value={filters} onChange={(v) => setFilters({ ...filters, ...v })} />
-          <Button onClick={nextFromPeriod}>Continuar</Button>
+        <div className="space-y-5">
+          <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
+            <CompactPeriodToolbar
+              value={filters}
+              onChange={(v) => setFilters({ ...filters, ...v })}
+              idPrefix="fluxo"
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 sm:items-end">
+            <div>
+              <Label htmlFor="mesCompetenciaNf" className="text-caption text-muted-foreground">
+                Competência da NF (opcional)
+              </Label>
+              <Input
+                id="mesCompetenciaNf"
+                type="month"
+                className="mt-1.5 h-9"
+                value={filters.mesCompetenciaNf}
+                onChange={(e) => setFilters({ ...filters, mesCompetenciaNf: e.target.value })}
+              />
+            </div>
+            <Typography variant="caption" tone="muted" className="sm:pb-2">
+              Filtra notas emitidas neste mês, além do período de pagamento.
+            </Typography>
+          </div>
+
+          <WizardTemplate.Footer>
+            <Button size="sm" className="w-full sm:w-auto" onClick={nextFromPeriod}>
+              Continuar
+              <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+            </Button>
+          </WizardTemplate.Footer>
         </div>
       )}
 
       {step === 1 && (
-        <div className="stack-gap">
-          <Typography variant="small" className="font-medium">
-            Banco
-          </Typography>
-          <ChoiceCardGrid>
-            {[
-              { value: "consolidado" as const, label: "Consolidado (Nubank + Asaas)" },
-              { value: "nubank" as const, label: "Nubank" },
-              { value: "asaas" as const, label: "Asaas" },
-            ].map((opt) => (
-              <ChoiceCard
-                key={opt.value}
-                title={opt.label}
-                selected={filters.banco === opt.value}
-                onClick={() => setFilters({ ...filters, banco: opt.value })}
-              />
-            ))}
-          </ChoiceCardGrid>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setStep(0)}>
+        <div className="space-y-4">
+          <div className="divide-y divide-border rounded-xl border border-border">
+            {BANK_OPTIONS.map((opt) => {
+              const Icon = opt.icon;
+              const selected = filters.banco === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setFilters({ ...filters, banco: opt.value })}
+                  className={cn(
+                    "flex w-full items-center gap-3 px-4 py-3.5 text-left transition-default first:rounded-t-xl last:rounded-b-xl",
+                    "hover:bg-muted/40",
+                    selected && "bg-primary/5",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                      selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <Typography variant="subtitle">{opt.label}</Typography>
+                    <Typography variant="caption" tone="muted" className="mt-0.5 block">
+                      {opt.description}
+                    </Typography>
+                  </span>
+                  {selected && <Check className="h-4 w-4 shrink-0 text-primary" aria-hidden />}
+                </button>
+              );
+            })}
+          </div>
+
+          <WizardTemplate.Footer>
+            <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setStep(0)}>
               Voltar
             </Button>
-            <Button onClick={() => setStep(2)}>Continuar</Button>
-          </div>
+            <Button size="sm" className="w-full sm:w-auto" onClick={() => setStep(2)}>
+              Continuar
+              <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+            </Button>
+          </WizardTemplate.Footer>
         </div>
       )}
 
       {step === 2 && (
-        <Card>
-          <CardBody className="stack-gap">
-            <Typography variant="subtitle">Resumo antes de baixar</Typography>
-            <ul className="space-y-1 text-body">
-              <li>
-                <strong>Período:</strong> {periodLabel}
-              </li>
-              <li>
-                <strong>Banco:</strong> {bancoLabel(filters.banco)}
-              </li>
-              {filters.banco !== "consolidado" && filters.empresaNome && (
-                <li>
-                  <strong>Empresa:</strong> {filters.empresaNome}
-                </li>
-              )}
-              {filters.banco !== "consolidado" && filters.saldoInicial && (
-                <li>
-                  <strong>Saldo inicial:</strong> {filters.saldoInicial}
-                </li>
-              )}
-            </ul>
-            <Typography variant="caption" tone="muted">
-              O arquivo incluirá movimentos conciliados do período selecionado.
-            </Typography>
-
-            {filters.banco !== "consolidado" && (
-              <details className="rounded-lg border border-border p-3">
-                <summary className="cursor-pointer text-small font-medium">
-                  Campos opcionais (empresa, conta, saldo)
-                </summary>
-                <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <Label>Empresa</Label>
-                    <Input
-                      className="mt-1.5"
-                      value={filters.empresaNome}
-                      onChange={(e) => setFilters({ ...filters, empresaNome: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>CNPJ</Label>
-                    <Input
-                      className="mt-1.5"
-                      value={filters.empresaCnpj}
-                      onChange={(e) => setFilters({ ...filters, empresaCnpj: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Conta corrente</Label>
-                    <Input
-                      className="mt-1.5"
-                      value={filters.contaCorrente}
-                      onChange={(e) => setFilters({ ...filters, contaCorrente: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Saldo inicial</Label>
-                    <Input
-                      className="mt-1.5"
-                      value={filters.saldoInicial}
-                      onChange={(e) => setFilters({ ...filters, saldoInicial: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <Button variant="link" size="sm" className="mt-2 px-0" asChild>
-                  <Link to={ROUTES.analisesConfig}>Salvar como padrão para próximas exportações</Link>
-                </Button>
-              </details>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => setStep(1)}>
-                Voltar
-              </Button>
-              <Button size="lg" onClick={onExport} loading={exporting}>
-                Baixar Excel
-              </Button>
+        <div className="space-y-5">
+          <dl className="grid gap-3 rounded-xl border border-border bg-muted/20 p-4 sm:grid-cols-2">
+            <div>
+              <dt className="text-caption text-muted-foreground">Período</dt>
+              <dd className="mt-0.5 text-body font-medium capitalize">{periodLabel}</dd>
             </div>
-          </CardBody>
-        </Card>
+            <div>
+              <dt className="text-caption text-muted-foreground">Banco</dt>
+              <dd className="mt-0.5 text-body font-medium">{bancoLabel(filters.banco)}</dd>
+            </div>
+            {filters.mesCompetenciaNf && (
+              <div>
+                <dt className="text-caption text-muted-foreground">Competência NF</dt>
+                <dd className="mt-0.5 text-body font-medium">{filters.mesCompetenciaNf}</dd>
+              </div>
+            )}
+          </dl>
+
+          <Typography variant="caption" tone="muted">
+            O arquivo inclui movimentos conciliados do período selecionado.
+          </Typography>
+
+          {filters.banco !== "consolidado" && (
+            <details className="rounded-xl border border-border px-4 py-3">
+              <summary className="cursor-pointer text-small font-medium text-foreground">
+                Campos opcionais (empresa, conta, saldo)
+              </summary>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label className="text-caption text-muted-foreground">Empresa</Label>
+                  <Input
+                    className="mt-1.5 h-9"
+                    value={filters.empresaNome}
+                    onChange={(e) => setFilters({ ...filters, empresaNome: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-caption text-muted-foreground">CNPJ</Label>
+                  <Input
+                    className="mt-1.5 h-9"
+                    value={filters.empresaCnpj}
+                    onChange={(e) => setFilters({ ...filters, empresaCnpj: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-caption text-muted-foreground">Conta corrente</Label>
+                  <Input
+                    className="mt-1.5 h-9"
+                    value={filters.contaCorrente}
+                    onChange={(e) => setFilters({ ...filters, contaCorrente: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-caption text-muted-foreground">Saldo inicial</Label>
+                  <Input
+                    className="mt-1.5 h-9"
+                    value={filters.saldoInicial}
+                    onChange={(e) => setFilters({ ...filters, saldoInicial: e.target.value })}
+                  />
+                </div>
+              </div>
+              <Button variant="link" size="sm" className="mt-3 h-auto px-0" asChild>
+                <Link to={ROUTES.analisesConfig}>Salvar como padrão para próximas exportações</Link>
+              </Button>
+            </details>
+          )}
+
+          <WizardTemplate.Footer>
+            <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setStep(1)}>
+              Voltar
+            </Button>
+            <Button size="sm" className="w-full sm:w-auto" onClick={onExport} loading={exporting}>
+              <Download className="h-4 w-4 shrink-0" aria-hidden />
+              Baixar Excel
+            </Button>
+          </WizardTemplate.Footer>
+        </div>
       )}
     </WizardTemplate>
   );

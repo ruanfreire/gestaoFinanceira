@@ -16,12 +16,14 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImportacoesService } from './importacoes.service';
 import { NotasService } from '../notas/notas.service';
+import { PlanLimitsService } from '../billing/billing.service';
 
 @Controller('importacoes')
 export class ImportacoesController {
   constructor(
     private readonly importService: ImportacoesService,
     private readonly notasService: NotasService,
+    private readonly planLimitsService: PlanLimitsService,
   ) {}
 
   @Get()
@@ -94,6 +96,8 @@ export class ImportacoesController {
   @UseInterceptors(FileInterceptor('file'))
   async upload(@UploadedFile() file: Express.Multer.File, @Req() req: any) {
     if (!file) throw new BadRequestException('Arquivo não enviado');
+
+    await this.planLimitsService.assertCanImport();
 
     const saved = await this.importService.createRecord({
       filename: file.originalname,

@@ -7,6 +7,7 @@ import {
   FLUXO_CAIXA_SHEET_NAMES,
   FLUXO_CAIXA_TEMPLATE_ROWS,
   FLUXO_CAIXA_TIPOS,
+  REEMBOLSO_SHEET,
   buildSaldoBancoFormula,
 } from './fluxo-caixa-lista';
 
@@ -124,15 +125,16 @@ function removeOtherFluxoSheets(
   workbook: ExcelJS.Workbook,
   activeSheet: string,
   keepCartaoCredito = false,
+  keepReembolso = false,
 ) {
   for (const name of Object.values(FLUXO_CAIXA_SHEET_NAMES)) {
     if (name === activeSheet) continue;
     const sheet = workbook.getWorksheet(name);
     if (sheet) workbook.removeWorksheet(sheet.id);
   }
-  const extrasToRemove = keepCartaoCredito
-    ? ['Reembolso de despesas']
-    : [CARTAO_CREDITO_SHEET, 'Reembolso de despesas'];
+  const extrasToRemove: string[] = [];
+  if (!keepCartaoCredito) extrasToRemove.push(CARTAO_CREDITO_SHEET);
+  if (!keepReembolso) extrasToRemove.push(REEMBOLSO_SHEET);
   for (const extra of extrasToRemove) {
     const sheet = workbook.getWorksheet(extra);
     if (sheet) workbook.removeWorksheet(sheet.id);
@@ -195,9 +197,10 @@ function setupFluxoSheetLayout(
   ];
 }
 
-function setupCartaoCreditoSheetLayout(
+function setupSecondaryFluxoSheetLayout(
   sheet: ExcelJS.Worksheet,
   header: FluxoCaixaHeader,
+  sectionLabel: string,
   preserveLayout = false,
 ) {
   if (!preserveLayout) {
@@ -211,7 +214,7 @@ function setupCartaoCreditoSheetLayout(
   sheet.getCell('B4').value = header.empresaCnpj;
   sheet.getCell('A5').value = 'Banco:';
   sheet.getCell('B5').value = header.banco;
-  sheet.getCell('C5').value = 'Cartão de crédito';
+  sheet.getCell('C5').value = sectionLabel;
   sheet.getCell('G5').value = 'Saldo Inicial:';
 
   const saldoInicialCell = sheet.getCell('H5');
@@ -242,6 +245,14 @@ function setupCartaoCreditoSheetLayout(
     { width: 14.86 },
     { width: 11.43 },
   ];
+}
+
+function setupCartaoCreditoSheetLayout(
+  sheet: ExcelJS.Worksheet,
+  header: FluxoCaixaHeader,
+  preserveLayout = false,
+) {
+  setupSecondaryFluxoSheetLayout(sheet, header, 'Cartão de crédito', preserveLayout);
 }
 
 function fillDataBlock(
@@ -397,6 +408,34 @@ function setActiveSheet(workbook: ExcelJS.Workbook, sheetName: string) {
   }
 }
 
+function populateReembolsoSheet(
+  workbook: ExcelJS.Workbook,
+  header: FluxoCaixaHeader,
+  rows: FluxoCaixaRow[],
+  preserveLayout = false,
+) {
+  if (rows.length === 0) return;
+
+  let sheet = workbook.getWorksheet(REEMBOLSO_SHEET);
+  if (!sheet) {
+    sheet = workbook.addWorksheet(REEMBOLSO_SHEET);
+  }
+
+  const plan = buildLayoutPlan('nubank', rows.length);
+  setupSecondaryFluxoSheetLayout(sheet, header, 'Reembolso de despesas', preserveLayout);
+  if (preserveLayout) {
+    prepareSheetDataArea(sheet, plan, 'nubank');
+  }
+  fillDataBlock(sheet, 'nubank', rows, plan);
+  fillSummaryRows(sheet, plan);
+  fillSaldoFinal(sheet, plan);
+
+  sheet.autoFilter = {
+    from: { row: HEADER_ROW, column: 1 },
+    to: { row: plan.filterEndRow, column: 1 },
+  };
+}
+
 async function populateWorkbook(
   workbook: ExcelJS.Workbook,
   banco: FluxoCaixaBanco,
@@ -404,6 +443,7 @@ async function populateWorkbook(
   rows: FluxoCaixaRow[],
   preserveLayout = false,
   cartao?: FluxoCaixaCartaoSection,
+  reembolso?: FluxoCaixaReembolsoSection,
 ) {
   applyListSheet(workbook);
   registerNamedRanges(workbook);
@@ -411,10 +451,14 @@ async function populateWorkbook(
     workbook,
     FLUXO_CAIXA_SHEET_NAMES[banco],
     Boolean(cartao?.rows.length),
+    Boolean(reembolso?.rows.length),
   );
   populateFluxoBancoSheet(workbook, banco, header, rows, preserveLayout);
   if (cartao?.rows.length) {
     populateCartaoCreditoSheet(workbook, cartao.header, cartao.rows, preserveLayout);
+  }
+  if (reembolso?.rows.length) {
+    populateReembolsoSheet(workbook, reembolso.header, reembolso.rows, preserveLayout);
   }
   setActiveSheet(workbook, FLUXO_CAIXA_SHEET_NAMES[banco]);
 }
@@ -424,11 +468,17 @@ export type FluxoCaixaCartaoSection = {
   rows: FluxoCaixaRow[];
 };
 
+export type FluxoCaixaReembolsoSection = {
+  header: FluxoCaixaHeader;
+  rows: FluxoCaixaRow[];
+};
+
 export async function buildFluxoCaixaWorkbook(
   banco: FluxoCaixaBanco,
   header: FluxoCaixaHeader,
   rows: FluxoCaixaRow[],
   cartao?: FluxoCaixaCartaoSection,
+  reembolso?: FluxoCaixaReembolsoSection,
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   let preserveLayout = false;
@@ -440,7 +490,7 @@ export async function buildFluxoCaixaWorkbook(
     // modelo ausente — workbook vazio com fallback programático
   }
 
-  await populateWorkbook(workbook, banco, header, rows, preserveLayout, cartao);
+  await populateWorkbook(workbook, banco, header, rows, preserveLayout, cartao, reembolso);
 
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);
@@ -456,6 +506,7 @@ export type FluxoCaixaBancoSection = {
 export async function buildFluxoCaixaConsolidadoWorkbook(
   sections: FluxoCaixaBancoSection[],
   cartao?: FluxoCaixaCartaoSection,
+  reembolso?: FluxoCaixaReembolsoSection,
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   let preserveLayout = false;
@@ -476,6 +527,10 @@ export async function buildFluxoCaixaConsolidadoWorkbook(
 
   if (cartao?.rows.length) {
     populateCartaoCreditoSheet(workbook, cartao.header, cartao.rows, preserveLayout);
+  }
+
+  if (reembolso?.rows.length) {
+    populateReembolsoSheet(workbook, reembolso.header, reembolso.rows, preserveLayout);
   }
 
   const firstSheet = sections[0]

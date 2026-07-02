@@ -13,5 +13,12 @@ export const lazyRoutes = {
   analisesSituacao: () => import("@/features/analises/pages/analises-situacao-page"),
   analisesFluxo: () => import("@/features/analises/pages/analises-fluxo-page"),
   analisesConfig: () => import("@/features/analises/pages/analises-config-page"),
+  plano: () => import("@/features/billing/pages/plano-page"),
+  equipe: () => import("@/features/org/pages/equipe-page"),
+  convite: () => import("@/features/org/pages/convite-page"),
   notFound: () => import("@/features/errors/not-found-page"),
+  signup: () => import("@/features/auth/pages/signup-page"),
+  superadminDashboard: () => import("@/features/platform/pages/superadmin-dashboard-page"),
+  superadminClients: () => import("@/features/platform/pages/superadmin-clients-page"),
+  superadminClientDetail: () => import("@/features/platform/pages/superadmin-client-detail-page"),
 } as const;

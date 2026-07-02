@@ -1,8 +1,9 @@
 # Gestão Financeira — Rebuild Frontend (Greenfield)
 
-> **Status:** Fase de planejamento — aguardando validação antes da implementação  
-> **Data:** 2026-07-01  
-> **Escopo:** Descartar 100% do frontend atual (incluindo `/UI`). Preservar apenas regras de negócio, APIs e contratos do backend.
+> **Status:** Implementado (fases 0–12 concluídas em 2026-07)  
+> **Data:** 2026-07-01 · **Revisão docs:** 2026-07-02  
+> **Escopo:** Frontend greenfield em `frontend/src/` com design system próprio.  
+> **Nota:** Seções 1–9 abaixo são **arquivo histórico** do planejamento; para status atual use `docs/ROADMAP-SAAS.md`.
 
 ---
 
@@ -794,78 +795,84 @@ Result card:
 
 ### 9.5 Dark mode
 
-- Toggle no header (sol/lua)
-- Mesmas estruturas, tokens invertidos
-- Gráficos: cores ajustadas para contraste em #0A0A0A
+- Tokens `.dark` em `design-system/tokens.css`
+- **Toggle:** `ThemeToggle` no header autenticado e na tela de login (`ThemeProvider` em `@/lib/theme`)
+- Preferência persistida em `gf.theme`
 
 ---
 
-## 10. Fases de implementação
+## 10. Fases de implementação ✅
 
-> Implementação só inicia após validação deste documento.
+> **Concluído em 2026-07.** Detalhes operacionais: `docs/ROADMAP-SAAS.md`.
 
-### Fase 0 — Fundação (2–3 dias)
-- [ ] Scaffold Vite + TS + Tailwind + shadcn
-- [ ] API client + auth + providers
-- [ ] AppShell + router lazy + 404
-- [ ] Design tokens + tema claro/escuro
+### Fase 0 — Fundação ✅
+- [x] Scaffold Vite + TS + Tailwind 4 + design system próprio (`design-system/`)
+- [x] API client + auth + providers
+- [x] AppShell + router lazy + 404
+- [x] Design tokens (tema claro + escuro com toggle na UI)
 
-### Fase 1 — Auth + Início (2 dias)
-- [ ] Página Entrar
-- [ ] Central operacional (agregação dashboard)
-- [ ] Attention panel + quick actions
+### Fase 1 — Auth + Início ✅
+- [x] Página Entrar (`/auth/entrar` + redirect `/auth/signin`)
+- [x] Central operacional (`home-page.tsx`)
+- [x] Attention panel + quick actions
 
-### Fase 2 — Notas (2 dias)
-- [ ] Lista + busca + paginação
-- [ ] Registrar nota (form Zod)
-- [ ] Detalhe pagamentos + desvincular
+### Fase 2 — Notas ✅
+- [x] Lista + busca debounced + paginação + ordenação
+- [x] Registrar nota (form Zod)
+- [x] Detalhe pagamentos + desvincular com confirmação
 
-### Fase 3 — Arquivos (3 dias)
-- [ ] Wizard JSON notas + histórico + detalhe
-- [ ] Wizard CSV extratos + histórico + detalhe
-- [ ] Pré-visualização + resultado + próximo passo
+### Fase 3 — Arquivos ✅
+- [x] Wizard JSON notas + histórico + detalhe
+- [x] Wizard CSV extratos + histórico + detalhe
+- [x] Pré-visualização + resultado + próximo passo
 
-### Fase 4 — Recebimentos (3 dias)
-- [ ] Fila pendente + sem correspondência
-- [ ] Match suggestion + combobox
-- [ ] Nubank pagador + atalhos teclado
-- [ ] Desfazer correspondência
+### Fase 4 — Recebimentos ✅
+- [x] Fila pendente + sem correspondência
+- [x] Match suggestion + score visual + busca candidatas
+- [x] Nubank pagador + atalhos teclado (j/k, Enter)
+- [x] Desfazer correspondência (toast + undo)
 
-### Fase 5 — Análises (2 dias)
-- [ ] Situação das notas (preview + CSV)
-- [ ] Fluxo de caixa (wizard + XLSX)
+### Fase 5 — Análises ✅
+- [x] Situação das notas (preview + CSV)
+- [x] Fluxo de caixa (wizard + XLSX + config local)
 
-### Fase 6 — Polish (2 dias)
-- [ ] Mobile nav + bottom sheets
-- [ ] Command palette
-- [ ] A11y audit + testes
-- [ ] Remover `/UI` do monorepo
+### Fase 6 — Polish ✅
+- [x] Mobile nav + bottom sheets
+- [x] Command palette (`Ctrl+K` / `⌘K`)
+- [x] A11y audit automatizado (axe) + testes E2E
+- [x] Pasta `/UI` removida do monorepo
 
-**Estimativa total:** ~16 dias úteis
-
----
-
-## 11. Checklist de validação
-
-Antes de iniciar a implementação, confirmar:
-
-- [ ] **IA:** Os 5 grupos de navegação fazem sentido para o usuário leigo?
-- [ ] **Rotas:** `/auth/entrar`, `/recebimentos`, `/arquivos/*`, `/analises/*` aprovadas?
-- [ ] **Glossário:** Termos em português simples estão corretos?
-- [ ] **Wireframes:** Fluxos de wizard e conciliação cobrem os casos reais?
-- [ ] **Design System:** Paleta e tipografia aprovadas?
-- [ ] **Arquitetura:** Estrutura `features/` por domínio aprovada?
-- [ ] **Stack:** shadcn/ui + Framer Motion + Lucide confirmados?
-- [ ] **Descarte:** OK apagar `frontend/src` atual e workspace `UI/`?
-- [ ] **Backend:** Nenhuma alteração de API — confirmado?
+**Estimativa original:** ~16 dias úteis · **Entregue:** fases 0–12 (ver roadmap)
 
 ---
 
-## Próximo passo
+## 11. Checklist de validação ✅
 
-**Aguardando sua validação.** Responda com ajustes ou confirme para iniciar a Fase 0 (scaffold + fundação).
+Validado e implementado em 2026-07:
 
-Sugestões de decisão rápida:
-1. Manter rota `/auth/signin` (compatibilidade) ou migrar para `/auth/entrar`?
-2. Unificar histórico de importações em uma tela com tabs ou manter separado?
-3. Priorizar mobile-first ou desktop-first na implementação?
+- [x] **IA:** 5 grupos de navegação por jornada
+- [x] **Rotas:** `/auth/entrar`, `/recebimentos`, `/arquivos/*`, `/analises/*`
+- [x] **Glossário:** Termos em português simples (ver `PRODUCT-SPEC.md`)
+- [x] **Wireframes:** Wizards e conciliação cobertos
+- [x] **Design System:** `frontend/src/design-system/` (ADR-001)
+- [x] **Arquitetura:** `features/` por domínio
+- [x] **Stack:** Tailwind 4 + Framer Motion + Lucide + TanStack Query
+- [x] **Descarte:** Legado e `/UI` removidos
+- [x] **Backend:** Nenhuma alteração de API na reescrita UI
+
+---
+
+## Encerramento
+
+**Rebuild concluído.** Documentação viva:
+
+- `docs/ROADMAP-SAAS.md` — status das fases e pendências
+- `docs/PRODUCT-SPEC.md` — especificação de produto
+- `frontend/docs/REFACTORING.md` — arquitetura e rotas
+- `frontend/docs/UI-COMPONENTS.md` — inventário de componentes
+- `frontend/docs/UX.md` · `frontend/docs/AUTH.md`
+
+### Pós-entrega (fora do escopo atual)
+
+- Evolução SaaS multi-tenant (ver `ROADMAP-SAAS.md` → Pós-roadmap)
+- Teste manual com leitor de tela (NVDA/VoiceOver)

@@ -9,12 +9,18 @@ export type FaturaPreview = {
   empresa_nome?: string;
 };
 
+export type JsonInconsistency = {
+  type: "missing_numero" | "missing_valor" | "missing_tomador" | "cancelada" | "duplicate_numero";
+  message: string;
+};
+
 export type JsonFilePreview = {
   valid: boolean;
   error?: string;
   totalFaturas: number;
   empresas: number;
   sample: FaturaPreview[];
+  inconsistencies: JsonInconsistency[];
 };
 
 export type ImportacaoFatura = {

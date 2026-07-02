@@ -1,8 +1,10 @@
 import { Schema } from 'mongoose';
 import { PagamentoVinculoSchema } from './pagamento-vinculo.schema';
+import { tenantPlugin } from '../../../common/tenant/tenant.plugin';
 
 export const NotaSchema = new Schema(
   {
+    tenantId: { type: Schema.Types.ObjectId, ref: 'Organization', index: true },
     empresa: { type: String, index: true },
     empresa_id: { type: Number, index: true },
     numero: { type: String, required: true, index: true },
@@ -42,4 +44,8 @@ export const NotaSchema = new Schema(
   },
   { timestamps: true },
 );
+
+NotaSchema.plugin(tenantPlugin);
+NotaSchema.index({ tenantId: 1, empresa: 1, numero: 1 });
+NotaSchema.index({ tenantId: 1, nota_api_id: 1 }, { sparse: true });
 

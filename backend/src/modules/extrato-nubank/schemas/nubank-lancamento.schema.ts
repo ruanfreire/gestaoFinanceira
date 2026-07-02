@@ -1,9 +1,11 @@
 import { Schema } from 'mongoose';
+import { tenantPlugin } from '../../../common/tenant/tenant.plugin';
 
 export const NubankLancamentoSchema = new Schema(
   {
+    tenantId: { type: Schema.Types.ObjectId, ref: 'Organization', index: true },
     importacao_id: { type: Schema.Types.ObjectId, ref: 'NubankImportacao', index: true },
-    transacao_id: { type: String, required: true, unique: true, index: true },
+    transacao_id: { type: String, required: true, index: true },
     data: { type: Date, index: true },
     descricao: { type: String },
     valor: { type: Number },
@@ -14,7 +16,7 @@ export const NubankLancamentoSchema = new Schema(
     pagador_nome_normalizado: { type: String, index: true },
     status_conciliacao: {
       type: String,
-      enum: ['extrato', 'ignorado', 'conciliado_auto', 'pendente_vinculo', 'conciliado_manual', 'sem_match'],
+      enum: ['extrato', 'conciliado_auto', 'pendente_vinculo', 'conciliado_manual', 'sem_match'],
       default: 'extrato',
       index: true,
     },
@@ -24,3 +26,6 @@ export const NubankLancamentoSchema = new Schema(
   },
   { timestamps: true },
 );
+
+NubankLancamentoSchema.plugin(tenantPlugin);
+NubankLancamentoSchema.index({ tenantId: 1, transacao_id: 1 }, { unique: true });

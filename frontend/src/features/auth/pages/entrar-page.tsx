@@ -1,24 +1,36 @@
-import { useLocation, Navigate } from "react-router-dom";
+import { useLocation, Navigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/features/auth/context";
 import { authApi } from "@/features/auth/api";
+import { useAuthWelcome } from "@/features/auth/hooks/use-auth-welcome";
 import { loginSchema, type LoginFormData } from "@/features/auth/schema";
 import { AuthTemplate } from "@/design-system/templates";
 import { Button, Input, Checkbox, Typography } from "@/design-system/atoms";
-import { FormGroup, TaskGuide } from "@/design-system/molecules";
+import { FormGroup, Callout } from "@/design-system/molecules";
 import { ErrorState } from "@/design-system/molecules";
 import { ROUTES } from "@/lib/constants";
-import { screenTasks } from "@/lib/screen-tasks";
+import { isSuperadmin } from "@/features/auth/types";
+import { homePathForSlug } from "@/lib/org-path";
+import { useFocusTrap } from "@/hooks/use-focus-trap";
 
 export default function EntrarPage() {
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, login, user } = useAuth();
   const location = useLocation();
-  const from = (location.state as { from?: string } | null)?.from ?? ROUTES.home;
+  const defaultFrom =
+    user && isSuperadmin(user)
+      ? ROUTES.superadmin
+      : user?.organization?.slug
+        ? homePathForSlug(user.organization.slug)
+        : ROUTES.home;
+  const from = (location.state as { from?: string } | null)?.from ?? defaultFrom;
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const welcome = useAuthWelcome();
+  useFocusTrap(formRef, !isAuthenticated);
 
   const {
     register,
@@ -41,18 +53,26 @@ export default function EntrarPage() {
     setError(null);
     try {
       await login(data);
+      welcome.dismiss();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível entrar");
     }
   };
 
-  const task = screenTasks.entrar;
-
   return (
-    <AuthTemplate title="Entrar" description="Use o e-mail cadastrado pelo administrador">
-      <TaskGuide goal={task.goal} steps={task.steps} minutes={task.minutes} className="mb-4" />
+    <AuthTemplate title="Entrar" description="Use seu e-mail e senha para acessar o sistema">
+      {welcome.visible && (
+        <Callout variant="success" title="Bem-vindo!" className="mb-4">
+          <Typography variant="body">
+            Esta é sua primeira visita. Use o e-mail e a senha fornecidos pelo administrador para começar.
+          </Typography>
+          <Button type="button" variant="outline" size="sm" className="mt-3" onClick={welcome.dismiss}>
+            Entendi
+          </Button>
+        </Callout>
+      )}
       {error && <ErrorState title="Não foi possível entrar" message={error} className="mb-4" />}
-      <form onSubmit={handleSubmit(onSubmit)} className="stack-gap" noValidate>
+      <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="stack-gap" noValidate>
         <FormGroup label="E-mail" htmlFor="email" error={errors.email?.message} required>
           <Input id="email" type="email" autoComplete="email" state={errors.email ? "error" : "default"} {...register("email")} />
         </FormGroup>
@@ -88,6 +108,9 @@ export default function EntrarPage() {
         <Button type="submit" className="w-full" loading={isSubmitting}>
           Entrar
         </Button>
+        <Typography variant="caption" className="text-center">
+          Não tem conta? <Link to={ROUTES.signup} className="text-primary hover:underline">Solicitar acesso</Link>
+        </Typography>
         <Typography variant="caption" className="text-center">
           Precisa de ajuda? Fale com o administrador do sistema.
         </Typography>

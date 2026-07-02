@@ -16,17 +16,21 @@ import {
   buildDateFilter,
   collectValidNotaIds,
   enrichHeaderFromNotas,
+  filterLancamentosForFluxoCaixaExport,
   mapLancamentosToFluxoCaixaRows,
   resolveExportDateRange,
+  resolveMesCompetenciaNf,
 } from '../../common/fluxo-caixa-data.util';
+import { splitFluxoRowsByReembolso } from '../../common/fluxo-caixa-lista';
 import {
   isAsaasCobrancaRecebida,
   tipoMovimentoFromAsaas,
   type TipoMovimento,
 } from '../../common/movimento-bancario.util';
 import { asLeanMany, asLeanOne } from '../../common/mongoose-lean.util';
-import { buildFluxoCaixaWorkbook } from '../../common/fluxo-caixa.export';
+import { buildFluxoCaixaWorkbook, type FluxoCaixaReembolsoSection } from '../../common/fluxo-caixa.export';
 import { resolveSaldoInicialAutomatico } from '../../common/fluxo-caixa-saldo.resolver';
+import { PlanLimitsService } from '../billing/billing.service';
 
 export type { FluxoCaixaExportParams };
 
@@ -38,9 +42,11 @@ export class ExtratoAsaasService {
     @InjectModel('Nota') private notaModel: Model<any>,
     private readonly notasService: NotasService,
     private readonly config: ConfigService,
+    private readonly planLimitsService: PlanLimitsService,
   ) {}
 
   async processUpload(content: string, metadata: { filename: string; originalName?: string; uploadedBy?: string }) {
+    await this.planLimitsService.assertCanImport();
     const { meta, rows } = parseAsaasCsv(content);
     const transacao_ids = rows.map((row) => row.transacao_id);
     const importacao = await this.importModel.create({
@@ -436,9 +442,14 @@ export class ExtratoAsaasService {
       : [];
 
     const notaById = new Map(notas.map((nota) => [String(nota._id), nota]));
-    const lancamentosExport = lancamentos;
+    const mesCompetenciaNf = resolveMesCompetenciaNf(params);
+    const lancamentosExport = filterLancamentosForFluxoCaixaExport(
+      lancamentos,
+      mesCompetenciaNf,
+      notaById,
+    );
 
-    const { rows } = mapLancamentosToFluxoCaixaRows(
+    const { rows: allRows } = mapLancamentosToFluxoCaixaRows(
       lancamentosExport,
       notaById,
       (lancamento) => {
@@ -450,6 +461,7 @@ export class ExtratoAsaasService {
       undefined,
       (lancamento) => lancamento.tipo_movimento || tipoMovimentoFromAsaas(lancamento.tipo_lancamento),
     );
+    const { principal: rows, reembolso: reembolsoRows } = splitFluxoRowsByReembolso(allRows);
 
     const header = resolveFluxoCaixaHeader(
       this.config,
@@ -468,12 +480,17 @@ export class ExtratoAsaasService {
     );
     enrichHeaderFromNotas(header, notas);
 
-    return { header, rows };
+    let reembolso: FluxoCaixaReembolsoSection | undefined;
+    if (reembolsoRows.length > 0) {
+      reembolso = { header: { ...header }, rows: reembolsoRows };
+    }
+
+    return { header, rows, reembolso };
   }
 
   async exportFluxoCaixa(params: FluxoCaixaExportParams): Promise<{ buffer: Buffer; filename: string }> {
-    const { header, rows } = await this.prepareFluxoCaixaData(params);
-    const buffer = await buildFluxoCaixaWorkbook('asaas', header, rows);
+    const { header, rows, reembolso } = await this.prepareFluxoCaixaData(params);
+    const buffer = await buildFluxoCaixaWorkbook('asaas', header, rows, undefined, reembolso);
 
     return {
       buffer,

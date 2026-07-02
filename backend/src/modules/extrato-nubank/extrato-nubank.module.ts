@@ -5,6 +5,7 @@ import { ExtratoNubankController } from './extrato-nubank.controller';
 import { NubankImportacaoSchema } from './schemas/nubank-importacao.schema';
 import { NubankLancamentoSchema } from './schemas/nubank-lancamento.schema';
 import { NotasModule } from '../notas/notas.module';
+import { BillingModule } from '../billing/billing.module';
 import { NotaSchema } from '../notas/schemas/nota.schema';
 
 @Module({
@@ -15,6 +16,7 @@ import { NotaSchema } from '../notas/schemas/nota.schema';
       { name: 'Nota', schema: NotaSchema },
     ]),
     NotasModule,
+    BillingModule,
   ],
   providers: [ExtratoNubankService],
   controllers: [ExtratoNubankController],

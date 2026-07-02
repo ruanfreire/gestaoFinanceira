@@ -5,7 +5,7 @@ import {
   mesCompetenciaFromLancamentoData,
   type TipoMovimento,
 } from './movimento-bancario.util';
-import { FLUXO_CAIXA_CATEGORIAS, resolveFluxoCaixaCategoria } from './fluxo-caixa-lista';
+import { FLUXO_CAIXA_CATEGORIAS, resolveFluxoCaixaCategoria, resolveFluxoCaixaCategoriaCartao } from './fluxo-caixa-lista';
 
 type LancamentoFluxo = {
   data?: Date | string;
@@ -52,6 +52,13 @@ export function buildDateFilter(from?: string, to?: string): Record<string, Date
     dataFilter.$lte = new Date(`${to}T23:59:59.999Z`);
   }
   return dataFilter;
+}
+
+export function resolveMesCompetenciaNf(params: {
+  mes_competencia_nf?: string;
+}): string | undefined {
+  const mes = params.mes_competencia_nf?.trim();
+  return mes && /^\d{4}-\d{2}$/.test(mes) ? mes : undefined;
 }
 
 /** Converte mês de pagamento ou intervalo explícito em from/to (datas do extrato). */
@@ -179,6 +186,11 @@ export function mapLancamentosToFluxoCaixaRows(
   getHistorico: (lancamento: LancamentoFluxo) => string,
   getCategoriaExtra?: (lancamento: LancamentoFluxo) => string | undefined,
   getTipoMovimento?: (lancamento: LancamentoFluxo) => TipoMovimento,
+  resolveCategoria?: (
+    tipo: 'Entrada' | 'Saída',
+    historico: string,
+    lancamento: LancamentoFluxo,
+  ) => string,
 ): { rows: FluxoCaixaRow[]; categorias: string[] } {
   const categorias = new Set<string>(FLUXO_CAIXA_CATEGORIAS);
   const rows: FluxoCaixaRow[] = [];
@@ -191,7 +203,9 @@ export function mapLancamentosToFluxoCaixaRows(
     const historico = getHistorico(lancamento);
     const rawCategoria =
       nota?.codigo_servico || getCategoriaExtra?.(lancamento) || lancamento.categoria;
-    const categoria = resolveFluxoCaixaCategoria(tipo, rawCategoria, historico);
+    const categoria = resolveCategoria
+      ? resolveCategoria(tipo, historico, lancamento)
+      : resolveFluxoCaixaCategoria(tipo, rawCategoria, historico);
     categorias.add(categoria);
 
     rows.push({

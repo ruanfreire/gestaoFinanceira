@@ -1,5 +1,5 @@
 import api, { getApiErrorMessage } from "@/lib/api-client";
-import type { AuthUser, LoginCredentials, LoginResponse } from "./types";
+import type { AuthUser, LoginCredentials, LoginResponse, SignupCredentials, SignupResponse } from "./types";
 
 const TOKEN_KEY = "accessToken";
 const USER_KEY = "user";
@@ -55,6 +55,24 @@ export const authApi = {
   clearSession() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+  },
+
+  async signup(credentials: SignupCredentials): Promise<SignupResponse> {
+    const res = await api.post<SignupResponse>("/auth/signup", credentials);
+    return res.data;
+  },
+
+  async fetchMe(): Promise<AuthUser | null> {
+    try {
+      const res = await api.get<{ ok: boolean; user?: AuthUser }>("/auth/me");
+      if (res.data?.ok && res.data.user) {
+        localStorage.setItem(USER_KEY, JSON.stringify(res.data.user));
+        return res.data.user;
+      }
+    } catch {
+      /* ignore */
+    }
+    return null;
   },
 
   async login(credentials: LoginCredentials): Promise<LoginResponse> {

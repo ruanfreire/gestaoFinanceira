@@ -3,8 +3,10 @@ import {
   buildDateFilter,
   extractFaturaIdFromDescricao,
   filterLancamentosForFluxoCaixaExport,
+  mapLancamentosToFluxoCaixaRows,
   splitNubankLancamentosFluxoCaixa,
 } from './fluxo-caixa-data.util';
+import { resolveFluxoCaixaCategoriaCartao } from './fluxo-caixa-lista';
 
 describe('filterLancamentosForFluxoCaixaExport', () => {
   const notaById = new Map([
@@ -100,5 +102,45 @@ describe('buildDateFilter', () => {
 
   it('retorna undefined sem datas', () => {
     expect(buildDateFilter()).toBeUndefined();
+  });
+});
+
+describe('mapLancamentosToFluxoCaixaRows — cartão', () => {
+  it('exporta compras como saída e pagamentos como entrada', () => {
+    const lancamentos = [
+      {
+        origem: 'cartao',
+        data: '2026-05-06',
+        descricao: 'HONEST CONTABILIDADE EPP',
+        valor: 319.2,
+        tipo_movimento: 'saida' as const,
+      },
+      {
+        origem: 'cartao',
+        data: '2026-04-27',
+        descricao: 'Pagamento recebido',
+        valor: 163.6,
+        tipo_movimento: 'entrada' as const,
+      },
+    ];
+
+    const { rows } = mapLancamentosToFluxoCaixaRows(
+      lancamentos,
+      new Map(),
+      (item) => item.descricao || '',
+      undefined,
+      (item) => item.tipo_movimento || 'entrada',
+      (tipo, historico) => resolveFluxoCaixaCategoriaCartao(tipo, historico),
+    );
+
+    expect(rows[0].tipo).toBe('Saída');
+    expect(rows[0].categoria).toBe('Cartão de crédito');
+    expect(rows[0].historico).toBe('HONEST CONTABILIDADE EPP');
+    expect(rows[0].valor).toBe(319.2);
+
+    expect(rows[1].tipo).toBe('Entrada');
+    expect(rows[1].categoria).toBe('Pagamento de cartão');
+    expect(rows[1].historico).toBe('Pagamento recebido');
+    expect(rows[1].valor).toBe(163.6);
   });
 });

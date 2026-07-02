@@ -10,6 +10,7 @@ export type ExtracaoNotasFilters = PeriodFilterValue & {
 
 export type FluxoCaixaFilters = PeriodFilterValue & {
   banco: "consolidado" | "nubank" | "asaas";
+  mesCompetenciaNf: string;
   empresaNome: string;
   empresaCnpj: string;
   contaCorrente: string;
@@ -59,6 +60,7 @@ export const analisesApi = {
       if (filters.contaCorrente.trim()) params.conta_corrente = filters.contaCorrente.trim();
       if (filters.saldoInicial.trim()) params.saldo_inicial = filters.saldoInicial.trim();
     }
+    if (filters.mesCompetenciaNf.trim()) params.mes_competencia_nf = filters.mesCompetenciaNf.trim();
     const stamp = new Date().toISOString().slice(0, 10);
     const period =
       filters.filterMode === "mes" && filters.mesPagamento
@@ -87,6 +89,7 @@ export function defaultFluxoFilters(): FluxoCaixaFilters {
     from: "",
     to: "",
     banco: "consolidado",
+    mesCompetenciaNf: "",
     empresaNome: "",
     empresaCnpj: "",
     contaCorrente: "",

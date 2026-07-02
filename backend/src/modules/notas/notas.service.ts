@@ -24,6 +24,7 @@ import { mapFromStoredJsonOriginal } from '../importacoes/nf-json.mapper';
 import { mesCompetenciaFromDate } from './competencia.util';
 import { NOTA_NAO_CANCELADA_FILTER } from './nota-cancelada.util';
 import { asLeanMany, asLeanOne } from '../../common/mongoose-lean.util';
+import { PlanLimitsService } from '../billing/billing.service';
 import {
   buildPaymentDateMongoFilter,
   isDateInPaymentRange,
@@ -73,6 +74,7 @@ export class NotasService {
     @InjectModel('AsaasImportacao') private asaasImportModel: Model<any>,
     @InjectModel('NubankLancamento') private nubankLancamentoModel: Model<any>,
     @InjectModel('NubankImportacao') private nubankImportModel: Model<any>,
+    private readonly planLimitsService: PlanLimitsService,
   ) {}
 
   buildSearchFilter(search?: string) {
@@ -108,6 +110,7 @@ export class NotasService {
   }
 
   async create(dto: any) {
+    await this.planLimitsService.assertCanCreateNotas();
     const existsByApiId = dto.nota_api_id
       ? await this.notaModel.findOne({ nota_api_id: dto.nota_api_id })
       : null;

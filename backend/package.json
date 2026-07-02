@@ -9,6 +9,7 @@
     "start": "node dist/main.js",
     "seed": "ts-node -r tsconfig-paths/register src/common/seeder.ts",
     "seed:prod": "node dist/common/seeder.js",
+    "migrate:tenant": "ts-node -r tsconfig-paths/register src/common/migrate-default-tenant.ts",
     "reset-db": "ts-node -r tsconfig-paths/register src/common/reset-database.ts",
     "purge-notas-nao-pagas": "ts-node -r tsconfig-paths/register src/common/purge-notas-nao-pagas.ts",
     "test": "vitest run",
@@ -32,7 +33,8 @@
     "mongoose": "^7.0.0",
     "pino": "^8.11.0",
     "reflect-metadata": "^0.1.13",
-    "rxjs": "^7.8.0"
+    "rxjs": "^7.8.0",
+    "stripe": "^22.3.0"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.6",

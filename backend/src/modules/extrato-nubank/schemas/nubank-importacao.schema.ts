@@ -1,6 +1,8 @@
 import { Schema } from 'mongoose';
+import { tenantPlugin } from '../../../common/tenant/tenant.plugin';
 
 const importacaoBancariaBase = {
+  tenantId: { type: Schema.Types.ObjectId, ref: 'Organization', index: true },
   filename: { type: String, required: true },
   originalName: { type: String },
   label: { type: String },
@@ -34,10 +36,12 @@ export const NubankImportacaoSchema = new Schema(
       pendente_vinculo: { type: Number, default: 0 },
       conciliado_manual: { type: Number, default: 0 },
       sem_match: { type: Number, default: 0 },
-      ignorado: { type: Number, default: 0 },
+      extrato: { type: Number, default: 0 },
       skipped: { type: Number, default: 0 },
       imported: { type: Number, default: 0 },
     },
   },
   { timestamps: true },
 );
+
+NubankImportacaoSchema.plugin(tenantPlugin);

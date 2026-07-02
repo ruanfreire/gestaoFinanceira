@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/features/auth/context";
 import { ToastProvider } from "@/app/toast-provider";
 import { TooltipProvider } from "@/design-system/atoms";
+import { ThemeProvider } from "@/lib/theme";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,11 +22,13 @@ const queryClient = new QueryClient({
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </AuthProvider>
-      </TooltipProvider>
+      <ThemeProvider>
+        <TooltipProvider>
+          <AuthProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </AuthProvider>
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
