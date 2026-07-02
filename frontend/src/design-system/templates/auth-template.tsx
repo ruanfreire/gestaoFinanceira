@@ -1,0 +1,39 @@
+import { motion } from "framer-motion";
+import { Typography } from "@/design-system/atoms";
+import { Card, CardBody } from "@/design-system/organisms";
+
+export function AuthTemplate({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8 flex items-center gap-3"
+      >
+        <img src="/images/logo/logo-icon.svg" alt="" className="h-10 w-10" aria-hidden />
+        <Typography variant="h2">Gestão Financeira</Typography>
+      </motion.div>
+      <Card className="w-full max-w-md">
+        <CardBody>
+          <Typography variant="h3" as="h1">
+            {title}
+          </Typography>
+          {description && (
+            <Typography variant="body" tone="muted" className="mt-1">
+              {description}
+            </Typography>
+          )}
+          <div className="mt-6">{children}</div>
+        </CardBody>
+      </Card>
+    </div>
+  );
+}

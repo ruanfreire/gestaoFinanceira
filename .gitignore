@@ -15,3 +15,8 @@ ssh/*.pem
 
 # Cursor / IDE
 .cursor/
+
+# Dados locais de importação — não versionar
+notas.json
+inicial.json
+*.local.json

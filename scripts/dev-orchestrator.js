@@ -1,8 +1,35 @@
 const { spawn } = require('child_process');
+const net = require('net');
 const mongoose = require('mongoose');
 const { killDevPorts, killStaleDevOrchestrators, prepareAppPorts } = require('./kill-ports');
 
 const DEFAULT_MONGO_URI = 'mongodb://127.0.0.1:27017/finance';
+const BACKEND_PORT = Number(process.env.PORT || 4000);
+
+function waitForPort(port, host = '127.0.0.1', timeoutMs = 45_000) {
+  const startedAt = Date.now();
+
+  return new Promise((resolve, reject) => {
+    const attempt = () => {
+      if (Date.now() - startedAt > timeoutMs) {
+        reject(new Error(`Timeout aguardando ${host}:${port}`));
+        return;
+      }
+
+      const socket = net.createConnection({ port, host }, () => {
+        socket.end();
+        resolve();
+      });
+
+      socket.on('error', () => {
+        socket.destroy();
+        setTimeout(attempt, 300);
+      });
+    };
+
+    attempt();
+  });
+}
 
 async function checkMongo(uri, { silent = false } = {}) {
   try {
@@ -26,12 +53,16 @@ function attachMongodLogs(mongodProcess) {
     if (!text) return;
     const isNoise =
       text.includes('"s":"I"') ||
+      text.includes('"s":"W"') ||
       text.includes('WiredTiger message') ||
       text.includes('client metadata') ||
       text.includes('Connection accepted') ||
       text.includes('Connection ended') ||
       text.includes('Connection not authenticating') ||
-      text.includes('Received first command');
+      text.includes('Received first command') ||
+      text.includes('startupWarnings') ||
+      text.includes('WindowsPdhError') ||
+      text.includes('Access control is not enabled');
     const isImportant =
       text.includes('"s":"E"') ||
       text.includes('"s":"F"') ||
@@ -39,7 +70,7 @@ function attachMongodLogs(mongodProcess) {
       text.includes('Waiting for connections') ||
       text.includes('Unclean shutdown') ||
       text.includes('Failed to start');
-    if (isImportant || (!isNoise && (text.includes('"s":"W"') || text.includes('error')))) {
+    if (isImportant || (!isNoise && text.includes('"s":"E"'))) {
       process.stdout.write(`[mongod] ${text}\n`);
     }
   };
@@ -114,6 +145,15 @@ async function start() {
   await prepareAppPorts();
 
   const backend = spawn('npm', ['--workspace', 'backend', 'run', 'dev'], { stdio: 'inherit', shell: true });
+
+  console.log(`Aguardando backend na porta ${BACKEND_PORT}...`);
+  try {
+    await waitForPort(BACKEND_PORT);
+    console.log(`Backend pronto na porta ${BACKEND_PORT}.`);
+  } catch (err) {
+    console.warn(`Backend não respondeu a tempo (${err.message}). Iniciando frontend mesmo assim.`);
+  }
+
   const frontend = spawn('npm', ['--workspace', 'frontend', 'run', 'dev'], { stdio: 'inherit', shell: true });
 
   const cleanup = () => {

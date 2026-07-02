@@ -1,0 +1,338 @@
+import api from "@/lib/api-client";
+import { paymentDateApiParams } from "@/design-system/molecules";
+import { formatCompetencia } from "@/lib/format";
+
+export type DashboardFilters = import("@/design-system/molecules").PeriodFilterValue;
+export type DashboardDateBasis = "pagamento" | "emissao";
+
+export type NotaExtracaoItem = {
+  _id: string;
+  numero?: string;
+  tomador?: string;
+  valor?: number;
+  valor_pago?: number;
+  valor_pago_efetivo?: number;
+  saldo_aberto?: number;
+  status_pagamento?: string;
+  data_emissao?: string;
+  data_pagamento?: string;
+  mes_competencia?: string;
+  pagamentos?: { data?: string; valor?: number }[];
+};
+
+export type ExtracaoResponse = {
+  items: NotaExtracaoItem[];
+  total: number;
+  totais: { valor_nf: number; valor_pago: number; saldo_aberto: number };
+};
+
+export type ConciliacaoListResponse = {
+  items: { lancamento: { _id: string; data?: string; pagador_nome?: string; valor?: number }; candidatas: unknown[] }[];
+  total: number;
+};
+
+export type ImportacaoFatura = {
+  _id: string;
+  label?: string;
+  originalName?: string;
+  filename?: string;
+  status?: string;
+  createdAt?: string;
+  stats?: { imported?: number };
+};
+
+export type ImportacaoBancaria = ImportacaoFatura & {
+  banco: "asaas" | "nubank";
+  stats?: { imported?: number; total_linhas?: number; cobrancas?: number; creditos?: number };
+};
+
+export type DashboardAlert = {
+  id: string;
+  type: "warning" | "info" | "error";
+  title: string;
+  message: string;
+  link: string;
+  linkLabel: string;
+};
+
+export type RecentImport = {
+  id: string;
+  kind: "fatura" | "extrato";
+  title: string;
+  subtitle: string;
+  status?: string;
+  createdAt?: string;
+  link: string;
+};
+
+export type PendingMovement = {
+  id: string;
+  source: "asaas" | "nubank";
+  pagador?: string;
+  valor?: number;
+  data?: string;
+  candidatasCount: number;
+  variant: "pendente" | "sem_match";
+};
+
+export type DashboardData = {
+  dateBasis: DashboardDateBasis;
+  kpis: {
+    valorNf: number;
+    valorRecebido: number;
+    saldoAberto: number;
+    totalNotas: number;
+    notasPagas: number;
+    notasEmAberto: number;
+    pendentesConciliacao: number;
+    semMatch: number;
+  };
+  competenciaChart: { categories: string[]; emitido: number[]; recebido: number[] };
+  recentImports: RecentImport[];
+  pendingMovements: PendingMovement[];
+  alerts: DashboardAlert[];
+};
+
+function isDateInPeriod(dateStr: string | undefined, filters: DashboardFilters): boolean {
+  if (!dateStr) return true;
+  const d = dateStr.slice(0, 10);
+  if (filters.filterMode === "mes" && filters.mesPagamento) {
+    return d.startsWith(filters.mesPagamento);
+  }
+  if (filters.from && d < filters.from) return false;
+  if (filters.to && d > filters.to) return false;
+  return true;
+}
+
+function paymentMonthKey(value: string | Date): string {
+  const date = new Date(value);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${date.getFullYear()}-${month}`;
+}
+
+function buildMonthChart(items: NotaExtracaoItem[], dateBasis: DashboardDateBasis) {
+  const map = new Map<string, { emitido: number; recebido: number }>();
+  for (const item of items) {
+    if (dateBasis === "emissao") {
+      const emissionDate = item.data_emissao ?? item.mes_competencia;
+      if (!emissionDate) continue;
+      const key = paymentMonthKey(emissionDate);
+      const current = map.get(key) ?? { emitido: 0, recebido: 0 };
+      current.emitido += Number(item.valor ?? 0);
+      current.recebido += Number(item.valor_pago_efetivo ?? item.valor_pago ?? 0);
+      map.set(key, current);
+      continue;
+    }
+    const pagamentos =
+      item.pagamentos && item.pagamentos.length > 0
+        ? item.pagamentos
+        : item.data_pagamento
+          ? [{ data: item.data_pagamento, valor: item.valor_pago_efetivo ?? item.valor_pago ?? 0 }]
+          : [];
+    for (const pagamento of pagamentos) {
+      if (!pagamento.data) continue;
+      const key = paymentMonthKey(pagamento.data);
+      const current = map.get(key) ?? { emitido: 0, recebido: 0 };
+      current.emitido += Number(item.valor ?? 0);
+      current.recebido += Number(pagamento.valor ?? 0);
+      map.set(key, current);
+    }
+  }
+  const sorted = [...map.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-6);
+  return {
+    categories: sorted.map(([key]) => formatCompetencia(key)),
+    emitido: sorted.map(([, v]) => v.emitido),
+    recebido: sorted.map(([, v]) => v.recebido),
+  };
+}
+
+async function loadExtracao(filters: DashboardFilters, dateBasis: DashboardDateBasis) {
+  const res = await api.get<ExtracaoResponse>("/notas/extracao", {
+    params: { ...paymentDateApiParams(filters), date_basis: dateBasis },
+  });
+  return res.data;
+}
+
+function mergeRecentImports(faturas: ImportacaoFatura[], extratos: ImportacaoBancaria[]): RecentImport[] {
+  const faturaItems: RecentImport[] = faturas.map((item) => ({
+    id: item._id,
+    kind: "fatura",
+    title: item.label || item.originalName || item.filename || "Importação de notas",
+    subtitle: `${item.stats?.imported ?? 0} nota(s) importada(s)`,
+    status: item.status,
+    createdAt: item.createdAt,
+    link: `/arquivos/historico/notas/${item._id}`,
+  }));
+  const extratoItems: RecentImport[] = extratos.map((item) => {
+    const banco = item.banco === "nubank" ? "Nubank" : "Asaas";
+    const movimentos = item.stats?.imported ?? item.stats?.total_linhas ?? item.stats?.cobrancas ?? item.stats?.creditos ?? 0;
+    return {
+      id: `${item.banco}-${item._id}`,
+      kind: "extrato",
+      title: item.label || item.originalName || item.filename || `Extrato ${banco}`,
+      subtitle: `${movimentos} movimento(s) · ${banco}`,
+      status: item.status,
+      createdAt: item.createdAt,
+      link: `/arquivos/historico/extratos/${item.banco}/${item._id}`,
+    };
+  });
+  return [...faturaItems, ...extratoItems]
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .slice(0, 8);
+}
+
+function buildAlerts(kpis: DashboardData["kpis"], recentImports: RecentImport[]): DashboardAlert[] {
+  const alerts: DashboardAlert[] = [];
+  if (kpis.semMatch > 0) {
+    alerts.push({
+      id: "sem-match",
+      type: "warning",
+      title: "Pagamentos sem nota",
+      message: `${kpis.semMatch} movimento(s) precisam da sua análise.`,
+      link: "/recebimentos/sem-correspondencia",
+      linkLabel: "Ver agora",
+    });
+  }
+  if (kpis.pendentesConciliacao > 0) {
+    alerts.push({
+      id: "pendentes",
+      type: "info",
+      title: "Pagamentos aguardando confirmação",
+      message: `${kpis.pendentesConciliacao} movimento(s) com sugestões para você confirmar.`,
+      link: "/recebimentos",
+      linkLabel: "Confirmar recebimentos",
+    });
+  }
+  if (kpis.saldoAberto > 0) {
+    alerts.push({
+      id: "saldo-aberto",
+      type: "info",
+      title: "Valores em aberto",
+      message: "Há notas com recebimento pendente no período.",
+      link: "/analises/situacao",
+      linkLabel: "Ver situação",
+    });
+  }
+  const failed = recentImports.filter((i) => i.status === "failed");
+  if (failed.length > 0) {
+    alerts.push({
+      id: "import-failed",
+      type: "error",
+      title: "Importação com falha",
+      message: `${failed.length} importação(ões) recente(s) falharam.`,
+      link: failed[0].link,
+      linkLabel: "Ver detalhes",
+    });
+  }
+  return alerts;
+}
+
+export const homeApi = {
+  async load(filters: DashboardFilters): Promise<DashboardData> {
+    let dateBasis: DashboardDateBasis = "pagamento";
+    let extracao = await loadExtracao(filters, "pagamento");
+    if (extracao.total === 0) {
+      const byEmission = await loadExtracao(filters, "emissao");
+      if (byEmission.total > 0) {
+        extracao = byEmission;
+        dateBasis = "emissao";
+      }
+    }
+
+    const [pendentesAsaas, pendentesNubank, semMatchAsaas, semMatchNubank, importacoes, extratos] =
+      await Promise.all([
+        api.get<ConciliacaoListResponse>("/extrato-asaas/pendentes"),
+        api.get<ConciliacaoListResponse>("/extrato-nubank/pendentes"),
+        api.get<ConciliacaoListResponse>("/extrato-asaas/sem-match"),
+        api.get<ConciliacaoListResponse>("/extrato-nubank/sem-match"),
+        api.get<{ items: ImportacaoFatura[] }>("/importacoes", { params: { page: 1, limit: 20 } }),
+        api.get<{ items: ImportacaoBancaria[] }>("/importacoes-bancarias", { params: { page: 1, limit: 20 } }),
+      ]);
+
+    const filterConc = (res: ConciliacaoListResponse) => ({
+      items: res.items.filter((i) => isDateInPeriod(i.lancamento.data, filters)),
+      total: 0,
+    });
+    const pa = filterConc(pendentesAsaas.data);
+    const pn = filterConc(pendentesNubank.data);
+    const sa = filterConc(semMatchAsaas.data);
+    const sn = filterConc(semMatchNubank.data);
+    pa.total = pa.items.length;
+    pn.total = pn.items.length;
+    sa.total = sa.items.length;
+    sn.total = sn.items.length;
+
+    let pagas = 0;
+    let emAberto = 0;
+    for (const item of extracao.items) {
+      if (item.status_pagamento === "pago" || (item.saldo_aberto ?? 0) <= 0) pagas++;
+      else emAberto++;
+    }
+
+    const pendentesTotal = pa.total + pn.total;
+    const semMatchTotal = sa.total + sn.total;
+
+    const kpis = {
+      valorNf: extracao.totais.valor_nf,
+      valorRecebido: extracao.totais.valor_pago,
+      saldoAberto: extracao.totais.saldo_aberto,
+      totalNotas: extracao.total,
+      notasPagas: pagas,
+      notasEmAberto: emAberto,
+      pendentesConciliacao: pendentesTotal,
+      semMatch: semMatchTotal,
+    };
+
+    const recentImports = mergeRecentImports(importacoes.data.items, extratos.data.items);
+
+    const pendingMovements = [
+      ...pa.items.map((item) => ({
+        id: `asaas-pendente-${item.lancamento._id}`,
+        source: "asaas" as const,
+        pagador: item.lancamento.pagador_nome,
+        valor: item.lancamento.valor,
+        data: item.lancamento.data,
+        candidatasCount: item.candidatas.length,
+        variant: "pendente" as const,
+      })),
+      ...pn.items.map((item) => ({
+        id: `nubank-pendente-${item.lancamento._id}`,
+        source: "nubank" as const,
+        pagador: item.lancamento.pagador_nome,
+        valor: item.lancamento.valor,
+        data: item.lancamento.data,
+        candidatasCount: item.candidatas.length,
+        variant: "pendente" as const,
+      })),
+      ...sa.items.map((item) => ({
+        id: `asaas-sem-${item.lancamento._id}`,
+        source: "asaas" as const,
+        pagador: item.lancamento.pagador_nome,
+        valor: item.lancamento.valor,
+        data: item.lancamento.data,
+        candidatasCount: 0,
+        variant: "sem_match" as const,
+      })),
+      ...sn.items.map((item) => ({
+        id: `nubank-sem-${item.lancamento._id}`,
+        source: "nubank" as const,
+        pagador: item.lancamento.pagador_nome,
+        valor: item.lancamento.valor,
+        data: item.lancamento.data,
+        candidatasCount: 0,
+        variant: "sem_match" as const,
+      })),
+    ]
+      .sort((a, b) => new Date(b.data || 0).getTime() - new Date(a.data || 0).getTime())
+      .slice(0, 6);
+
+    return {
+      dateBasis,
+      kpis,
+      competenciaChart: buildMonthChart(extracao.items, dateBasis),
+      recentImports,
+      pendingMovements,
+      alerts: buildAlerts(kpis, recentImports),
+    };
+  },
+};

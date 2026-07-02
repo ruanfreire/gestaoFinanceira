@@ -1,158 +1,156 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
-import { PageLoader } from "@/shared/components/DataTable";
-import { RequireAuth } from "@/features/auth/components/RequireAuth";
-import AppShell from "@/layouts/AppShell";
-import SignInPage from "@/features/auth/pages/SignInPage";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AppProviders } from "./providers";
+import { RequireAuth } from "@/features/auth/require-auth";
+import { ProtectedShell } from "@/app/protected-shell";
+import { ROUTES } from "@/lib/constants";
+import { Skeleton } from "@/design-system/atoms";
 
-const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage"));
-const NotasListPage = lazy(() => import("@/features/notas/pages/NotasListPage"));
-const NotaFormPage = lazy(() => import("@/features/notas/pages/NotaFormPage"));
-const ImportarFaturasPage = lazy(
-  () => import("@/features/importacoes-faturas/pages/ImportarFaturasPage"),
-);
-const ImportacoesFaturasHistoricoPage = lazy(
-  () => import("@/features/importacoes-faturas/pages/ImportacoesFaturasHistoricoPage"),
-);
-const ImportacaoFaturaDetalhePage = lazy(
-  () => import("@/features/importacoes-faturas/pages/ImportacaoFaturaDetalhePage"),
-);
-const ImportarExtratosPage = lazy(
-  () => import("@/features/importacoes-extratos/pages/ImportarExtratosPage"),
-);
-const ImportacoesExtratosHistoricoPage = lazy(
-  () => import("@/features/importacoes-extratos/pages/ImportacoesExtratosHistoricoPage"),
-);
-const ImportacaoExtratoDetalhePage = lazy(
-  () => import("@/features/importacoes-extratos/pages/ImportacaoExtratoDetalhePage"),
-);
-const ConciliacaoPage = lazy(() => import("@/features/conciliacao/pages/ConciliacaoPage"));
-const ExtracaoNotasPage = lazy(() => import("@/features/relatorios/pages/ExtracaoNotasPage"));
-const FluxoCaixaPage = lazy(() => import("@/features/relatorios/pages/FluxoCaixaPage"));
+const EntrarPage = lazy(() => import("@/features/auth/pages/entrar-page"));
+const HomePage = lazy(() => import("@/features/home/pages/home-page"));
+const NotasPage = lazy(() => import("@/features/notas/pages/notas-page"));
+const NotaNovaPage = lazy(() => import("@/features/notas/pages/nota-nova-page"));
+const RecebimentosPage = lazy(() => import("@/features/recebimentos/pages/recebimentos-page"));
+const ArquivosNotasPage = lazy(() => import("@/features/arquivos/pages/arquivos-notas-page"));
+const ArquivosExtratosPage = lazy(() => import("@/features/arquivos/pages/arquivos-extratos-page"));
+const ArquivosHistoricoPage = lazy(() => import("@/features/arquivos/pages/arquivos-historico-page"));
+const ArquivoNotaDetalhePage = lazy(() => import("@/features/arquivos/pages/arquivo-nota-detalhe-page"));
+const ArquivoExtratoDetalhePage = lazy(() => import("@/features/arquivos/pages/arquivo-extrato-detalhe-page"));
+const AnalisesSituacaoPage = lazy(() => import("@/features/analises/pages/analises-situacao-page"));
+const AnalisesFluxoPage = lazy(() => import("@/features/analises/pages/analises-fluxo-page"));
+const NotFoundPage = lazy(() => import("@/features/errors/not-found-page"));
 
-function LazyPage({ children }: { children: React.ReactNode }) {
-  return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
+function PageLoader() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-32 w-full" />
+      <Skeleton className="h-32 w-full" />
+    </div>
+  );
 }
 
-function ProtectedLayout() {
+function ProtectedLayout({ children }: { children: React.ReactNode }) {
   return (
     <RequireAuth>
-      <AppShell />
+      <ProtectedShell>{children}</ProtectedShell>
     </RequireAuth>
   );
 }
 
 export function AppRouter() {
   return (
-    <Routes>
-      <Route path="/auth/signin" element={<SignInPage />} />
-      <Route path="/" element={<ProtectedLayout />}>
-        <Route
-          index
-          element={
-            <LazyPage>
-              <DashboardPage />
-            </LazyPage>
-          }
-        />
-        <Route
-          path="notas"
-          element={
-            <LazyPage>
-              <NotasListPage />
-            </LazyPage>
-          }
-        />
-        <Route
-          path="notas/new"
-          element={
-            <LazyPage>
-              <NotaFormPage />
-            </LazyPage>
-          }
-        />
-        <Route
-          path="importacoes"
-          element={
-            <LazyPage>
-              <ImportarFaturasPage />
-            </LazyPage>
-          }
-        />
-        <Route
-          path="importacoes/historico"
-          element={
-            <LazyPage>
-              <ImportacoesFaturasHistoricoPage />
-            </LazyPage>
-          }
-        />
-        <Route
-          path="importacoes/historico/:id"
-          element={
-            <LazyPage>
-              <ImportacaoFaturaDetalhePage />
-            </LazyPage>
-          }
-        />
-        <Route
-          path="importacoes-bancarias"
-          element={
-            <LazyPage>
-              <ImportarExtratosPage />
-            </LazyPage>
-          }
-        />
-        <Route
-          path="importacoes-bancarias/historico"
-          element={
-            <LazyPage>
-              <ImportacoesExtratosHistoricoPage />
-            </LazyPage>
-          }
-        />
-        <Route
-          path="importacoes-bancarias/historico/:banco/:id"
-          element={
-            <LazyPage>
-              <ImportacaoExtratoDetalhePage />
-            </LazyPage>
-          }
-        />
-        <Route
-          path="conciliacao"
-          element={
-            <LazyPage>
-              <ConciliacaoPage />
-            </LazyPage>
-          }
-        />
-        <Route
-          path="conciliacao/sem-match"
-          element={
-            <LazyPage>
-              <ConciliacaoPage />
-            </LazyPage>
-          }
-        />
-        <Route
-          path="relatorios/extracao"
-          element={
-            <LazyPage>
-              <ExtracaoNotasPage />
-            </LazyPage>
-          }
-        />
-        <Route
-          path="relatorios/fluxo-caixa"
-          element={
-            <LazyPage>
-              <FluxoCaixaPage />
-            </LazyPage>
-          }
-        />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <AppProviders>
+      <BrowserRouter>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/auth/entrar" element={<EntrarPage />} />
+            <Route path="/auth/signin" element={<Navigate to={ROUTES.entrar} replace />} />
+
+            <Route
+              path={ROUTES.home}
+              element={
+                <ProtectedLayout>
+                  <HomePage />
+                </ProtectedLayout>
+              }
+            />
+            <Route
+              path={ROUTES.notas}
+              element={
+                <ProtectedLayout>
+                  <NotasPage />
+                </ProtectedLayout>
+              }
+            />
+            <Route
+              path={ROUTES.notaNova}
+              element={
+                <ProtectedLayout>
+                  <NotaNovaPage />
+                </ProtectedLayout>
+              }
+            />
+            <Route
+              path={ROUTES.recebimentos}
+              element={
+                <ProtectedLayout>
+                  <RecebimentosPage variant="pendente" />
+                </ProtectedLayout>
+              }
+            />
+            <Route
+              path={ROUTES.recebimentosSem}
+              element={
+                <ProtectedLayout>
+                  <RecebimentosPage variant="sem_match" />
+                </ProtectedLayout>
+              }
+            />
+            <Route
+              path={ROUTES.arquivosNotas}
+              element={
+                <ProtectedLayout>
+                  <ArquivosNotasPage />
+                </ProtectedLayout>
+              }
+            />
+            <Route
+              path={ROUTES.arquivosExtratos}
+              element={
+                <ProtectedLayout>
+                  <ArquivosExtratosPage />
+                </ProtectedLayout>
+              }
+            />
+            <Route
+              path={ROUTES.arquivosHistorico}
+              element={
+                <ProtectedLayout>
+                  <ArquivosHistoricoPage />
+                </ProtectedLayout>
+              }
+            />
+            <Route
+              path="/arquivos/historico/notas/:id"
+              element={
+                <ProtectedLayout>
+                  <ArquivoNotaDetalhePage />
+                </ProtectedLayout>
+              }
+            />
+            <Route
+              path="/arquivos/historico/extratos/:banco/:id"
+              element={
+                <ProtectedLayout>
+                  <ArquivoExtratoDetalhePage />
+                </ProtectedLayout>
+              }
+            />
+            <Route
+              path={ROUTES.analisesSituacao}
+              element={
+                <ProtectedLayout>
+                  <AnalisesSituacaoPage />
+                </ProtectedLayout>
+              }
+            />
+            <Route
+              path={ROUTES.analisesFluxo}
+              element={
+                <ProtectedLayout>
+                  <AnalisesFluxoPage />
+                </ProtectedLayout>
+              }
+            />
+
+            <Route
+              path="*"
+              element={<NotFoundPage />}
+            />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </AppProviders>
   );
 }

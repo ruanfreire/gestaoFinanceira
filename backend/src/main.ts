@@ -5,11 +5,13 @@ import { json } from 'body-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableShutdownHooks();
   app.use(cookieParser());
   app.use(json({ limit: '5mb' }));
   app.setGlobalPrefix('api');
-  await app.listen(process.env.PORT || 4000);
-  console.log(`Backend listening on ${process.env.PORT || 4000}`);
+  const port = process.env.PORT || 4000;
+  await app.listen(port);
+  console.log(`Backend listening on ${port}`);
 }
 
 bootstrap().catch((err) => {

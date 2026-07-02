@@ -1,44 +1,27 @@
-import path from 'node:path';
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
-import svgr from 'vite-plugin-svgr';
+import path from "node:path";
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  publicDir: path.resolve(__dirname, '../UI/public'),
-  plugins: [
-    react(),
-    svgr({
-      include: '**/*.svg?component',
-      svgrOptions: {
-        icon: true,
-        exportType: 'named',
-        namedExport: 'ReactComponent',
-      },
-    }),
-  ],
+  plugins: [react()],
   resolve: {
-    dedupe: ['react', 'react-dom'],
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@ui': path.resolve(__dirname, '../UI/src'),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
   test: {
     globals: true,
-    environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
     css: true,
   },
   server: {
     port: 5174,
     strictPort: true,
-    fs: {
-      allow: [path.resolve(__dirname, '..')],
-    },
     proxy: {
-      '/api': {
-        target: 'http://localhost:4000',
+      "/api": {
+        target: "http://localhost:4000",
         changeOrigin: true,
         secure: false,
       },
@@ -46,6 +29,14 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom", "react-router-dom"],
+          query: ["@tanstack/react-query"],
+          motion: ["framer-motion"],
+        },
+      },
+    },
   },
 });
-

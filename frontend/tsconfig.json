@@ -17,10 +17,9 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@ui/*": ["../UI/src/*"]
+      "@/*": ["src/*"]
     },
     "types": ["vitest/globals"]
   },
-  "include": ["src", "../UI/src"]
+  "include": ["src"]
 }

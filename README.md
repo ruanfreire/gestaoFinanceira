@@ -1,2 +1,36 @@
-# Gestão Financeira — Monorepo\n+
-This repository contains a modular, Clean-Architecture financial management system scaffold.\n+\n+Folders:\n+- `frontend/` — React + Vite application consuming the design system in `UI/`.\n+- `backend/` — NestJS + TypeScript API, Mongoose for MongoDB.\n+- `UI/` — Design system and shared React components (already present).\n+- `scripts/` — helper scripts (dev orchestrator).\n+\n+Getting started\n+1. Install dependencies (root workspace):\n+   ```bash\n+   npm run install:all\n+   ```\n+2. Create `.env` files in `backend/` and `frontend/` based on the provided `.env.example` files.\n+3. Start the dev orchestrator (will validate MongoDB connectivity before starting services):\n+   ```bash\n+   npm run dev\n+   ```\n+\n+Backend\n+- Dev: `npm --workspace backend run dev`\n+- Seed admin: `npm --workspace backend run seed`\n+\n+Frontend\n+- Dev: `npm --workspace frontend run dev`\n+\n+Architecture\n+- Clean Architecture: controllers -> services -> repositories -> models\n+- Modules: auth, users, empresas, notas, importacoes, audit_logs\n+\n+Notes\n+- The frontend reuses components from the `UI/` folder; do not duplicate UI components.\n+- Seeder creates an admin user `admin@finance.local` with password from `SEED_ADMIN_PASSWORD` env var (default `123456`) if missing.\n+\n+Next steps\n+- Implement RBAC, tests, exports (CSV/Excel/PDF), and advanced dashboard charts.\n+\n*** End Patch**Great job. The README has been added.**ERROR: Unexpected trailing content in patch.**]**Unknown error in comment**atonin**EOF**aboration** Sorry. Let's reapply correctly. (I'll retry adding README properly.)*** End Patch**.*** Sorry.***") }]}**
+# Gestão Financeira — Monorepo
+
+Sistema de gestão financeira com arquitetura modular.
+
+## Pastas
+
+- `frontend/` — React + Vite + TypeScript (UI greenfield, design system próprio)
+- `backend/` — NestJS + TypeScript API, MongoDB
+- `scripts/` — orquestrador de desenvolvimento
+
+## Como iniciar
+
+1. Instalar dependências:
+
+```bash
+npm run install:all
+```
+
+2. Criar `.env` em `backend/` e `frontend/` conforme os `.env.example`.
+
+3. Subir o ambiente:
+
+```bash
+npm run dev
+```
+
+## Comandos úteis
+
+- Backend: `npm --workspace backend run dev`
+- Seed admin: `npm --workspace backend run seed`
+- Frontend: `npm --workspace frontend run dev`
+
+## Credenciais padrão
+
+- E-mail: `admin@finance.local`
+- Senha: `123456` (ou `SEED_ADMIN_PASSWORD` no `.env` do backend)

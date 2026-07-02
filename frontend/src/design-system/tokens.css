@@ -1,0 +1,176 @@
+/* Design Tokens — Gestão Financeira
+ * Referências: Stripe Dashboard, Linear, Mercury — hierarquia clara, superfícies neutras, acento único
+ * Escala 8px · Grid 12 colunas · WCAG AA
+ */
+
+@theme {
+  /* ── Tipografia ── */
+  --font-sans: Inter, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --text-display: 2.25rem;
+  --text-display--line-height: 2.75rem;
+  --text-display--font-weight: 700;
+  --text-h1: 1.875rem;
+  --text-h1--line-height: 2.25rem;
+  --text-h1--font-weight: 600;
+  --text-h2: 1.5rem;
+  --text-h2--line-height: 2rem;
+  --text-h2--font-weight: 600;
+  --text-h3: 1.25rem;
+  --text-h3--line-height: 1.75rem;
+  --text-h3--font-weight: 600;
+  --text-title: 1.125rem;
+  --text-title--line-height: 1.625rem;
+  --text-title--font-weight: 600;
+  --text-subtitle: 1rem;
+  --text-subtitle--line-height: 1.5rem;
+  --text-subtitle--font-weight: 500;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.375rem;
+  --text-body--font-weight: 400;
+  --text-small: 0.8125rem;
+  --text-small--line-height: 1.25rem;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.125rem;
+  --text-overline: 0.6875rem;
+  --text-overline--line-height: 1rem;
+  --text-overline--font-weight: 600;
+  --text-overline--letter-spacing: 0.06em;
+
+  /* ── Espaçamento (escala 8px) ── */
+  --spacing-0: 0;
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-10: 2.5rem;
+  --spacing-12: 3rem;
+  --spacing-16: 4rem;
+  --spacing-20: 5rem;
+  --spacing-24: 6rem;
+
+  /* ── Border radius ── */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-full: 9999px;
+
+  /* ── Sombras / elevação ── */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.08);
+
+  /* ── Transições ── */
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 320ms;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Breakpoints (documentação; Tailwind usa sm/md/lg) ── */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+
+  /* ── Grid ── */
+  --grid-columns: 12;
+  --grid-gutter: var(--spacing-4);
+  --grid-max-width: 80rem;
+
+  /* ── Cores semânticas (light) ── */
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #f1f5f9;
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+  --color-input: #e2e8f0;
+  --color-ring: #3b82f6;
+
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-active: #1e40af;
+  --color-primary-foreground: #ffffff;
+  --color-primary-subtle: #eff6ff;
+
+  --color-secondary: #f1f5f9;
+  --color-secondary-hover: #e2e8f0;
+  --color-secondary-foreground: #0f172a;
+
+  --color-success: #059669;
+  --color-success-subtle: #ecfdf5;
+  --color-success-foreground: #ffffff;
+
+  --color-warning: #d97706;
+  --color-warning-subtle: #fffbeb;
+  --color-warning-foreground: #ffffff;
+
+  --color-danger: #dc2626;
+  --color-danger-subtle: #fef2f2;
+  --color-danger-foreground: #ffffff;
+
+  --color-info: #0284c7;
+  --color-info-subtle: #f0f9ff;
+  --color-info-foreground: #ffffff;
+
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  --color-disabled: #94a3b8;
+  --color-disabled-bg: #f1f5f9;
+
+  --color-accent: #eff6ff;
+  --color-accent-foreground: #1d4ed8;
+
+  /* aliases legados */
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: var(--color-danger-foreground);
+}
+
+.dark {
+  --color-background: #09090b;
+  --color-foreground: #fafafa;
+  --color-surface: #18181b;
+  --color-surface-raised: #27272a;
+  --color-surface-sunken: #09090b;
+  --color-card: #18181b;
+  --color-card-foreground: #fafafa;
+  --color-border: #27272a;
+  --color-border-subtle: #1f1f23;
+  --color-input: #27272a;
+  --color-ring: #60a5fa;
+
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-primary-active: #2563eb;
+  --color-primary-subtle: #172554;
+
+  --color-secondary: #27272a;
+  --color-secondary-hover: #3f3f46;
+  --color-secondary-foreground: #fafafa;
+
+  --color-success-subtle: #052e16;
+  --color-warning-subtle: #451a03;
+  --color-danger-subtle: #450a0a;
+  --color-info-subtle: #0c4a6e;
+
+  --color-muted: #27272a;
+  --color-muted-foreground: #a1a1aa;
+  --color-disabled: #52525b;
+  --color-disabled-bg: #27272a;
+
+  --color-accent: #172554;
+  --color-accent-foreground: #93c5fd;
+}

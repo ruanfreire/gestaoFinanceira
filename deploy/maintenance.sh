@@ -37,11 +37,9 @@ wait_for_mongod() {
 wait_for_backend() {
   local i code
   for i in $(seq 1 20); do
-    code=$(curl -s -o /dev/null -w "%{http_code}" \
-      http://127.0.0.1:4000/api/auth/login \
-      -X POST -H "Content-Type: application/json" -d '{}' 2>/dev/null || echo "000")
-    if [[ "$code" =~ ^[245] ]]; then
-      echo "==> Backend respondendo (HTTP $code)"
+    code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:4000/api/health 2>/dev/null || echo "000")
+    if [[ "$code" == "200" ]]; then
+      echo "==> Backend respondendo (health OK)"
       return 0
     fi
     sleep 3

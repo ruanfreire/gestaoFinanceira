@@ -188,6 +188,9 @@ describe('fluxo-caixa.export', () => {
     expect(sheet?.getCell(lastDataRow + 1, 6).value).toBe('Total Entradas');
     expect(sheet?.getCell(lastDataRow + 2, 6).value).toBe('Total Saídas');
     expect(sheet?.getCell(lastDataRow + 3, 1).value).toBe('Saldo Final do Extrato Bancário');
-    expect(sheet?.getCell(lastDataRow + 1, 6).fill?.fgColor?.argb).toBe('FF000000');
+    const totalFill = sheet?.getCell(lastDataRow + 1, 6).fill;
+    const fgColor =
+      totalFill && "fgColor" in totalFill ? totalFill.fgColor?.argb : undefined;
+    expect(fgColor).toBe("FF000000");
   });
 });
