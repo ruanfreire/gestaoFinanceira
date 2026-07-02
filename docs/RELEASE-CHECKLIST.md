@@ -7,6 +7,7 @@ Use antes de cada deploy em produção (`main` → GitHub Actions).
 - [ ] `npm test` — backend + frontend passando
 - [ ] `npm run build` — sem erros TypeScript/Vite
 - [ ] Sem arquivos sensíveis no commit (`.env`, `*.key`, `inicial.json`)
+- [ ] `FRONTEND_URL` ou `APP_DOMAIN` no `.env` da VM (convites e Stripe)
 
 ## Pós-deploy (VM)
 

@@ -36,8 +36,16 @@ export const ROUTES = {
   analisesConfig: "/analises/configuracoes",
   plano: "/configuracoes/plano",
   equipe: "/configuracoes/equipe",
+  configuracoes: "/configuracoes",
   convite: "/convite",
 } as const;
+
+export const USER_STATUS_LABELS: Record<string, string> = {
+  pending: "Pendente",
+  approved: "Aprovado",
+  rejected: "Rejeitado",
+  suspended: "Suspenso",
+};
 
 export const PAYMENT_STATUS_LABELS: Record<string, string> = {
   em_aberto: "Em aberto",

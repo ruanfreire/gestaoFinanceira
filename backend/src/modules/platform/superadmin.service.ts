@@ -7,12 +7,39 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { asLeanMany, asLeanOne } from '../../common/mongoose-lean.util';
 import type { UserStatus } from '../../common/constants/user-status';
+import type { PlanId } from '../../common/billing/plans.config';
+import { buildAdminPlanOverride } from '../../common/billing/admin-plan-override.util';
 import { NotificationsService } from './notifications.service';
 
 function sanitizeClient(user: object) {
   const record = user as Record<string, unknown>;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { password, refreshTokens, ...safe } = record;
+  return safe;
+}
+
+function mapOrganization(tenantId: unknown) {
+  const org = tenantId as Record<string, unknown> | null;
+  if (!org || typeof org !== 'object' || !org._id) return null;
+  return {
+    _id: String(org._id),
+    name: org.name as string,
+    slug: org.slug as string | undefined,
+    status: org.status as UserStatus | undefined,
+    cnpj: org.cnpj as string | undefined,
+    plan: org.plan as PlanId | undefined,
+    billingStatus: org.billingStatus as string | undefined,
+    trialEndsAt: org.trialEndsAt as Date | string | undefined,
+  };
+}
+
+function withOrganization(user: Record<string, unknown>) {
+  const organization = mapOrganization(user.tenantId);
+  const safe = sanitizeClient(user) as Record<string, unknown>;
+  if (organization) {
+    safe.organization = organization;
+    safe.tenantId = organization._id;
+  }
   return safe;
 }
 
@@ -57,12 +84,15 @@ export class SuperadminService {
       await this.userModel
         .find(filter)
         .select('name email company cnpj phone status tenantId createdAt lastLogin lastLoginIp')
-        .populate('tenantId', 'name slug status cnpj trialEndsAt')
+        .populate('tenantId', 'name slug status cnpj trialEndsAt plan billingStatus')
         .sort({ createdAt: -1 })
         .lean(),
     );
 
-    return { items: items.map((item) => sanitizeClient(item as object)), total: items.length };
+    return {
+      items: items.map((item) => withOrganization(item as Record<string, unknown>)),
+      total: items.length,
+    };
   }
 
   async getClient(id: string) {
@@ -70,7 +100,7 @@ export class SuperadminService {
       await this.userModel
         .findOne({ _id: id, roles: { $in: ['client'] } })
         .select('name email company cnpj phone status tenantId createdAt lastLogin lastLoginIp')
-        .populate('tenantId', 'name slug status cnpj trialEndsAt ownerUserId')
+        .populate('tenantId', 'name slug status cnpj trialEndsAt plan billingStatus ownerUserId')
         .lean(),
     );
     if (!user) throw new NotFoundException('Cliente não encontrado');
@@ -83,7 +113,7 @@ export class SuperadminService {
         .lean(),
     );
 
-    return { client: sanitizeClient(user), history };
+    return { client: withOrganization(user as Record<string, unknown>), history };
   }
 
   private async logAction(
@@ -172,5 +202,46 @@ export class SuperadminService {
 
   async suspend(clientId: string, performedBy: string, ip?: string, note?: string) {
     return this.updateStatus(clientId, 'suspended', performedBy, ip, note);
+  }
+
+  async setClientPlan(clientId: string, plan: PlanId, performedBy: string, ip?: string) {
+    const user = await this.userModel.findOne({ _id: clientId, roles: { $in: ['client'] } });
+    if (!user) throw new NotFoundException('Cliente não encontrado');
+    if (!user.tenantId) {
+      throw new BadRequestException('Cliente sem organização vinculada');
+    }
+
+    const org = await this.organizationModel.findById(user.tenantId);
+    if (!org) throw new NotFoundException('Organização não encontrada');
+
+    const override = buildAdminPlanOverride(plan);
+    org.plan = override.plan;
+    org.billingStatus = override.billingStatus;
+    if (override.trialEndsAt) {
+      org.trialEndsAt = override.trialEndsAt;
+    }
+    if (override.planActivatedAt) {
+      org.planActivatedAt = override.planActivatedAt;
+    }
+    await org.save();
+
+    await this.logAction(clientId, `plan_set_${plan}`, performedBy, undefined, ip);
+
+    await this.notificationsService.createForUser(clientId, {
+      type: 'system',
+      title: 'Plano atualizado',
+      message: `Seu plano foi alterado para ${plan} pelo administrador.`,
+      url: '/configuracoes/plano',
+    });
+
+    const updated = asLeanOne(
+      await this.userModel
+        .findById(clientId)
+        .select('name email company cnpj phone status tenantId createdAt lastLogin lastLoginIp')
+        .populate('tenantId', 'name slug status cnpj trialEndsAt plan billingStatus ownerUserId')
+        .lean(),
+    );
+
+    return { ok: true, client: withOrganization(updated as Record<string, unknown>) };
   }
 }

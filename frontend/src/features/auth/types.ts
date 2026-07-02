@@ -59,6 +59,13 @@ export type SignupResponse = {
   user?: AuthUser;
 };
 
+export type AcceptInviteResponse = {
+  ok: boolean;
+  message?: string;
+  user?: AuthUser;
+  accessToken?: string;
+};
+
 export function isSuperadmin(user: AuthUser | null | undefined): boolean {
   return Boolean(user?.roles?.includes("superadmin"));
 }

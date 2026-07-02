@@ -5,20 +5,28 @@ import { Modal } from "../modal/modal";
 import { Input, Typography } from "@/design-system/atoms";
 import { COMMAND_ROUTES } from "@/lib/command-routes";
 import { cn } from "@/design-system/lib/cn";
+import { useAuth } from "@/features/auth/context";
+import { isTenantOwner } from "@/features/auth/types";
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const navigate = useNavigate();
   const listRef = useRef<HTMLUListElement>(null);
+  const { user } = useAuth();
+
+  const availableRoutes = useMemo(
+    () => COMMAND_ROUTES.filter((item) => !item.ownerOnly || isTenantOwner(user)),
+    [user],
+  );
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return COMMAND_ROUTES;
-    return COMMAND_ROUTES.filter(
+    if (!q) return availableRoutes;
+    return availableRoutes.filter(
       (item) => item.label.toLowerCase().includes(q) || item.keywords.toLowerCase().includes(q),
     );
-  }, [query]);
+  }, [availableRoutes, query]);
 
   useEffect(() => {
     if (!open) {

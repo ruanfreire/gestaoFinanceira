@@ -51,4 +51,14 @@ export const orgApi = {
     const { data } = await api.delete<{ ok: boolean }>(`/org/invites/${id}`);
     return data;
   },
+
+  async regenerateInviteLink(id: string) {
+    const { data } = await api.post<{ ok: boolean; inviteUrl: string }>(`/org/invites/${id}/link`);
+    return data;
+  },
+
+  async removeMember(id: string) {
+    const { data } = await api.delete<{ ok: boolean }>(`/org/members/${id}`);
+    return data;
+  },
 };

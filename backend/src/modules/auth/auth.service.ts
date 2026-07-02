@@ -225,10 +225,18 @@ export class AuthService {
       action: 'invite_accepted',
     });
 
+    const fullUser = await this.getUserById(String(user._id));
+    const safeUser = fullUser ?? this.sanitizeUser(user.toObject());
+    let accessToken: string | undefined;
+    if (userStatus === 'approved') {
+      accessToken = this.signAccessToken(this.buildAccessPayload(safeUser as Record<string, unknown>));
+    }
+
     return {
       ok: true,
       message: userStatus === 'approved' ? 'Conta criada com sucesso' : 'Conta criada — aguarde aprovação da organização',
-      user: this.sanitizeUser(user.toObject()),
+      user: safeUser,
+      accessToken,
     };
   }
 

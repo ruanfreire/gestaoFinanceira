@@ -1,5 +1,5 @@
 import api, { getApiErrorMessage } from "@/lib/api-client";
-import type { AuthUser, LoginCredentials, LoginResponse, SignupCredentials, SignupResponse } from "./types";
+import type { AuthUser, LoginCredentials, LoginResponse, SignupCredentials, SignupResponse, AcceptInviteResponse } from "./types";
 
 const TOKEN_KEY = "accessToken";
 const USER_KEY = "user";
@@ -86,6 +86,18 @@ export const authApi = {
     }
 
     return { ok: false, message: res.data?.message || "Credenciais inválidas" };
+  },
+
+  async acceptInvite(payload: {
+    token: string;
+    name: string;
+    password: string;
+  }): Promise<AcceptInviteResponse> {
+    const res = await api.post<AcceptInviteResponse>("/auth/accept-invite", payload);
+    if (res.data?.ok && res.data.accessToken) {
+      this.persistSession(res.data.accessToken, res.data.user);
+    }
+    return res.data;
   },
 
   async logout(): Promise<void> {

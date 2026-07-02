@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { SkipTenant } from '../../common/tenant/skip-tenant.decorator';
 import type { UserStatus } from '../../common/constants/user-status';
 import { SuperadminService } from './superadmin.service';
+import { SetClientPlanDto } from './dto/set-client-plan.dto';
 
 @Controller('superadmin')
 @UseGuards(RolesGuard)
@@ -40,5 +41,10 @@ export class SuperadminController {
   @Post('clients/:id/suspend')
   suspend(@Param('id') id: string, @Req() req: any, @Body() body: { note?: string }) {
     return this.superadminService.suspend(id, req.user.sub, req.ip, body?.note);
+  }
+
+  @Patch('clients/:id/plan')
+  setPlan(@Param('id') id: string, @Req() req: any, @Body() body: SetClientPlanDto) {
+    return this.superadminService.setClientPlan(id, body.plan, req.user.sub, req.ip);
   }
 }

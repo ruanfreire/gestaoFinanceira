@@ -46,4 +46,19 @@ export class OrgController {
   revokeInvite(@Req() req: { user: { tenantId?: string } }, @Param('id') id: string) {
     return this.orgService.revokeInvite(req.user.tenantId!, id);
   }
+
+  @Post('invites/:id/link')
+  @TenantRoles('owner')
+  regenerateInviteLink(@Req() req: { user: { tenantId?: string } }, @Param('id') id: string) {
+    return this.orgService.regenerateInviteLink(req.user.tenantId!, id);
+  }
+
+  @Delete('members/:id')
+  @TenantRoles('owner')
+  removeMember(
+    @Req() req: { user: { sub: string; tenantId?: string } },
+    @Param('id') id: string,
+  ) {
+    return this.orgService.removeMember(req.user.tenantId!, req.user.sub, id);
+  }
 }

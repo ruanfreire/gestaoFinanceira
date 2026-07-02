@@ -12,6 +12,7 @@ const TITLES: Array<{ match: (path: string) => boolean; title: string }> = [
   { match: (p) => p === ROUTES.analisesSituacao, title: "Situação das notas" },
   { match: (p) => p === ROUTES.analisesFluxo, title: "Fluxo de caixa" },
   { match: (p) => p === ROUTES.analisesConfig, title: "Configurações de exportação" },
+  { match: (p) => p === ROUTES.configuracoes, title: "Configurações" },
   { match: (p) => p === ROUTES.plano, title: "Plano e assinatura" },
   { match: (p) => p === ROUTES.equipe, title: "Equipe" },
   { match: (p) => p === ROUTES.entrar, title: "Entrar" },

@@ -1,6 +1,6 @@
 import { useLocation } from "react-router-dom";
 import { PrefetchLink, SkipToContent, ThemeToggle } from "@/design-system/molecules";
-import { Home, FileText, Link2, FolderOpen, BarChart3, LogOut, Search } from "lucide-react";
+import { Home, FileText, Link2, FolderOpen, BarChart3, LogOut, Search, Settings } from "lucide-react";
 import { Button, Typography, Avatar, Badge } from "@/design-system/atoms";
 import { cn } from "@/design-system/lib/cn";
 import { ROUTES } from "@/lib/constants";
@@ -16,17 +16,14 @@ function buildSidebarNav(isOwner: boolean) {
     { to: ROUTES.analisesFluxo, label: "Fluxo de caixa" },
     { to: ROUTES.analisesConfig, label: "Config. exportação" },
   ];
-  if (isOwner) {
-    analisesChildren.push(
-      { to: ROUTES.plano, label: "Plano e assinatura" },
-      { to: ROUTES.equipe, label: "Equipe" },
-    );
-  }
 
-  return [
+  const nav: Array<
+    | { to: string; label: string; icon: typeof Home; badgeKey?: "recebimentos" }
+    | { label: string; icon: typeof Home; children: Array<{ to: string; label: string }> }
+  > = [
     { to: ROUTES.home, label: "Início", icon: Home },
     { to: ROUTES.notas, label: "Minhas notas", icon: FileText },
-    { to: ROUTES.recebimentos, label: "Recebimentos", icon: Link2, badgeKey: "recebimentos" as const },
+    { to: ROUTES.recebimentos, label: "Recebimentos", icon: Link2, badgeKey: "recebimentos" },
     {
       label: "Trazer dados",
       icon: FolderOpen,
@@ -42,6 +39,20 @@ function buildSidebarNav(isOwner: boolean) {
       children: analisesChildren,
     },
   ];
+
+  if (isOwner) {
+    nav.push({
+      label: "Configurações",
+      icon: Settings,
+      children: [
+        { to: ROUTES.configuracoes, label: "Visão geral" },
+        { to: ROUTES.plano, label: "Plano e assinatura" },
+        { to: ROUTES.equipe, label: "Equipe" },
+      ],
+    });
+  }
+
+  return nav;
 }
 
 export function AppShell({
@@ -133,6 +144,15 @@ export function AppShell({
               )}
             </Typography>
             <div className="flex items-center gap-2">
+              {isTenantOwner(user) && (
+                <PrefetchLink
+                  to={ROUTES.configuracoes}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-default hover:bg-muted hover:text-foreground lg:hidden"
+                  aria-label="Configurações"
+                >
+                  <Settings className="h-4 w-4" aria-hidden />
+                </PrefetchLink>
+              )}
               {onOpenCommandPalette && (
                 <Button
                   type="button"
@@ -158,7 +178,7 @@ export function AppShell({
           </main>
         </div>
       </div>
-      <MobileNav pendingRecebimentos={pendingRecebimentos} />
+      <MobileNav pendingRecebimentos={pendingRecebimentos} isOwner={isTenantOwner(user)} />
     </div>
   );
 }

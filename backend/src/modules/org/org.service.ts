@@ -10,6 +10,7 @@ import { createHash, randomBytes } from 'crypto';
 import { asLeanMany, asLeanOne } from '../../common/mongoose-lean.util';
 import type { TenantRole } from '../../common/constants/tenant-role';
 import type { CreateInviteDto } from './dto/invite.dto';
+import { resolveFrontendUrl } from '../../common/frontend-url.util';
 
 const INVITE_TTL_DAYS = 7;
 
@@ -88,7 +89,7 @@ export class OrgService {
       expiresAt,
     });
 
-    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+    const frontendUrl = resolveFrontendUrl();
     return {
       ok: true,
       inviteId: String(invite._id),
@@ -108,6 +109,48 @@ export class OrgService {
     if (!invite) throw new NotFoundException('Convite não encontrado');
     invite.status = 'revoked';
     await invite.save();
+    return { ok: true };
+  }
+
+  async regenerateInviteLink(tenantId: string, inviteId: string) {
+    const invite = await this.inviteModel.findOne({
+      _id: inviteId,
+      tenantId: new Types.ObjectId(tenantId),
+      status: 'pending',
+      expiresAt: { $gt: new Date() },
+    });
+    if (!invite) throw new NotFoundException('Convite não encontrado');
+
+    const token = randomBytes(32).toString('hex');
+    invite.tokenHash = hashToken(token);
+    await invite.save();
+
+    const frontendUrl = resolveFrontendUrl();
+    return { ok: true, inviteUrl: `${frontendUrl}/convite/${token}` };
+  }
+
+  async removeMember(tenantId: string, actorUserId: string, memberId: string) {
+    if (actorUserId === memberId) {
+      throw new BadRequestException('Não é possível remover a si mesmo');
+    }
+
+    const member = await this.userModel.findOne({
+      _id: memberId,
+      tenantId: new Types.ObjectId(tenantId),
+    });
+    if (!member) throw new NotFoundException('Membro não encontrado');
+
+    if (member.tenantRole === 'owner') {
+      const ownerCount = await this.userModel.countDocuments({
+        tenantId: new Types.ObjectId(tenantId),
+        tenantRole: 'owner',
+      });
+      if (ownerCount <= 1) {
+        throw new BadRequestException('Não é possível remover o único proprietário');
+      }
+    }
+
+    await this.userModel.deleteOne({ _id: member._id });
     return { ok: true };
   }
 

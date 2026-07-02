@@ -9,6 +9,8 @@ import { FormGroup, ErrorState } from "@/design-system/molecules";
 import api, { getApiErrorMessage } from "@/lib/api-client";
 import { homePathForSlug } from "@/lib/org-path";
 import { ROUTES } from "@/lib/constants";
+import { authApi } from "@/features/auth/api";
+import { useAuth } from "@/features/auth/context";
 
 const schema = z.object({
   name: z.string().min(2, "Informe seu nome"),
@@ -27,9 +29,11 @@ type InvitePreview = {
 export default function ConvitePage() {
   const { token } = useParams();
   const navigate = useNavigate();
+  const { setSession } = useAuth();
   const [preview, setPreview] = useState<InvitePreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(true);
 
   const {
@@ -55,9 +59,20 @@ export default function ConvitePage() {
     if (!token) return;
     setSubmitError(null);
     try {
-      await api.post("/auth/accept-invite", { token, ...data });
-      const slug = preview?.organization.slug;
-      navigate(slug ? homePathForSlug(slug) : ROUTES.entrar, { replace: true });
+      const result = await authApi.acceptInvite({ token, ...data });
+      if (!result.ok) {
+        setSubmitError(result.message ?? "Não foi possível aceitar o convite");
+        return;
+      }
+
+      if (result.accessToken && result.user) {
+        setSession(result.user);
+        const slug = result.user.organization?.slug ?? preview?.organization.slug;
+        navigate(slug ? homePathForSlug(slug) : ROUTES.home, { replace: true });
+        return;
+      }
+
+      setSuccessMessage(result.message ?? "Conta criada. Aguarde aprovação para entrar.");
     } catch (error: unknown) {
       setSubmitError(getApiErrorMessage(error, "Não foi possível aceitar o convite"));
     }
@@ -75,6 +90,16 @@ export default function ConvitePage() {
     return (
       <AuthTemplate title="Convite inválido">
         <ErrorState message={previewError ?? "Este convite não está mais disponível."} />
+      </AuthTemplate>
+    );
+  }
+
+  if (successMessage) {
+    return (
+      <AuthTemplate title="Conta criada" description={successMessage}>
+        <Button type="button" className="w-full" onClick={() => navigate(ROUTES.entrar, { replace: true })}>
+          Ir para o login
+        </Button>
       </AuthTemplate>
     );
   }

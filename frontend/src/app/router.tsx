@@ -27,6 +27,7 @@ const AnalisesFluxoPage = lazy(lazyRoutes.analisesFluxo);
 const AnalisesConfigPage = lazy(lazyRoutes.analisesConfig);
 const PlanoPage = lazy(lazyRoutes.plano);
 const EquipePage = lazy(lazyRoutes.equipe);
+const ConfiguracoesPage = lazy(lazyRoutes.configuracoes);
 const ConvitePage = lazy(lazyRoutes.convite);
 const NotFoundPage = lazy(lazyRoutes.notFound);
 const SignupPage = lazy(lazyRoutes.signup);
@@ -107,6 +108,7 @@ export function AppRouter() {
                 <Route path="analises/situacao" element={<AnalisesSituacaoPage />} />
                 <Route path="analises/fluxo-caixa" element={<AnalisesFluxoPage />} />
                 <Route path="analises/configuracoes" element={<AnalisesConfigPage />} />
+                <Route path="configuracoes" element={<ConfiguracoesPage />} />
                 <Route path="configuracoes/plano" element={<PlanoPage />} />
                 <Route path="configuracoes/equipe" element={<EquipePage />} />
               </Route>
@@ -122,6 +124,7 @@ export function AppRouter() {
             <Route path={ROUTES.analisesSituacao} element={<LegacyRedirect to={ROUTES.analisesSituacao} />} />
             <Route path={ROUTES.analisesFluxo} element={<LegacyRedirect to={ROUTES.analisesFluxo} />} />
             <Route path={ROUTES.analisesConfig} element={<LegacyRedirect to={ROUTES.analisesConfig} />} />
+            <Route path={ROUTES.configuracoes} element={<LegacyRedirect to={ROUTES.configuracoes} />} />
             <Route path={ROUTES.plano} element={<LegacyRedirect to={ROUTES.plano} />} />
             <Route path={ROUTES.equipe} element={<LegacyRedirect to={ROUTES.equipe} />} />
 

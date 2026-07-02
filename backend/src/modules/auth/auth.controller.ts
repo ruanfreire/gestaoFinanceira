@@ -48,8 +48,15 @@ export class AuthController {
   @Public()
   @HttpCode(201)
   @Throttle({ default: { limit: 8, ttl: 60_000 } })
-  async acceptInvite(@Body() body: AcceptInviteDto) {
-    return this.authService.acceptInvite(body);
+  async acceptInvite(@Body() body: AcceptInviteDto, @Req() req: any, @Res({ passthrough: true }) res: any) {
+    const result = await this.authService.acceptInvite(body);
+    if (result.ok && result.accessToken && result.user) {
+      const userId = String((result.user as { _id: unknown })._id);
+      await this.authService.recordLogin(userId, req.ip);
+      const { token: refreshToken } = await this.authService.createAndStoreRefreshToken(userId);
+      res.cookie('refreshToken', refreshToken, cookieOptions());
+    }
+    return result;
   }
 
   @Post('login')

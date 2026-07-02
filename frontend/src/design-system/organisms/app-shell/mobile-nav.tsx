@@ -1,5 +1,5 @@
 import { useLocation } from "react-router-dom";
-import { Home, FileText, Link2, FolderOpen, BarChart3 } from "lucide-react";
+import { Home, FileText, Link2, FolderOpen, BarChart3, Settings } from "lucide-react";
 import { PrefetchLink } from "@/design-system/molecules";
 import { cn } from "@/design-system/lib/cn";
 import { ROUTES } from "@/lib/constants";
@@ -18,12 +18,29 @@ const mainNav = [
   { to: ROUTES.analisesSituacao, label: "Mais", icon: BarChart3, match: (p: string) => p.startsWith("/analises") },
 ];
 
-export function MobileNav({ pendingRecebimentos = 0 }: { pendingRecebimentos?: number }) {
+const ownerNavItem = {
+  to: ROUTES.configuracoes,
+  label: "Config.",
+  icon: Settings,
+  match: (p: string) => p.startsWith("/configuracoes"),
+};
+
+export function MobileNav({
+  pendingRecebimentos = 0,
+  isOwner = false,
+}: {
+  pendingRecebimentos?: number;
+  isOwner?: boolean;
+}) {
   const { pathname } = useLocation();
+  const items = isOwner
+    ? [...mainNav.slice(0, -1), ownerNavItem]
+    : mainNav;
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface safe-bottom lg:hidden" aria-label="Navegação principal">
       <div className="flex h-16 items-stretch justify-around">
-        {mainNav.map(({ to, label, icon: Icon, match, badgeKey }) => {
+        {items.map(({ to, label, icon: Icon, match, badgeKey }) => {
           const active = match(pathname);
           const badge = badgeKey === "recebimentos" ? pendingRecebimentos : 0;
           return (

@@ -3,16 +3,24 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
-import { Copy, Trash2, UserPlus } from "lucide-react";
+import { Copy, Trash2, UserMinus, UserPlus } from "lucide-react";
 import { Navigate } from "react-router-dom";
-import { PageHeader, ErrorState } from "@/design-system/molecules";
-import { Badge, Button, Input, Label, Typography } from "@/design-system/atoms";
+import { PageHeader, ErrorState, EmptyState } from "@/design-system/molecules";
+import { Badge, Button, Input, Label, Skeleton, Typography } from "@/design-system/atoms";
 import { useToast } from "@/app/toast-provider";
 import { useAuth } from "@/features/auth/context";
 import { isTenantOwner } from "@/features/auth/types";
-import { ROUTES } from "@/lib/constants";
+import { ROUTES, USER_STATUS_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
-import { useCreateInvite, useOrgInvites, useOrgMembers, useRevokeInvite } from "../hooks";
+import { getApiErrorMessage } from "@/lib/api-client";
+import {
+  useCreateInvite,
+  useOrgInvites,
+  useOrgMembers,
+  useRegenerateInviteLink,
+  useRemoveMember,
+  useRevokeInvite,
+} from "../hooks";
 
 const inviteSchema = z.object({
   email: z.string().email("E-mail inválido"),
@@ -21,14 +29,32 @@ const inviteSchema = z.object({
 
 type InviteForm = z.infer<typeof inviteSchema>;
 
+function MemberListSkeleton() {
+  return (
+    <ul className="space-y-2">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <li key={index} className="rounded-lg border border-border px-3 py-3">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="mt-2 h-3 w-56" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function EquipePage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const membersQuery = useOrgMembers();
-  const invitesQuery = useOrgInvites();
+  const isOwner = isTenantOwner(user);
+  const membersQuery = useOrgMembers(isOwner);
+  const invitesQuery = useOrgInvites(isOwner);
   const createInvite = useCreateInvite();
   const revokeInvite = useRevokeInvite();
+  const regenerateLink = useRegenerateInviteLink();
+  const removeMember = useRemoveMember();
   const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [copyingInviteId, setCopyingInviteId] = useState<string | null>(null);
 
   const {
     register,
@@ -40,21 +66,51 @@ export default function EquipePage() {
     defaultValues: { tenantRole: "operator" },
   });
 
-  if (!isTenantOwner(user)) {
+  if (!isOwner) {
     return <Navigate to={ROUTES.home} replace />;
   }
 
   const onSubmit = async (data: InviteForm) => {
-    const result = await createInvite.mutateAsync(data);
-    setLastInviteUrl(result.inviteUrl);
-    reset({ email: "", tenantRole: data.tenantRole });
-    toast("Convite criado", "success");
+    setInviteError(null);
+    try {
+      const result = await createInvite.mutateAsync(data);
+      setLastInviteUrl(result.inviteUrl);
+      reset({ email: "", tenantRole: data.tenantRole });
+      toast("Convite criado", "success");
+    } catch (error: unknown) {
+      setInviteError(getApiErrorMessage(error, "Não foi possível criar o convite"));
+    }
   };
 
   const copyInvite = async (url: string) => {
     await navigator.clipboard.writeText(url);
     toast("Link copiado", "success");
   };
+
+  const copyPendingInvite = async (inviteId: string) => {
+    setCopyingInviteId(inviteId);
+    try {
+      const result = await regenerateLink.mutateAsync(inviteId);
+      await copyInvite(result.inviteUrl);
+    } catch (error: unknown) {
+      toast(getApiErrorMessage(error, "Não foi possível gerar o link"), "error");
+    } finally {
+      setCopyingInviteId(null);
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string, memberName: string) => {
+    if (!window.confirm(`Remover ${memberName} da equipe?`)) return;
+    try {
+      await removeMember.mutateAsync(memberId);
+      toast("Membro removido", "success");
+    } catch (error: unknown) {
+      toast(getApiErrorMessage(error, "Não foi possível remover o membro"), "error");
+    }
+  };
+
+  const members = membersQuery.data?.items ?? [];
+  const invites = invitesQuery.data?.items ?? [];
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto max-w-4xl space-y-6">
@@ -68,6 +124,7 @@ export default function EquipePage() {
           <UserPlus className="h-4 w-4" aria-hidden />
           Novo convite
         </Typography>
+        {inviteError && <ErrorState message={inviteError} className="mb-4" />}
         <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
           <div>
             <Label htmlFor="invite-email">E-mail</Label>
@@ -107,31 +164,63 @@ export default function EquipePage() {
 
       <section className="rounded-xl border border-border bg-surface/60 p-5">
         <Typography variant="subtitle" className="mb-4">
-          Membros
+          Membros ({membersQuery.data?.total ?? members.length})
         </Typography>
         {membersQuery.isError ? (
           <ErrorState message="Não foi possível carregar a equipe." onRetry={() => membersQuery.refetch()} />
+        ) : membersQuery.isLoading ? (
+          <MemberListSkeleton />
+        ) : members.length === 0 ? (
+          <EmptyState
+            title="Nenhum membro"
+            description="Convide alguém para começar a montar sua equipe."
+          />
         ) : (
           <ul className="space-y-2">
-            {(membersQuery.data?.items ?? []).map((member) => (
-              <li
-                key={member._id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
-              >
-                <div>
-                  <Typography variant="subtitle">{member.name}</Typography>
-                  <Typography variant="caption" tone="muted">
-                    {member.email}
-                  </Typography>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={member.tenantRole === "owner" ? "info" : "neutral"}>
-                    {member.tenantRole === "owner" ? "Proprietário" : "Operador"}
-                  </Badge>
-                  <Badge variant={member.status === "approved" ? "success" : "warning"}>{member.status}</Badge>
-                </div>
-              </li>
-            ))}
+            {members.map((member) => {
+              const isSelf = member._id === user?._id;
+              return (
+                <li
+                  key={member._id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
+                >
+                  <div>
+                    <Typography variant="subtitle">
+                      {member.name}
+                      {isSelf && (
+                        <Typography as="span" variant="caption" tone="muted" className="ml-2">
+                          (você)
+                        </Typography>
+                      )}
+                    </Typography>
+                    <Typography variant="caption" tone="muted">
+                      {member.email}
+                    </Typography>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={member.tenantRole === "owner" ? "info" : "neutral"}>
+                      {member.tenantRole === "owner" ? "Proprietário" : "Operador"}
+                    </Badge>
+                    <Badge variant={member.status === "approved" ? "success" : "warning"}>
+                      {USER_STATUS_LABELS[member.status ?? ""] ?? member.status}
+                    </Badge>
+                    {!isSelf && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        icon={UserMinus}
+                        onClick={() => handleRemoveMember(member._id, member.name)}
+                        loading={removeMember.isPending}
+                        aria-label={`Remover ${member.name}`}
+                      >
+                        Remover
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -140,13 +229,17 @@ export default function EquipePage() {
         <Typography variant="subtitle" className="mb-4">
           Convites pendentes
         </Typography>
-        {(invitesQuery.data?.items ?? []).length === 0 ? (
+        {invitesQuery.isError ? (
+          <ErrorState message="Não foi possível carregar os convites." onRetry={() => invitesQuery.refetch()} />
+        ) : invitesQuery.isLoading ? (
+          <MemberListSkeleton />
+        ) : invites.length === 0 ? (
           <Typography variant="body" tone="muted">
             Nenhum convite pendente.
           </Typography>
         ) : (
           <ul className="space-y-2">
-            {invitesQuery.data?.items.map((invite) => (
+            {invites.map((invite) => (
               <li
                 key={invite._id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
@@ -159,6 +252,16 @@ export default function EquipePage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="neutral">{invite.tenantRole === "owner" ? "Proprietário" : "Operador"}</Badge>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    icon={Copy}
+                    onClick={() => copyPendingInvite(invite._id)}
+                    loading={copyingInviteId === invite._id}
+                  >
+                    Copiar link
+                  </Button>
                   <Button
                     type="button"
                     size="sm"

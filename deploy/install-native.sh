@@ -258,6 +258,12 @@ if [ "$FIRST_INSTALL" = true ]; then
     sed -i "s/troque_por_um_segredo_forte/$JWT_ACCESS/" .env
     sed -i "s/troque_por_outro_segredo_forte/$JWT_REFRESH/" .env
     sed -i "s/troque_antes_do_primeiro_seed/$SEED_PASS/" .env
+    if ! grep -q '^FRONTEND_URL=' .env; then
+      APP_DOMAIN_VAL=$(grep '^APP_DOMAIN=' .env | cut -d= -f2- | tr -d '\r')
+      if [[ -n "$APP_DOMAIN_VAL" ]]; then
+        echo "FRONTEND_URL=https://${APP_DOMAIN_VAL}" >> .env
+      fi
+    fi
     echo "SEED_ADMIN_PASSWORD=$SEED_PASS"
     echo "Login: admin@finance.local"
     mkdir -p .deploy

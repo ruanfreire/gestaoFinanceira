@@ -8,6 +8,8 @@ import {
   History,
   BarChart3,
   Settings,
+  CreditCard,
+  Users,
 } from "lucide-react";
 import { ROUTES } from "@/lib/constants";
 
@@ -17,6 +19,7 @@ export type CommandRoute = {
   to: string;
   keywords: string;
   icon: LucideIcon;
+  ownerOnly?: boolean;
 };
 
 export const COMMAND_ROUTES: CommandRoute[] = [
@@ -58,5 +61,29 @@ export const COMMAND_ROUTES: CommandRoute[] = [
     to: ROUTES.analisesConfig,
     keywords: "padrões fluxo excel",
     icon: Settings,
+  },
+  {
+    id: "configuracoes",
+    label: "Configurações da organização",
+    to: ROUTES.configuracoes,
+    keywords: "plano equipe assinatura",
+    icon: Settings,
+    ownerOnly: true,
+  },
+  {
+    id: "plano",
+    label: "Plano e assinatura",
+    to: ROUTES.plano,
+    keywords: "billing stripe trial assinatura",
+    icon: CreditCard,
+    ownerOnly: true,
+  },
+  {
+    id: "equipe",
+    label: "Equipe",
+    to: ROUTES.equipe,
+    keywords: "convite membros operador proprietário",
+    icon: Users,
+    ownerOnly: true,
   },
 ];

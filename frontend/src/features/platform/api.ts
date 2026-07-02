@@ -1,5 +1,17 @@
 import api from "@/lib/api-client";
 import type { UserStatus } from "@/features/auth/types";
+import type { BillingStatus, PlanId } from "@/features/billing/api";
+
+export type PlatformOrganization = {
+  _id: string;
+  name: string;
+  slug?: string;
+  status?: UserStatus;
+  cnpj?: string;
+  plan?: PlanId;
+  billingStatus?: BillingStatus;
+  trialEndsAt?: string;
+};
 
 export type PlatformClient = {
   _id: string;
@@ -9,6 +21,8 @@ export type PlatformClient = {
   cnpj?: string;
   phone?: string;
   status: UserStatus;
+  tenantId?: string;
+  organization?: PlatformOrganization;
   createdAt?: string;
   lastLogin?: string;
   lastLoginIp?: string;
@@ -68,6 +82,11 @@ export const platformApi = {
 
   async suspendClient(id: string, note?: string) {
     const res = await api.post(`/superadmin/clients/${id}/suspend`, { note });
+    return res.data;
+  },
+
+  async setClientPlan(id: string, plan: PlanId) {
+    const res = await api.patch<{ ok: boolean; client: PlatformClient }>(`/superadmin/clients/${id}/plan`, { plan });
     return res.data;
   },
 

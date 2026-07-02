@@ -23,6 +23,7 @@ import {
   type BillingAccess,
 } from '../../common/billing/organization-billing.util';
 import { PlanLimitsService } from './plan-limits.service';
+import { resolveFrontendUrl } from '../../common/frontend-url.util';
 
 type OrganizationDoc = {
   _id: Types.ObjectId;
@@ -62,7 +63,7 @@ export class BillingService {
   }
 
   private frontendUrl(): string {
-    return (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+    return resolveFrontendUrl();
   }
 
   private async getOrganizationForTenant(tenantId: string): Promise<OrganizationDoc> {

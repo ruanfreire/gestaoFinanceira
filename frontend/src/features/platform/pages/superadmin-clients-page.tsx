@@ -6,6 +6,7 @@ import type { UserStatus } from "@/features/auth/types";
 import { useClientAction, useSuperadminClients } from "../hooks";
 import { formatDate } from "@/lib/format";
 import { ClientStatusBadge } from "../components/client-status-badge";
+import { PlanBadge } from "../components/plan-badge";
 import { useToast } from "@/app/toast-provider";
 
 const FILTERS: { value?: UserStatus; label: string }[] = [
@@ -73,6 +74,7 @@ export default function SuperadminClientsPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <ClientStatusBadge status={client.status} />
+                  <PlanBadge plan={client.organization?.plan} />
                   {client.status === "pending" && (
                     <Button size="sm" onClick={() => onApprove(client._id)} loading={actions.approve.isPending}>
                       Aprovar

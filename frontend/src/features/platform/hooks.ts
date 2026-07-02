@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { platformApi } from "./api";
 import type { UserStatus } from "@/features/auth/types";
+import type { PlanId } from "@/features/billing/api";
 
 export const platformKeys = {
   dashboard: ["platform", "dashboard"] as const,
@@ -38,6 +39,10 @@ export function useClientAction() {
     approve: useMutation({ mutationFn: platformApi.approveClient, onSuccess: invalidate }),
     reject: useMutation({ mutationFn: ({ id, note }: { id: string; note?: string }) => platformApi.rejectClient(id, note), onSuccess: invalidate }),
     suspend: useMutation({ mutationFn: ({ id, note }: { id: string; note?: string }) => platformApi.suspendClient(id, note), onSuccess: invalidate }),
+    setPlan: useMutation({
+      mutationFn: ({ id, plan }: { id: string; plan: PlanId }) => platformApi.setClientPlan(id, plan),
+      onSuccess: invalidate,
+    }),
   };
 }
 

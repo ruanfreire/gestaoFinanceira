@@ -15,6 +15,7 @@ export const lazyRoutes = {
   analisesConfig: () => import("@/features/analises/pages/analises-config-page"),
   plano: () => import("@/features/billing/pages/plano-page"),
   equipe: () => import("@/features/org/pages/equipe-page"),
+  configuracoes: () => import("@/features/org/pages/configuracoes-page"),
   convite: () => import("@/features/org/pages/convite-page"),
   notFound: () => import("@/features/errors/not-found-page"),
   signup: () => import("@/features/auth/pages/signup-page"),

@@ -15,6 +15,9 @@ const routeLoaders: Record<string, Loader> = {
   [ROUTES.analisesSituacao]: lazyRoutes.analisesSituacao,
   [ROUTES.analisesFluxo]: lazyRoutes.analisesFluxo,
   [ROUTES.analisesConfig]: lazyRoutes.analisesConfig,
+  [ROUTES.configuracoes]: lazyRoutes.configuracoes,
+  [ROUTES.plano]: lazyRoutes.plano,
+  [ROUTES.equipe]: lazyRoutes.equipe,
 };
 
 const prefetched = new Set<string>();
@@ -27,6 +30,7 @@ export function resolvePrefetchPath(pathname: string): string | undefined {
   if (pathname.startsWith("/arquivos/historico/extratos/")) return ROUTES.arquivosHistorico;
   if (pathname.startsWith("/arquivos")) return ROUTES.arquivosHistorico;
   if (pathname.startsWith("/analises")) return ROUTES.analisesSituacao;
+  if (pathname.startsWith("/configuracoes")) return ROUTES.configuracoes;
   return undefined;
 }
 

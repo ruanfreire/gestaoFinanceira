@@ -1,17 +1,42 @@
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Button, Typography } from "@/design-system/atoms";
+import { Button, Label, Typography } from "@/design-system/atoms";
 import { Card, CardBody, CardHeader } from "@/design-system/organisms";
 import { ROUTES } from "@/lib/constants";
 import { useClientAction, useSuperadminClient } from "../hooks";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { ClientStatusBadge } from "../components/client-status-badge";
+import { PlanBadge, PLAN_LABELS } from "../components/plan-badge";
 import { useToast } from "@/app/toast-provider";
+import { getApiErrorMessage } from "@/lib/api-client";
+import type { PlanId } from "@/features/billing/api";
+
+const PLAN_OPTIONS: PlanId[] = ["trial", "starter", "pro"];
+
+const BILLING_STATUS_LABELS: Record<string, string> = {
+  trialing: "Em trial",
+  active: "Ativo",
+  past_due: "Pagamento pendente",
+  canceled: "Cancelado",
+  unpaid: "Não pago",
+  none: "Sem assinatura",
+};
 
 export default function SuperadminClientDetailPage() {
   const { id = "" } = useParams();
   const { data, isLoading, refetch } = useSuperadminClient(id);
   const actions = useClientAction();
   const { toast } = useToast();
+  const [selectedPlan, setSelectedPlan] = useState<PlanId>("trial");
+
+  const organization = data?.client.organization;
+  const currentPlan = organization?.plan ?? "trial";
+
+  useEffect(() => {
+    if (organization?.plan) {
+      setSelectedPlan(organization.plan);
+    }
+  }, [organization?.plan]);
 
   if (isLoading || !data) {
     return <Typography variant="body" tone="muted">Carregando cliente...</Typography>;
@@ -31,6 +56,17 @@ export default function SuperadminClientDetailPage() {
     }
   };
 
+  const savePlan = async () => {
+    if (selectedPlan === currentPlan) return;
+    try {
+      await actions.setPlan.mutateAsync({ id: client._id, plan: selectedPlan });
+      toast("Plano atualizado", "success");
+      refetch();
+    } catch (error: unknown) {
+      toast(getApiErrorMessage(error, "Não foi possível alterar o plano"), "error");
+    }
+  };
+
   return (
     <div className="stack-gap">
       <Button variant="outline" size="sm" asChild>
@@ -40,18 +76,78 @@ export default function SuperadminClientDetailPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Typography variant="h1" as="h1">{client.name}</Typography>
         <ClientStatusBadge status={client.status} />
+        <PlanBadge plan={currentPlan} />
       </div>
 
       <Card>
         <CardHeader title="Dados do cliente" />
         <CardBody className="space-y-2 text-body">
           <p><strong>E-mail:</strong> {client.email}</p>
-          <p><strong>Empresa:</strong> {client.company || "—"}</p>
-          <p><strong>CNPJ:</strong> {client.cnpj || "—"}</p>
+          <p><strong>Empresa:</strong> {client.company || organization?.name || "—"}</p>
+          <p><strong>CNPJ:</strong> {client.cnpj || organization?.cnpj || "—"}</p>
           <p><strong>Telefone:</strong> {client.phone || "—"}</p>
+          {organization?.slug && <p><strong>Slug:</strong> {organization.slug}</p>}
           <p><strong>Cadastro:</strong> {formatDateTime(client.createdAt)}</p>
           <p><strong>Último login:</strong> {formatDateTime(client.lastLogin)}</p>
           {client.lastLoginIp && <p><strong>IP:</strong> {client.lastLoginIp}</p>}
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader title="Plano da organização" />
+        <CardBody className="space-y-4">
+          {organization ? (
+            <>
+              <div className="space-y-1 text-body">
+                <p>
+                  <strong>Plano atual:</strong> {PLAN_LABELS[currentPlan]}
+                </p>
+                <p>
+                  <strong>Status de cobrança:</strong>{" "}
+                  {BILLING_STATUS_LABELS[organization.billingStatus ?? ""] ?? organization.billingStatus ?? "—"}
+                </p>
+                {organization.trialEndsAt && (
+                  <p>
+                    <strong>Trial até:</strong> {formatDate(organization.trialEndsAt)}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="min-w-[12rem] flex-1">
+                  <Label htmlFor="client-plan">Alterar plano</Label>
+                  <select
+                    id="client-plan"
+                    className="mt-1.5 h-10 w-full rounded-lg border border-border bg-surface px-3 text-body"
+                    value={selectedPlan}
+                    onChange={(event) => setSelectedPlan(event.target.value as PlanId)}
+                  >
+                    {PLAN_OPTIONS.map((plan) => (
+                      <option key={plan} value={plan}>
+                        {PLAN_LABELS[plan]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Button
+                  type="button"
+                  onClick={savePlan}
+                  loading={actions.setPlan.isPending}
+                  disabled={selectedPlan === currentPlan}
+                >
+                  Salvar plano
+                </Button>
+              </div>
+
+              <Typography variant="caption" tone="muted">
+                Trial concede 14 dias. Starter e Pro são ativados manualmente, sem cobrança Stripe.
+              </Typography>
+            </>
+          ) : (
+            <Typography variant="body" tone="muted">
+              Este cliente não possui organização vinculada.
+            </Typography>
+          )}
         </CardBody>
       </Card>
 
