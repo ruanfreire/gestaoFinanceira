@@ -11,6 +11,8 @@ import { ROUTES } from "@/lib/constants";
 import { journeyNextSteps, screenTasks } from "@/lib/screen-tasks";
 import { ConciliationQueue } from "../components/conciliation-queue";
 import { MovimentoPanel } from "../components/movimento-panel";
+import { RecebimentosOnboarding } from "../components/recebimentos-onboarding";
+import { useRecebimentosOnboarding } from "../hooks/use-recebimentos-onboarding";
 import { ChevronRight } from "lucide-react";
 
 export default function RecebimentosPage({ variant }: { variant: "pendente" | "sem_match" }) {
@@ -19,6 +21,7 @@ export default function RecebimentosPage({ variant }: { variant: "pendente" | "s
   const [activeIndex, setActiveIndex] = useState(0);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const task = screenTasks.recebimentos;
+  const onboarding = useRecebimentosOnboarding();
 
   useEffect(() => {
     setActiveIndex(0);
@@ -99,6 +102,12 @@ export default function RecebimentosPage({ variant }: { variant: "pendente" | "s
 
       {data && data.length > 0 && (
         <>
+          {onboarding.visible && variant === "pendente" && (
+            <div className="mb-4">
+              <RecebimentosOnboarding onDismiss={onboarding.dismiss} />
+            </div>
+          )}
+
           <Typography variant="caption" className="mb-3 block" tone="muted">
             <strong>{remaining}</strong> pagamento(s) · ↑↓ ou <kbd className="rounded border px-1">j</kbd>{" "}
             <kbd className="rounded border px-1">k</kbd> para navegar

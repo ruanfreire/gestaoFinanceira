@@ -10,6 +10,7 @@ import { ImportacoesBancariasModule } from './modules/importacoes-bancarias/impo
 import { RelatoriosModule } from './modules/relatorios/relatorios.module';
 import { AuditModule } from './modules/audit_logs/audit.module';
 import { HealthModule } from './modules/health/health.module';
+import { ConciliacaoModule } from './modules/conciliacao/conciliacao.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtGuard } from './modules/auth/jwt.guard';
 
@@ -28,6 +29,7 @@ import { JwtGuard } from './modules/auth/jwt.guard';
     RelatoriosModule,
     AuditModule,
     HealthModule,
+    ConciliacaoModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtGuard }],
 })

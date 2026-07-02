@@ -10,6 +10,7 @@ Associar pagamentos bancários (Asaas/Nubank) às notas fiscais, conforme `docs/
 ## APIs (inalteradas)
 - `GET /extrato-asaas/pendentes`, `/extrato-nubank/pendentes`
 - `GET /extrato-asaas/sem-match`, `/extrato-nubank/sem-match`
+- `GET /conciliacao/counts` — contagem leve (badge menu)
 - `GET /extrato-{banco}/lancamentos/:id/notas?q=`
 - `POST /extrato-{banco}/vincular`
 - `POST /extrato-nubank/lancamentos/:id/pagador`

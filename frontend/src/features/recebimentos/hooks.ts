@@ -12,15 +12,10 @@ export function useRecebimentosQuery(variant: "pendente" | "sem_match") {
 export function useRecebimentosCounts() {
   return useQuery({
     queryKey: queryKeys.recebimentosCounts,
-    queryFn: async () => {
-      const [pendentes, semMatch] = await Promise.all([
-        recebimentosApi.listPendentes(),
-        recebimentosApi.listSemMatch(),
-      ]);
-      return { pendentes: pendentes.length, semMatch: semMatch.length };
-    },
+    queryFn: () => recebimentosApi.getCounts(),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
+    select: (data) => ({ pendentes: data.pendentes, semMatch: data.sem_match }),
   });
 }
 

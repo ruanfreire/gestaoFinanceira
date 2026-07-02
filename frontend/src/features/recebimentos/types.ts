@@ -43,3 +43,10 @@ export type ConciliacaoListResponse = {
   items: Omit<LancamentoConciliacaoItem, "source">[];
   total: number;
 };
+
+export type ConciliacaoCountsResponse = {
+  pendentes: number;
+  sem_match: number;
+  asaas: { pendentes: number; sem_match: number };
+  nubank: { pendentes: number; sem_match: number };
+};

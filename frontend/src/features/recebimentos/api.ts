@@ -1,6 +1,7 @@
 import api, { getApiErrorMessage } from "@/lib/api-client";
 import type {
   BancoSource,
+  ConciliacaoCountsResponse,
   ConciliacaoListResponse,
   LancamentoConciliacao,
   LancamentoConciliacaoItem,
@@ -63,6 +64,11 @@ export const recebimentosApi = {
 
   async vincular(source: BancoSource, lancamentoId: string, notaId: string) {
     await api.post(`/extrato-${source}/vincular`, { lancamento_id: lancamentoId, nota_id: notaId });
+  },
+
+  async getCounts() {
+    const res = await api.get<ConciliacaoCountsResponse>("/conciliacao/counts");
+    return res.data;
   },
 
   getErrorMessage(error: unknown, fallback: string) {
