@@ -1,13 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/shared/constants/query-keys";
 import { conciliacaoService } from "../services/conciliacao.service";
 import type { BancoSource } from "../types/conciliacao.types";
-import { CONCILIACAO_QUERY_KEY } from "./useConciliacaoQuery";
 
 function invalidateConciliacao(queryClient: ReturnType<typeof useQueryClient>) {
-  queryClient.invalidateQueries({ queryKey: [CONCILIACAO_QUERY_KEY] });
-  queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-  queryClient.invalidateQueries({ queryKey: ["notas"] });
-  queryClient.invalidateQueries({ queryKey: ["importacoes-extratos"] });
+  queryClient.invalidateQueries({ queryKey: queryKeys.conciliacao.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.notas.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.importacoesExtratos.all });
 }
 
 export function useVincularConciliacaoMutation() {

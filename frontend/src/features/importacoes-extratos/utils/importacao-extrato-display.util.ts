@@ -1,11 +1,7 @@
 import type { CsvFilePreview } from "../types/importacao-extrato.types";
 import type { ImportacaoExtrato } from "../types/importacao-extrato.types";
 
-export function formatDateTime(value?: string): string {
-  if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("pt-BR");
-}
+export { formatDateTime } from "@/shared/utils/format-date.util";
 
 export function bancoLabel(banco: string): string {
   if (banco === "asaas") return "Asaas";

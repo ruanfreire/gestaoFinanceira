@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
+import { queryKeys, IMPORTACOES_FATURAS_QUERY_KEY } from "@/shared/constants/query-keys";
 import { importacoesFaturasService } from "../services/importacoes-faturas.service";
 
-export const IMPORTACOES_FATURAS_QUERY_KEY = "importacoes-faturas" as const;
+export { IMPORTACOES_FATURAS_QUERY_KEY };
 
 export function useImportacoesFaturasQuery(page: number, search: string) {
   const trimmed = search.trim();
 
   return useQuery({
-    queryKey: [IMPORTACOES_FATURAS_QUERY_KEY, "list", page, trimmed],
+    queryKey: queryKeys.importacoesFaturas.list(page, trimmed),
     queryFn: () =>
       importacoesFaturasService.list({
         page,
@@ -18,7 +19,7 @@ export function useImportacoesFaturasQuery(page: number, search: string) {
 
 export function useImportacaoFaturaQuery(id: string | undefined) {
   return useQuery({
-    queryKey: [IMPORTACOES_FATURAS_QUERY_KEY, "detail", id],
+    queryKey: queryKeys.importacoesFaturas.detail(id!),
     queryFn: () => importacoesFaturasService.getById(id!),
     enabled: Boolean(id),
   });
@@ -32,7 +33,7 @@ export function useImportacaoFaturasListQuery(
   const trimmed = search.trim();
 
   return useQuery({
-    queryKey: [IMPORTACOES_FATURAS_QUERY_KEY, "faturas", id, page, trimmed],
+    queryKey: queryKeys.importacoesFaturas.faturas(id!, page, trimmed),
     queryFn: () =>
       importacoesFaturasService.listFaturas(id!, {
         page,

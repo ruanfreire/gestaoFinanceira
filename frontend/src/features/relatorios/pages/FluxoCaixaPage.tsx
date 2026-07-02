@@ -1,20 +1,20 @@
 import { FormEvent, useState } from "react";
 import Input from "@ui/components/form/input/InputField";
-import MonthPicker from "@ui/components/form/month-picker";
-import DatePicker from "@ui/components/form/date-picker";
 import Select from "@ui/components/form/Select";
 import Button from "@ui/components/ui/button/Button";
 import Alert from "@ui/components/ui/alert/Alert";
 import ComponentCard from "@ui/components/common/ComponentCard";
 import { PageHeader } from "@/shared/components/PageHeader";
+import {
+  PeriodFilterForm,
+  validatePeriodFilter,
+  type PeriodFilterValues,
+} from "@/shared/components/PeriodFilterForm";
 import { getApiErrorMessage } from "@/shared/services/api.client";
 import { useToast } from "@ui/components/ui/toast/ToastContext";
-import {
-  currentMesPagamento,
-  currentMonthDateRange,
-} from "../services/relatorios.service";
+import { currentMesPagamento } from "../services/relatorios.service";
 import { useExportFluxoCaixaMutation } from "../hooks/useFluxoCaixaMutation";
-import type { BancoFluxoCaixa, FilterMode } from "../types/relatorios.types";
+import type { BancoFluxoCaixa } from "../types/relatorios.types";
 
 const BANCO_OPTIONS = [
   { value: "consolidado", label: "Consolidado (todos os bancos)" },
@@ -27,10 +27,12 @@ export default function FluxoCaixaPage() {
   const exportMutation = useExportFluxoCaixaMutation();
 
   const [banco, setBanco] = useState<BancoFluxoCaixa>("consolidado");
-  const [filterMode, setFilterMode] = useState<FilterMode>("mes");
-  const [mesPagamento, setMesPagamento] = useState(currentMesPagamento());
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [periodValues, setPeriodValues] = useState<PeriodFilterValues>({
+    filterMode: "mes",
+    mesPagamento: currentMesPagamento(),
+    from: "",
+    to: "",
+  });
   const [empresaNome, setEmpresaNome] = useState("");
   const [empresaCnpj, setEmpresaCnpj] = useState("");
   const [contaCorrente, setContaCorrente] = useState("");
@@ -41,37 +43,23 @@ export default function FluxoCaixaPage() {
     banco === "consolidado" ? "todos os bancos" : banco === "asaas" ? "Asaas" : "Nubank";
   const isConsolidado = banco === "consolidado";
 
-  const handleFilterModeChange = (mode: FilterMode) => {
-    setFilterMode(mode);
-    if (mode === "periodo" && !from && !to) {
-      const range = currentMonthDateRange();
-      setFrom(range.from);
-      setTo(range.to);
-    }
-  };
-
   const handleExport = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
 
-    if (filterMode === "periodo") {
-      if (!from || !to) {
-        setError("Informe a data inicial e a data final do período.");
-        return;
-      }
-      if (from > to) {
-        setError("A data inicial não pode ser posterior à data final.");
-        return;
-      }
+    const validationError = validatePeriodFilter(periodValues);
+    if (validationError) {
+      setError(validationError);
+      return;
     }
 
     try {
       await exportMutation.mutateAsync({
         banco,
-        filterMode,
-        mesPagamento,
-        from,
-        to,
+        filterMode: periodValues.filterMode,
+        mesPagamento: periodValues.mesPagamento,
+        from: periodValues.from,
+        to: periodValues.to,
         empresaNome,
         empresaCnpj,
         contaCorrente,
@@ -109,58 +97,35 @@ export default function FluxoCaixaPage() {
             />
           </div>
 
-          <div className="flex flex-wrap gap-4">
-            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <input
-                type="radio"
-                name="filterMode"
-                checked={filterMode === "mes"}
-                onChange={() => handleFilterModeChange("mes")}
-                className="text-brand-500"
-              />
-              Por mês de pagamento
-            </label>
-            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <input
-                type="radio"
-                name="filterMode"
-                checked={filterMode === "periodo"}
-                onChange={() => handleFilterModeChange("periodo")}
-                className="text-brand-500"
-              />
-              Por período de pagamento
-            </label>
-          </div>
+          <PeriodFilterForm
+            values={periodValues}
+            onChange={(patch) => setPeriodValues((prev) => ({ ...prev, ...patch }))}
+            radioName="fluxoCaixaFilterMode"
+            gridClassName="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+          />
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filterMode === "mes" ? (
+          <ComponentCard compact title="Resumo da exportação" className="mt-2" desc="Confira os parâmetros antes de gerar a planilha.">
+            <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Mês de pagamento
-                </label>
-                <MonthPicker
-                  value={mesPagamento}
-                  onChange={setMesPagamento}
-                  required
-                />
+                <dt className="text-gray-500">Banco</dt>
+                <dd className="font-medium capitalize">{bancoLabel}</dd>
               </div>
-            ) : (
-              <>
+              <div>
+                <dt className="text-gray-500">Período</dt>
+                <dd className="font-medium">
+                  {periodValues.filterMode === "mes"
+                    ? periodValues.mesPagamento
+                    : `${periodValues.from} → ${periodValues.to}`}
+                </dd>
+              </div>
+              {empresaNome && (
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Pagamento de
-                  </label>
-                  <DatePicker value={from} onChange={setFrom} max={to || undefined} />
+                  <dt className="text-gray-500">Empresa</dt>
+                  <dd className="font-medium">{empresaNome}</dd>
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Pagamento até
-                  </label>
-                  <DatePicker value={to} onChange={setTo} min={from || undefined} />
-                </div>
-              </>
-            )}
-          </div>
+              )}
+            </dl>
+          </ComponentCard>
 
           <div className="border-t border-gray-200 pt-6 dark:border-gray-800">
             <h2 className="mb-1 text-sm font-semibold text-gray-800 dark:text-white/90">

@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import Alert from "@ui/components/ui/alert/Alert";
 import Button from "@ui/components/ui/button/Button";
 import { PageHeader } from "@/shared/components/PageHeader";
-import { getApiErrorMessage } from "@/shared/services/api.client";
+import { QueryErrorAlert } from "@/shared/components/QueryErrorAlert";
 import { useDashboardQuery } from "../hooks/useDashboardQuery";
 import { DashboardAlerts } from "../components/DashboardAlerts";
 import { DashboardCharts } from "../components/DashboardCharts";
@@ -12,6 +11,7 @@ import {
   DashboardFiltersBar,
 } from "../components/DashboardFiltersBar";
 import { DashboardMetrics } from "../components/DashboardMetrics";
+import { DashboardQuickActions } from "../components/DashboardQuickActions";
 import { DashboardSkeleton } from "../components/DashboardSkeleton";
 import { PendingConciliacaoPanel } from "../components/PendingConciliacaoPanel";
 import { RecentImportsPanel } from "../components/RecentImportsPanel";
@@ -35,17 +35,17 @@ export default function DashboardPage() {
           description="Visão executiva de recebíveis, conciliação e importações."
         />
         <DashboardFiltersBar filters={filters} onApply={setFilters} loading={isFetching} />
-        <Alert
-          variant="error"
+        <QueryErrorAlert
+          error={error}
           title="Não foi possível carregar o painel"
-          message={getApiErrorMessage(error, "Erro ao buscar dados do dashboard.")}
+          fallbackMessage="Erro ao buscar dados do dashboard."
+          onRetry={() => refetch()}
         />
-        <div className="mt-4">
-          <Button onClick={() => refetch()}>Tentar novamente</Button>
-        </div>
       </>
     );
   }
+
+  const hasCriticalAlerts = data.alerts.some((a) => a.type === "error" || a.type === "warning");
 
   return (
     <>
@@ -54,7 +54,7 @@ export default function DashboardPage() {
         description={`Visão executiva para ${periodLabel}.`}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} loading={isFetching}>
               {isFetching ? "Atualizando…" : "Atualizar"}
             </Button>
             <Link to="/conciliacao">
@@ -66,8 +66,12 @@ export default function DashboardPage() {
 
       <div className="min-w-0 space-y-6">
         <DashboardFiltersBar filters={filters} onApply={setFilters} loading={isFetching} />
-
         <DashboardMetrics kpis={data.kpis} />
+
+        {hasCriticalAlerts && <DashboardAlerts alerts={data.alerts} />}
+
+        <DashboardQuickActions />
+
         <DashboardCharts
           competenciaChart={data.competenciaChart}
           conciliacaoChart={data.conciliacaoChart}
@@ -76,10 +80,10 @@ export default function DashboardPage() {
         />
 
         <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-3">
-          <DashboardAlerts alerts={data.alerts} />
-          <div className="min-w-0 space-y-6 xl:col-span-2">
-            <RecentImportsPanel items={data.recentImports} />
+          {!hasCriticalAlerts && <DashboardAlerts alerts={data.alerts} />}
+          <div className={`min-w-0 space-y-6 ${hasCriticalAlerts ? "xl:col-span-3" : "xl:col-span-2"}`}>
             <PendingConciliacaoPanel items={data.pendingMovements} />
+            <RecentImportsPanel items={data.recentImports} />
           </div>
         </div>
       </div>

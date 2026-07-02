@@ -1,8 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Button from "@ui/components/ui/button/Button";
-import Alert from "@ui/components/ui/alert/Alert";
 import { PageHeader } from "@/shared/components/PageHeader";
-import { getApiErrorMessage } from "@/shared/services/api.client";
+import { QueryErrorAlert } from "@/shared/components/QueryErrorAlert";
 import { useConciliacaoCounts, useConciliacaoQuery } from "../hooks/useConciliacaoQuery";
 import { ConciliacaoSplitView } from "../components/ConciliacaoSplitView";
 import type { ConciliacaoTab } from "../types/conciliacao.types";
@@ -58,18 +57,17 @@ export default function ConciliacaoPage() {
       </div>
 
       {isError && (
-        <div className="mb-4">
-          <Alert
-            variant="error"
-            title="Erro ao carregar"
-            message={getApiErrorMessage(
-              error,
-              tab === "sem_match"
-                ? "Não foi possível carregar lançamentos sem correspondência"
-                : "Não foi possível carregar pendências",
-            )}
-          />
-        </div>
+        <QueryErrorAlert
+          className="mb-4"
+          error={error}
+          title="Erro ao carregar"
+          fallbackMessage={
+            tab === "sem_match"
+              ? "Não foi possível carregar lançamentos sem correspondência"
+              : "Não foi possível carregar pendências"
+          }
+          onRetry={() => refetch()}
+        />
       )}
 
       <ConciliacaoSplitView

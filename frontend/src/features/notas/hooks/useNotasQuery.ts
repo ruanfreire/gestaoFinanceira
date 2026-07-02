@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
+import { queryKeys, NOTAS_QUERY_KEY } from "@/shared/constants/query-keys";
 import { notasService } from "../services/notas.service";
 
-export const NOTAS_QUERY_KEY = "notas" as const;
+export { NOTAS_QUERY_KEY };
 
 export function useNotasQuery(page: number, search: string) {
   const trimmed = search.trim();
 
   return useQuery({
-    queryKey: [NOTAS_QUERY_KEY, page, trimmed],
+    queryKey: queryKeys.notas.list(page, trimmed),
     queryFn: () =>
       notasService.list({
         page,

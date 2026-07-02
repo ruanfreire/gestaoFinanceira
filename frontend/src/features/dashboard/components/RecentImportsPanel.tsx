@@ -3,17 +3,12 @@ import ComponentCard from "@ui/components/common/ComponentCard";
 import Badge from "@ui/components/ui/badge/Badge";
 import EmptyState from "@ui/components/ui/empty-state/EmptyState";
 import { DownloadIcon, DollarLineIcon } from "@ui/icons";
+import { formatDateTime } from "@/shared/utils/format-date.util";
 import type { RecentImport } from "../types/dashboard.types";
 
 type RecentImportsPanelProps = {
   items: RecentImport[];
 };
-
-function formatDateTime(value?: string) {
-  if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("pt-BR");
-}
 
 function statusBadge(status?: string) {
   if (status === "finished") return <Badge color="success" size="sm">Concluída</Badge>;

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/shared/constants/query-keys";
 import { notasService } from "../services/notas.service";
 import type { CreateNotaPayload, DesvincularPagamentoPayload } from "../types/nota.types";
-import { NOTAS_QUERY_KEY } from "./useNotasQuery";
 
 export function useCreateNotaMutation() {
   const queryClient = useQueryClient();
@@ -9,8 +9,8 @@ export function useCreateNotaMutation() {
   return useMutation({
     mutationFn: (payload: CreateNotaPayload) => notasService.create(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [NOTAS_QUERY_KEY] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notas.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
     },
   });
 }
@@ -22,8 +22,8 @@ export function useDesvincularPagamentoMutation() {
     mutationFn: (payload: DesvincularPagamentoPayload) =>
       notasService.desvincularPagamento(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [NOTAS_QUERY_KEY] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notas.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
     },
   });
 }

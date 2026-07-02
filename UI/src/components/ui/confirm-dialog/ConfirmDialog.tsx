@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { useId } from "react";
 import { Modal } from "../modal";
 import Button from "../button/Button";
 
@@ -25,9 +25,19 @@ export default function ConfirmDialog({
   variant = "primary",
   loading = false,
 }: ConfirmDialogProps) {
+  const titleId = useId();
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} className="max-w-md p-6" showCloseButton={false}>
-      <h2 className="text-lg font-semibold text-gray-800 dark:text-white/90">{title}</h2>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      className="max-w-md p-6"
+      showCloseButton={false}
+      titleId={titleId}
+    >
+      <h2 id={titleId} className="text-lg font-semibold text-gray-800 dark:text-white/90">
+        {title}
+      </h2>
       {description && (
         <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">{description}</div>
       )}
@@ -36,15 +46,12 @@ export default function ConfirmDialog({
           {cancelLabel}
         </Button>
         <Button
+          variant={variant === "danger" ? "danger" : "primary"}
           onClick={onConfirm}
           disabled={loading}
-          className={
-            variant === "danger"
-              ? "bg-error-500 hover:bg-error-600 disabled:bg-error-300"
-              : ""
-          }
+          loading={loading}
         >
-          {loading ? "Aguarde..." : confirmLabel}
+          {confirmLabel}
         </Button>
       </div>
     </Modal>

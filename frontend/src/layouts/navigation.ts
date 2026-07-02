@@ -13,10 +13,10 @@ export type NavItem = {
   name: string;
   path: string;
   icon: IconComponent;
-  /** Se definido, ativo quando pathname.startsWith */
   matchPrefix?: string;
-  /** Match exato (ex.: /conciliacao sem subrotas) */
   exact?: boolean;
+  /** Chave para badge dinâmico na sidebar */
+  badgeKey?: "conciliacao-pendentes" | "conciliacao-sem-match";
 };
 
 export type NavGroup = {
@@ -62,12 +62,13 @@ export const navigationGroups: NavGroup[] = [
   {
     label: "Conciliação",
     items: [
-      { name: "Vínculo manual", path: "/conciliacao", icon: DollarLineIcon, exact: true },
+      { name: "Vínculo manual", path: "/conciliacao", icon: DollarLineIcon, exact: true, badgeKey: "conciliacao-pendentes" },
       {
         name: "Sem correspondência",
         path: "/conciliacao/sem-match",
         icon: DollarLineIcon,
         matchPrefix: "/conciliacao/sem-match",
+        badgeKey: "conciliacao-sem-match",
       },
     ],
   },

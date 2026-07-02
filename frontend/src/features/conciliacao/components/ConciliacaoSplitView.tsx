@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Skeleton from "@ui/components/ui/skeleton/Skeleton";
 import EmptyState from "@ui/components/ui/empty-state/EmptyState";
 import Button from "@ui/components/ui/button/Button";
 import { ConciliacaoItemList } from "./ConciliacaoItemList";
 import { ConciliacaoLancamentoCard } from "./ConciliacaoLancamentoCard";
+import { useConciliacaoKeyboard } from "../hooks/useConciliacaoKeyboard";
 import { itemKey } from "../services/conciliacao.service";
 import type { ConciliacaoVariant, LancamentoConciliacaoItem } from "../types/conciliacao.types";
 
@@ -41,6 +42,23 @@ export function ConciliacaoSplitView({
   }, [items, keys, selectedKey]);
 
   const selectedItem = items.find((item) => itemKey(item) === selectedKey) ?? null;
+  const selectedIndex = selectedKey ? keys.indexOf(selectedKey) : -1;
+
+  const goNext = useCallback(() => {
+    if (keys.length === 0) return;
+    const next = Math.min(selectedIndex + 1, keys.length - 1);
+    setSelectedKey(keys[next]);
+    setMobileShowDetail(true);
+  }, [keys, selectedIndex]);
+
+  const goPrev = useCallback(() => {
+    if (keys.length === 0) return;
+    const prev = Math.max(selectedIndex - 1, 0);
+    setSelectedKey(keys[prev]);
+    setMobileShowDetail(true);
+  }, [keys, selectedIndex]);
+
+  useConciliacaoKeyboard({ onNext: goNext, onPrev: goPrev });
 
   if (loading) {
     return (

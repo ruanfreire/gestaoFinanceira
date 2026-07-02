@@ -1,12 +1,17 @@
-import { useRef, useEffect } from "react";
+import { useId, useRef, useEffect } from "react";
+import { useFocusTrap } from "../../../hooks/useFocusTrap";
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   className?: string;
   children: React.ReactNode;
-  showCloseButton?: boolean; // New prop to control close button visibility
-  isFullscreen?: boolean; // Default to false for backwards compatibility
+  showCloseButton?: boolean;
+  isFullscreen?: boolean;
+  /** ID do elemento título para aria-labelledby */
+  titleId?: string;
+  /** Rótulo quando não há título visível */
+  ariaLabel?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -14,26 +19,16 @@ export const Modal: React.FC<ModalProps> = ({
   onClose,
   children,
   className,
-  showCloseButton = true, // Default to true for backwards compatibility
+  showCloseButton = true,
   isFullscreen = false,
+  titleId,
+  ariaLabel,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const fallbackTitleId = useId();
+  const labelledBy = titleId ?? fallbackTitleId;
 
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
-    }
-
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [isOpen, onClose]);
+  useFocusTrap(modalRef, isOpen, onClose);
 
   useEffect(() => {
     if (isOpen) {
@@ -51,24 +46,34 @@ export const Modal: React.FC<ModalProps> = ({
 
   const contentClasses = isFullscreen
     ? "w-full h-full"
-    : "relative w-full rounded-3xl bg-white  dark:bg-gray-900";
+    : "relative w-full rounded-3xl bg-white dark:bg-gray-900";
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center overflow-y-auto modal z-99999">
+    <div
+      className="modal fixed inset-0 z-99999 flex items-center justify-center overflow-y-auto"
+      role="presentation"
+    >
       {!isFullscreen && (
         <div
           className="fixed inset-0 h-full w-full bg-gray-400/50 backdrop-blur-[32px]"
           onClick={onClose}
-        ></div>
+          aria-hidden="true"
+        />
       )}
       <div
         ref={modalRef}
-        className={`${contentClasses}  ${className}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={ariaLabel ? undefined : labelledBy}
+        aria-label={ariaLabel}
+        className={`${contentClasses} ${className ?? ""}`}
         onClick={(e) => e.stopPropagation()}
       >
         {showCloseButton && (
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Fechar"
             className="absolute right-3 top-3 z-999 flex h-9.5 w-9.5 items-center justify-center rounded-full bg-gray-100 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white sm:right-6 sm:top-6 sm:h-11 sm:w-11"
           >
             <svg
@@ -77,6 +82,7 @@ export const Modal: React.FC<ModalProps> = ({
               viewBox="0 0 24 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
             >
               <path
                 fillRule="evenodd"
@@ -87,7 +93,7 @@ export const Modal: React.FC<ModalProps> = ({
             </svg>
           </button>
         )}
-        <div>{children}</div>
+        <div id={!ariaLabel && !titleId ? fallbackTitleId : undefined}>{children}</div>
       </div>
     </div>
   );

@@ -12,6 +12,8 @@ import {
 } from "@/utils/nota-format.util";
 import { conciliacaoService } from "../services/conciliacao.service";
 import { useVincularConciliacaoMutation } from "../hooks/useConciliacaoMutations";
+import { useConciliacaoKeyboard } from "../hooks/useConciliacaoKeyboard";
+import { ConfidenceBar, matchConfidenceScore } from "./ConfidenceBar";
 import type {
   ConciliacaoVariant,
   LancamentoConciliacaoItem,
@@ -126,6 +128,13 @@ export function ConciliacaoLancamentoCard({
       toast.showToast({ variant: "error", title: msg });
     }
   };
+
+  useConciliacaoKeyboard({
+    enabled: Boolean(selectedNotaId) && !vincularMutation.isPending,
+    onConfirm: () => {
+      void handleVincular();
+    },
+  });
 
   const emptyHint =
     variant === "sem_match"
@@ -341,13 +350,24 @@ export function ConciliacaoLancamentoCard({
         </div>
       )}
 
-      <div className="mt-4 flex justify-end">
-        <Button
-          onClick={handleVincular}
-          disabled={!selectedNotaId || vincularMutation.isPending}
-        >
-          {vincularMutation.isPending ? "Vinculando..." : "Confirmar vínculo da nota selecionada"}
-        </Button>
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {selectedNotaId && (
+          <div className="w-full max-w-xs">
+            <ConfidenceBar
+              score={matchConfidenceScore(candidatas.find((n) => n._id === selectedNotaId) ?? {})}
+            />
+          </div>
+        )}
+        <div className="flex flex-col items-end gap-1 sm:ml-auto">
+          <p className="text-xs text-gray-400">Ctrl+Enter para confirmar · j/k navegar lista</p>
+          <Button
+            onClick={handleVincular}
+            disabled={!selectedNotaId || vincularMutation.isPending}
+            loading={vincularMutation.isPending}
+          >
+            Confirmar vínculo da nota selecionada
+          </Button>
+        </div>
       </div>
     </div>
   );

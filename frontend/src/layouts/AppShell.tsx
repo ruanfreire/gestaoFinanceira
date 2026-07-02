@@ -25,7 +25,9 @@ function ShellContent() {
       >
         <AppHeader />
         <main className="mx-auto max-w-(--breakpoint-2xl) p-4 pb-10 md:p-6 md:pb-12">
-          <RouteBreadcrumb />
+          <div className="mb-4 lg:hidden">
+            <RouteBreadcrumb />
+          </div>
           <Outlet />
         </main>
       </div>

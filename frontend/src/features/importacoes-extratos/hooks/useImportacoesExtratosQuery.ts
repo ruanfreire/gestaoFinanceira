@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
+import { queryKeys, IMPORTACOES_EXTRATOS_QUERY_KEY } from "@/shared/constants/query-keys";
 import { importacoesExtratosService } from "../services/importacoes-extratos.service";
 import type { BancoExtrato } from "../types/importacao-extrato.types";
 
-export const IMPORTACOES_EXTRATOS_QUERY_KEY = "importacoes-extratos" as const;
+export { IMPORTACOES_EXTRATOS_QUERY_KEY };
 
 export function useImportacoesExtratosQuery(
   page: number,
@@ -12,7 +13,7 @@ export function useImportacoesExtratosQuery(
   const trimmed = search.trim();
 
   return useQuery({
-    queryKey: [IMPORTACOES_EXTRATOS_QUERY_KEY, "list", page, trimmed, banco],
+    queryKey: queryKeys.importacoesExtratos.list(page, trimmed, banco),
     queryFn: () =>
       importacoesExtratosService.list({
         page,
@@ -24,7 +25,7 @@ export function useImportacoesExtratosQuery(
 
 export function useImportacaoExtratoQuery(banco: BancoExtrato | undefined, id: string | undefined) {
   return useQuery({
-    queryKey: [IMPORTACOES_EXTRATOS_QUERY_KEY, "detail", banco, id],
+    queryKey: queryKeys.importacoesExtratos.detail(banco!, id!),
     queryFn: () => importacoesExtratosService.getById(banco!, id!),
     enabled: Boolean(banco && id),
   });
@@ -40,7 +41,7 @@ export function useLancamentosExtratoQuery(
   const trimmed = search.trim();
 
   return useQuery({
-    queryKey: [IMPORTACOES_EXTRATOS_QUERY_KEY, "lancamentos", banco, id, page, trimmed, statusFilter],
+    queryKey: queryKeys.importacoesExtratos.lancamentos(banco!, id!, page, trimmed, statusFilter),
     queryFn: () =>
       importacoesExtratosService.listLancamentos(banco!, id!, {
         page,
