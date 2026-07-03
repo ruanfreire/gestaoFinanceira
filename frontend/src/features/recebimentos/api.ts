@@ -8,21 +8,8 @@ import type {
   NotaCandidata,
 } from "./types";
 
-function mergeItems(
-  asaasItems: ConciliacaoListResponse["items"],
-  nubankItems: ConciliacaoListResponse["items"],
-  sortByDate = false,
-): LancamentoConciliacaoItem[] {
-  const merged: LancamentoConciliacaoItem[] = [
-    ...asaasItems.map((item) => ({ ...item, source: "asaas" as const })),
-    ...nubankItems.map((item) => ({ ...item, source: "nubank" as const })),
-  ];
-  if (sortByDate) {
-    merged.sort(
-      (a, b) => new Date(b.lancamento.data || 0).getTime() - new Date(a.lancamento.data || 0).getTime(),
-    );
-  }
-  return merged;
+function mapItems(items: ConciliacaoListResponse["items"]): LancamentoConciliacaoItem[] {
+  return items.map((item) => ({ ...item, source: "bank" as const }));
 }
 
 export function itemKey(item: LancamentoConciliacaoItem): string {
@@ -31,39 +18,37 @@ export function itemKey(item: LancamentoConciliacaoItem): string {
 
 export const recebimentosApi = {
   async listPendentes() {
-    const [asaasRes, nubankRes] = await Promise.all([
-      api.get<ConciliacaoListResponse>("/extrato-asaas/pendentes"),
-      api.get<ConciliacaoListResponse>("/extrato-nubank/pendentes"),
-    ]);
-    return mergeItems(asaasRes.data.items ?? [], nubankRes.data.items ?? []);
+    const res = await api.get<ConciliacaoListResponse>("/import-intelligence/pendentes");
+    return mapItems(res.data.items ?? []);
   },
 
   async listSemMatch() {
-    const [asaasRes, nubankRes] = await Promise.all([
-      api.get<ConciliacaoListResponse>("/extrato-asaas/sem-match"),
-      api.get<ConciliacaoListResponse>("/extrato-nubank/sem-match"),
-    ]);
-    return mergeItems(asaasRes.data.items ?? [], nubankRes.data.items ?? [], true);
+    const res = await api.get<ConciliacaoListResponse>("/import-intelligence/sem-match");
+    const items = mapItems(res.data.items ?? []);
+    items.sort(
+      (a, b) => new Date(b.lancamento.data || 0).getTime() - new Date(a.lancamento.data || 0).getTime(),
+    );
+    return items;
   },
 
-  async listCandidatas(source: BancoSource, lancamentoId: string, search?: string) {
+  async listCandidatas(_source: BancoSource, lancamentoId: string, search?: string) {
     const res = await api.get<{ candidatas: NotaCandidata[] }>(
-      `/extrato-${source}/lancamentos/${lancamentoId}/notas`,
+      `/import-intelligence/lancamentos/${lancamentoId}/notas`,
       { params: search ? { q: search } : undefined },
     );
     return res.data.candidatas ?? [];
   },
 
-  async updatePagadorNubank(lancamentoId: string, pagadorNome: string) {
+  async updatePagador(lancamentoId: string, pagadorNome: string) {
     const res = await api.post<{ lancamento: LancamentoConciliacao; candidatas: NotaCandidata[] }>(
-      `/extrato-nubank/lancamentos/${lancamentoId}/pagador`,
+      `/import-intelligence/lancamentos/${lancamentoId}/pagador`,
       { pagador_nome: pagadorNome.trim() },
     );
     return res.data;
   },
 
-  async vincular(source: BancoSource, lancamentoId: string, notaId: string) {
-    await api.post(`/extrato-${source}/vincular`, { lancamento_id: lancamentoId, nota_id: notaId });
+  async vincular(_source: BancoSource, lancamentoId: string, notaId: string) {
+    await api.post("/import-intelligence/vincular", { lancamento_id: lancamentoId, nota_id: notaId });
   },
 
   async getCounts() {

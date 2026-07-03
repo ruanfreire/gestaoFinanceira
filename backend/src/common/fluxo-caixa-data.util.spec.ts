@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  annotateLancamentosOrigem,
   buildDateFilter,
+  detectNubankOrigemFromMapping,
   extractFaturaIdFromDescricao,
   filterLancamentosForFluxoCaixaExport,
   mapLancamentosToFluxoCaixaRows,
+  resolveStatementMonthFromFileName,
   splitNubankLancamentosFluxoCaixa,
 } from './fluxo-caixa-data.util';
 import { resolveFluxoCaixaCategoriaCartao } from './fluxo-caixa-lista';
@@ -142,5 +145,52 @@ describe('mapLancamentosToFluxoCaixaRows — cartão', () => {
     expect(rows[1].categoria).toBe('Pagamento de cartão');
     expect(rows[1].historico).toBe('Pagamento recebido');
     expect(rows[1].valor).toBe(163.6);
+  });
+});
+
+describe('origem Nubank', () => {
+  it('detecta cartão pelo mapeamento title/amount', () => {
+    expect(
+      detectNubankOrigemFromMapping({
+        columns: { data: 'date', valor: 'amount', descricao: 'title', transacao_id: null },
+      }),
+    ).toBe('cartao');
+    expect(
+      detectNubankOrigemFromMapping({
+        columns: { data: 'Data', valor: 'Valor', descricao: 'Descrição', transacao_id: 'Identificador' },
+      }),
+    ).toBe('conta');
+  });
+
+  it('infere origem pelo json_original de cada lançamento', () => {
+    const annotated = annotateLancamentosOrigem({
+      lancamentos: [
+        { descricao: 'Compra', json_original: { title: 'Google', amount: '163,60' } },
+        { descricao: 'Pix', json_original: { Identificador: 'abc', Descrição: 'Pix recebido' } },
+      ],
+      profileSystemKey: 'nubank',
+      profileMapping: {
+        columns: { data: 'Data', valor: 'Valor', descricao: 'Descrição', transacao_id: 'Identificador' },
+      },
+    });
+
+    expect(annotated[0].origem).toBe('cartao');
+    expect(annotated[1].origem).toBe('conta');
+  });
+
+  it('detecta cartão em perfil customizado sem system_key', () => {
+    const annotated = annotateLancamentosOrigem({
+      lancamentos: [{ descricao: 'Google Workspace', json_original: { date: '2026-06-02', title: 'Google', amount: '163.60' } }],
+      profileMapping: {
+        columns: { data: 'date', valor: 'amount', descricao: 'title', transacao_id: null },
+      },
+    });
+
+    expect(annotated[0].origem).toBe('cartao');
+  });
+
+  it('extrai mês da fatura do nome do arquivo', () => {
+    expect(resolveStatementMonthFromFileName('Nubank_2026-06-02.csv')).toBe('2026-06');
+    expect(resolveStatementMonthFromFileName('extrato.csv')).toBeUndefined();
   });
 });

@@ -10,7 +10,6 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 import { ImportacoesBancariasService } from './importacoes-bancarias.service';
-import type { BancoImportacao } from '../../common/importacao-bancaria.util';
 
 @Controller('importacoes-bancarias')
 export class ImportacoesBancariasController {
@@ -18,13 +17,11 @@ export class ImportacoesBancariasController {
 
   @Get()
   async list(
-    @Query('banco') banco?: BancoImportacao,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
   ) {
     return this.service.list({
-      banco,
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
       search,

@@ -1,28 +1,28 @@
 import { PagamentoVinculoDetalhes } from './schemas/pagamento-vinculo.schema';
 
-export type PagamentoSource = 'asaas' | 'nubank';
+export type PagamentoSource = 'bank';
 
-export function pagamentoDetalhesFromAsaas(lancamento: any): PagamentoVinculoDetalhes {
+export function pagamentoDetalhesFromLancamento(lancamento: {
+  transacao_id?: string;
+  descricao?: string;
+  pagador_nome?: string;
+  json_original?: Record<string, unknown>;
+}): PagamentoVinculoDetalhes {
+  const original = lancamento.json_original || {};
   return {
     transacao_id: lancamento.transacao_id,
     descricao: lancamento.descricao,
     pagador_nome: lancamento.pagador_nome,
-    fatura_cobranca_id: lancamento.fatura_cobranca_id,
-    fatura_parcelamento_id: lancamento.fatura_parcelamento_id,
-    tipo_transacao: lancamento.tipo_transacao,
-    tipo_lancamento: lancamento.tipo_lancamento,
-    saldo_pos_lancamento: lancamento.saldo,
-  };
-}
-
-export function pagamentoDetalhesFromNubank(lancamento: any): PagamentoVinculoDetalhes {
-  const identificador = String(lancamento.transacao_id || '').replace(/^nubank:/, '');
-  return {
-    transacao_id: lancamento.transacao_id,
-    descricao: lancamento.descricao,
-    pagador_nome: lancamento.pagador_nome,
-    categoria: lancamento.categoria,
-    identificador: identificador || undefined,
+    fatura_cobranca_id: original.fatura_cobranca_id ? String(original.fatura_cobranca_id) : undefined,
+    fatura_parcelamento_id: original.fatura_parcelamento_id
+      ? String(original.fatura_parcelamento_id)
+      : undefined,
+    tipo_transacao: original.tipo_transacao ? String(original.tipo_transacao) : undefined,
+    tipo_lancamento: original.tipo_lancamento ? String(original.tipo_lancamento) : undefined,
+    categoria: original.categoria ? String(original.categoria) : undefined,
+    identificador: original.identificador ? String(original.identificador) : undefined,
+    saldo_pos_lancamento:
+      typeof original.saldo === 'number' ? original.saldo : (lancamento as { saldo?: number }).saldo,
   };
 }
 

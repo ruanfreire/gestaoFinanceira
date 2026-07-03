@@ -43,7 +43,8 @@ export type ImportacaoFatura = {
 };
 
 export type ImportacaoBancaria = ImportacaoFatura & {
-  banco: "asaas" | "nubank";
+  banco: "bank";
+  banco_label?: string;
   stats?: { imported?: number; total_linhas?: number; cobrancas?: number; creditos?: number };
 };
 
@@ -68,7 +69,8 @@ export type RecentImport = {
 
 export type PendingMovement = {
   id: string;
-  source: "asaas" | "nubank";
+  source: "bank";
+  bancoLabel?: string;
   pagador?: string;
   valor?: number;
   data?: string;
@@ -192,19 +194,19 @@ function mergeRecentImports(faturas: ImportacaoFatura[], extratos: ImportacaoBan
     link: `/arquivos/historico/notas/${item._id}`,
   }));
   const extratoItems: RecentImport[] = extratos.map((item) => {
-    const banco = item.banco === "nubank" ? "Nubank" : "Asaas";
+    const bancoNome = item.banco_label?.trim() || "Banco";
     const movimentos = item.stats?.imported ?? item.stats?.total_linhas ?? item.stats?.cobrancas ?? item.stats?.creditos ?? 0;
     return {
-      id: `${item.banco}-${item._id}`,
+      id: `bank-${item._id}`,
       kind: "extrato",
       title: friendlyImportTitle(
         [item.label, item.originalName, item.filename],
-        item.createdAt ? `Extrato ${banco} · ${formatDate(item.createdAt)}` : `Extrato ${banco}`,
+        item.createdAt ? `Extrato ${bancoNome} · ${formatDate(item.createdAt)}` : `Extrato ${bancoNome}`,
       ),
-      subtitle: `${movimentos} movimento(s) · ${banco}`,
+      subtitle: `${movimentos} movimento(s) · ${bancoNome}`,
       status: item.status,
       createdAt: item.createdAt,
-      link: `/arquivos/historico/extratos/${item.banco}/${item._id}`,
+      link: `/arquivos/historico/extratos/bank/${item._id}`,
     };
   });
   return [...faturaItems, ...extratoItems]
@@ -280,27 +282,20 @@ export const homeApi = {
       }
     }
 
-    const [pendentesAsaas, pendentesNubank, semMatchAsaas, semMatchNubank, importacoes, extratos] =
-      await Promise.all([
-        api.get<ConciliacaoListResponse>("/extrato-asaas/pendentes"),
-        api.get<ConciliacaoListResponse>("/extrato-nubank/pendentes"),
-        api.get<ConciliacaoListResponse>("/extrato-asaas/sem-match"),
-        api.get<ConciliacaoListResponse>("/extrato-nubank/sem-match"),
-        api.get<{ items: ImportacaoFatura[] }>("/importacoes", { params: { page: 1, limit: 20 } }),
-        api.get<{ items: ImportacaoBancaria[] }>("/importacoes-bancarias", { params: { page: 1, limit: 20 } }),
-      ]);
+    const [pendentesRes, semMatchRes, importacoes, extratos] = await Promise.all([
+      api.get<ConciliacaoListResponse>("/import-intelligence/pendentes"),
+      api.get<ConciliacaoListResponse>("/import-intelligence/sem-match"),
+      api.get<{ items: ImportacaoFatura[] }>("/importacoes", { params: { page: 1, limit: 20 } }),
+      api.get<{ items: ImportacaoBancaria[] }>("/importacoes-bancarias", { params: { page: 1, limit: 20 } }),
+    ]);
 
     const filterConc = (res: ConciliacaoListResponse) => ({
       items: res.items.filter((i) => isDateInFilterPeriod(i.lancamento.data, filters)),
       total: 0,
     });
-    const pa = filterConc(pendentesAsaas.data);
-    const pn = filterConc(pendentesNubank.data);
-    const sa = filterConc(semMatchAsaas.data);
-    const sn = filterConc(semMatchNubank.data);
+    const pa = filterConc(pendentesRes.data);
+    const sn = filterConc(semMatchRes.data);
     pa.total = pa.items.length;
-    pn.total = pn.items.length;
-    sa.total = sa.items.length;
     sn.total = sn.items.length;
 
     let pagas = 0;
@@ -325,8 +320,8 @@ export const homeApi = {
       }
     }
 
-    const pendentesTotal = pa.total + pn.total;
-    const semMatchTotal = sa.total + sn.total;
+    const pendentesTotal = pa.total;
+    const semMatchTotal = sn.total;
     const valorNf = extracao.totais.valor_nf;
     const valorRecebido = extracao.totais.valor_pago;
 
@@ -359,35 +354,18 @@ export const homeApi = {
 
     const pendingMovements = [
       ...pa.items.map((item) => ({
-        id: `asaas-pendente-${item.lancamento._id}`,
-        source: "asaas" as const,
+        id: `bank-pendente-${item.lancamento._id}`,
+        source: "bank" as const,
+        bancoLabel: item.lancamento.pagador_nome,
         pagador: item.lancamento.pagador_nome,
         valor: item.lancamento.valor,
         data: item.lancamento.data,
         candidatasCount: item.candidatas.length,
         variant: "pendente" as const,
-      })),
-      ...pn.items.map((item) => ({
-        id: `nubank-pendente-${item.lancamento._id}`,
-        source: "nubank" as const,
-        pagador: item.lancamento.pagador_nome,
-        valor: item.lancamento.valor,
-        data: item.lancamento.data,
-        candidatasCount: item.candidatas.length,
-        variant: "pendente" as const,
-      })),
-      ...sa.items.map((item) => ({
-        id: `asaas-sem-${item.lancamento._id}`,
-        source: "asaas" as const,
-        pagador: item.lancamento.pagador_nome,
-        valor: item.lancamento.valor,
-        data: item.lancamento.data,
-        candidatasCount: 0,
-        variant: "sem_match" as const,
       })),
       ...sn.items.map((item) => ({
-        id: `nubank-sem-${item.lancamento._id}`,
-        source: "nubank" as const,
+        id: `bank-sem-${item.lancamento._id}`,
+        source: "bank" as const,
         pagador: item.lancamento.pagador_nome,
         valor: item.lancamento.valor,
         data: item.lancamento.data,

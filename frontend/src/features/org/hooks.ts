@@ -53,3 +53,22 @@ export function useRemoveMember() {
     },
   });
 }
+
+export function useOrgProfile(enabled = true) {
+  return useQuery({
+    queryKey: ["org", "profile"],
+    queryFn: () => orgApi.getProfile(),
+    enabled,
+  });
+}
+
+export function useUpdateOrgProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { name?: string; cnpj?: string; phone?: string }) => orgApi.updateProfile(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["org", "profile"] });
+      queryClient.invalidateQueries({ queryKey: ["integrations", "honest"] });
+    },
+  });
+}

@@ -1,14 +1,14 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Building2, Check, ChevronRight, Download, Landmark } from "lucide-react";
 import { analisesApi, defaultFluxoFilters } from "../api";
-import { loadFluxoDefaults } from "../hooks/use-fluxo-defaults";
+import { importIntelligenceApi } from "@/features/import-intelligence/api";
+import { loadFluxoDefaults, useFluxoDefaults } from "../hooks/use-fluxo-defaults";
 import { WizardTemplate } from "@/design-system/templates";
 import { CompactPeriodToolbar, validatePeriodFilter } from "@/design-system/molecules";
 import { Button, Input, Label, Typography } from "@/design-system/atoms";
 import { useToast } from "@/app/toast-provider";
 import { bancoLabel } from "@/lib/format";
-import { ROUTES } from "@/lib/constants";
 import { cn } from "@/design-system/lib/cn";
 
 const STEPS = [
@@ -27,20 +27,8 @@ const BANK_OPTIONS = [
   {
     value: "consolidado" as const,
     label: "Consolidado",
-    description: "Nubank + Asaas em um único arquivo",
+    description: "Todos os bancos configurados em um único arquivo",
     icon: Landmark,
-  },
-  {
-    value: "nubank" as const,
-    label: "Nubank",
-    description: "Somente movimentos do Nubank",
-    icon: Building2,
-  },
-  {
-    value: "asaas" as const,
-    label: "Asaas",
-    description: "Somente movimentos do Asaas",
-    icon: Building2,
   },
 ];
 
@@ -62,6 +50,20 @@ export default function AnalisesFluxoPage() {
   }));
   const [exporting, setExporting] = useState(false);
   const { toast } = useToast();
+  const { save: saveFluxoDefaults } = useFluxoDefaults();
+
+  const profilesQuery = useQuery({
+    queryKey: ["import-profiles"],
+    queryFn: () => importIntelligenceApi.listProfiles(),
+  });
+
+  const customProfiles = profilesQuery.data ?? [];
+
+  useEffect(() => {
+    if (filters.banco === "custom" && !filters.profileId && customProfiles[0]) {
+      setFilters((prev) => ({ ...prev, profileId: customProfiles[0]!._id }));
+    }
+  }, [customProfiles, filters.banco, filters.profileId]);
 
   const nextFromPeriod = () => {
     const err = validatePeriodFilter(filters);
@@ -166,6 +168,39 @@ export default function AnalisesFluxoPage() {
                 </button>
               );
             })}
+            {customProfiles.map((profile) => {
+              const selected = filters.banco === "custom" && filters.profileId === profile._id;
+              return (
+                <button
+                  key={profile._id}
+                  type="button"
+                  onClick={() =>
+                    setFilters({ ...filters, banco: "custom", profileId: profile._id })
+                  }
+                  className={cn(
+                    "flex w-full items-center gap-3 border-t border-border px-4 py-3.5 text-left transition-default",
+                    "hover:bg-muted/40",
+                    selected && "bg-primary/5",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                      selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    <Building2 className="h-4 w-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <Typography variant="subtitle">{profile.banco_label}</Typography>
+                    <Typography variant="caption" tone="muted" className="mt-0.5 block">
+                      {profile.name}
+                    </Typography>
+                  </span>
+                  {selected && <Check className="h-4 w-4 shrink-0 text-primary" aria-hidden />}
+                </button>
+              );
+            })}
           </div>
 
           <WizardTemplate.Footer>
@@ -189,7 +224,11 @@ export default function AnalisesFluxoPage() {
             </div>
             <div>
               <dt className="text-caption text-muted-foreground">Banco</dt>
-              <dd className="mt-0.5 text-body font-medium">{bancoLabel(filters.banco)}</dd>
+              <dd className="mt-0.5 text-body font-medium">
+                {filters.banco === "custom"
+                  ? customProfiles.find((p) => p._id === filters.profileId)?.banco_label || "Customizado"
+                  : bancoLabel(filters.banco)}
+              </dd>
             </div>
             {filters.mesCompetenciaNf && (
               <div>
@@ -242,8 +281,21 @@ export default function AnalisesFluxoPage() {
                   />
                 </div>
               </div>
-              <Button variant="link" size="sm" className="mt-3 h-auto px-0" asChild>
-                <Link to={ROUTES.analisesConfig}>Salvar como padrão para próximas exportações</Link>
+              <Button
+                variant="link"
+                size="sm"
+                className="mt-3 h-auto px-0"
+                onClick={() => {
+                  saveFluxoDefaults({
+                    empresaNome: filters.empresaNome,
+                    empresaCnpj: filters.empresaCnpj,
+                    contaCorrente: filters.contaCorrente,
+                    saldoInicial: filters.saldoInicial,
+                  });
+                  toast("Padrões salvos para as próximas exportações", "success");
+                }}
+              >
+                Salvar como padrão para próximas exportações
               </Button>
             </details>
           )}

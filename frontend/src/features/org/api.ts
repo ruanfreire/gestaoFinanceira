@@ -20,6 +20,13 @@ export type OrgInvite = {
   createdAt?: string;
 };
 
+export type OrgProfile = {
+  name: string;
+  cnpj: string;
+  phone: string;
+  slug?: string;
+};
+
 export const orgApi = {
   async resolveSlug(slug: string) {
     const { data } = await api.get<{ name: string; slug: string; status: string }>(`/orgs/resolve/${slug}`);
@@ -59,6 +66,16 @@ export const orgApi = {
 
   async removeMember(id: string) {
     const { data } = await api.delete<{ ok: boolean }>(`/org/members/${id}`);
+    return data;
+  },
+
+  async getProfile() {
+    const { data } = await api.get<OrgProfile>("/org/profile");
+    return data;
+  },
+
+  async updateProfile(payload: { name?: string; cnpj?: string; phone?: string }) {
+    const { data } = await api.patch<OrgProfile>("/org/profile", payload);
     return data;
   },
 };

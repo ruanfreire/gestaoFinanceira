@@ -4,7 +4,7 @@ import type { UserRole, UserStatus } from './constants/user-status';
 import type { TenantRole } from './constants/tenant-role';
 import { OrganizationSchema } from '../modules/platform/schemas/organization.schema';
 import { UserSchema } from '../modules/auth/schemas/user.schema';
-import { slugifyOrganization } from './tenant/organization-slug.util';
+import { slugifyOrganization, uniqueOrganizationSlug } from './tenant/organization-slug.util';
 import { asLeanOne } from './mongoose-lean.util';
 
 type OrgSeed = {
@@ -237,6 +237,42 @@ async function upsertUser(
   return created?._id;
 }
 
+async function repairOrphanedTenantLinks(Organization: Model<any>, User: Model<any>) {
+  const users = await User.find({ tenantId: { $exists: true, $ne: null } }).lean();
+  let repaired = 0;
+
+  for (const user of users) {
+    const orgExists = await Organization.exists({ _id: user.tenantId });
+    if (orgExists) continue;
+
+    const companyName =
+      (user.company as string | undefined)?.trim() ||
+      (user.name as string | undefined)?.trim() ||
+      String(user.email);
+    const slug = await uniqueOrganizationSlug(Organization, companyName);
+    const status = ((user.status as UserStatus) || 'approved') as UserStatus;
+
+    const org = await Organization.create({
+      name: companyName,
+      slug,
+      status,
+      plan: 'trial',
+      billingStatus: status === 'approved' ? 'active' : 'trialing',
+      ownerUserId: user.tenantRole === 'owner' ? user._id : undefined,
+      ...(user.cnpj ? { cnpj: user.cnpj } : {}),
+      ...(user.phone ? { phone: user.phone } : {}),
+    });
+
+    await User.updateOne({ _id: user._id }, { $set: { tenantId: org._id } });
+    console.log(`Repaired orphaned tenant for ${user.email} → ${companyName} (${slug})`);
+    repaired += 1;
+  }
+
+  if (repaired > 0) {
+    console.log(`Repaired ${repaired} user(s) with missing organization.`);
+  }
+}
+
 function printSummary(password: string) {
   const lines = [
     '',
@@ -310,6 +346,8 @@ async function runSeeder() {
   if (trialOrgId && trialUserId) {
     await Organization.findByIdAndUpdate(trialOrgId, { $set: { ownerUserId: trialUserId } });
   }
+
+  await repairOrphanedTenantLinks(Organization, User);
 
   printSummary(password);
   await connection.close();

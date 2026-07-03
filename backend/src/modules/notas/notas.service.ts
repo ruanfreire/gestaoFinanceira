@@ -11,11 +11,10 @@ import {
   notaSaldoAberto,
   pickDominantAutoMatch,
   scoreMatchCandidate,
-} from '../extrato-asaas/name-match.util';
+} from '../../common/name-match.util';
 import {
   buildPagamentoEntry,
-  pagamentoDetalhesFromAsaas,
-  pagamentoDetalhesFromNubank,
+  pagamentoDetalhesFromLancamento,
   PagamentoSource,
 } from './pagamento-detalhes.util';
 import { PagamentoVinculoDetalhes } from './schemas/pagamento-vinculo.schema';
@@ -24,6 +23,7 @@ import { mapFromStoredJsonOriginal } from '../importacoes/nf-json.mapper';
 import { mesCompetenciaFromDate } from './competencia.util';
 import { NOTA_NAO_CANCELADA_FILTER } from './nota-cancelada.util';
 import { asLeanMany, asLeanOne } from '../../common/mongoose-lean.util';
+import { getCurrentTenantId } from '../../common/tenant/tenant-storage';
 import { PlanLimitsService } from '../billing/plan-limits.service';
 import {
   buildPaymentDateMongoFilter,
@@ -40,16 +40,11 @@ type NotaExtracaoLean = {
   [key: string]: unknown;
 };
 
-const PAYMENT_FIELDS = [
-  'status_pagamento',
-  'valor_pago',
-  'asaas_lancamento_id',
-  'asaas_lancamento_ids',
-  'nubank_lancamento_id',
-  'nubank_lancamento_ids',
-  'data_pagamento',
-  'pagamentos',
-] as const;
+const PAYMENT_FIELDS = ['status_pagamento', 'valor_pago', 'data_pagamento', 'pagamentos'] as const;
+
+function isBankPaymentSource(source?: string): boolean {
+  return source === 'bank' || source === 'custom';
+}
 
 export type { PagamentoSource };
 
@@ -70,10 +65,8 @@ const OPEN_PAYMENT_FILTER = {
 export class NotasService {
   constructor(
     @InjectModel('Nota') private notaModel: Model<any>,
-    @InjectModel('AsaasLancamento') private asaasLancamentoModel: Model<any>,
-    @InjectModel('AsaasImportacao') private asaasImportModel: Model<any>,
-    @InjectModel('NubankLancamento') private nubankLancamentoModel: Model<any>,
-    @InjectModel('NubankImportacao') private nubankImportModel: Model<any>,
+    @InjectModel('BankLancamento') private bankLancamentoModel: Model<any>,
+    @InjectModel('BankImportacao') private bankImportModel: Model<any>,
     private readonly planLimitsService: PlanLimitsService,
   ) {}
 
@@ -139,9 +132,29 @@ export class NotasService {
     options: { batchSize?: number } = {},
   ): Promise<{ imported: number; updated: number; ignored: number }> {
     const batchSize = Math.min(100, Math.max(10, options.batchSize ?? 40));
+    const tenantId = getCurrentTenantId();
     let imported = 0;
     const updated = 0;
     let ignored = 0;
+
+    if (tenantId && dtos.length > 0) {
+      const apiIds = [...new Set(dtos.map((d) => d.nota_api_id).filter(Boolean))];
+      const empresaNumeros = dtos
+        .filter((d) => d.empresa && d.numero)
+        .map((d) => ({ empresa: d.empresa, numero: d.numero }));
+
+      const orphanFilter: Record<string, unknown>[] = [];
+      if (apiIds.length) orphanFilter.push({ nota_api_id: { $in: apiIds } });
+      for (const entry of empresaNumeros) {
+        orphanFilter.push({ empresa: entry.empresa, numero: entry.numero });
+      }
+      if (orphanFilter.length) {
+        await this.notaModel.collection.updateMany(
+          { tenantId: { $exists: false }, $or: orphanFilter },
+          { $set: { tenantId } },
+        );
+      }
+    }
 
     for (let offset = 0; offset < dtos.length; offset += batchSize) {
       const batch = dtos.slice(offset, offset + batchSize);
@@ -182,6 +195,11 @@ export class NotasService {
       const bulkOps: any[] = [];
       for (const dto of batch) {
         const stripped = this.stripPaymentFields(dto);
+        if (!stripped.numero) {
+          ignored++;
+          continue;
+        }
+
         let existing = dto.nota_api_id ? apiIdMap.get(String(dto.nota_api_id)) : undefined;
         if (!existing && dto.empresa && dto.numero) {
           existing = empresaNumeroMap.get(`${dto.empresa}::${dto.numero}`);
@@ -196,6 +214,7 @@ export class NotasService {
           insertOne: {
             document: {
               ...stripped,
+              ...(tenantId ? { tenantId } : {}),
               status_pagamento: stripped.status_pagamento ?? 'em_aberto',
               valor_pago: stripped.valor_pago ?? 0,
             },
@@ -359,7 +378,7 @@ export class NotasService {
     lancamentoId: string,
     paymentAmount: number,
     dataPagamento: Date,
-    source: PagamentoSource = 'asaas',
+    _source: PagamentoSource = 'bank',
     detalhes?: PagamentoVinculoDetalhes,
   ) {
     const nota = await this.notaModel.findById(notaId);
@@ -387,59 +406,37 @@ export class NotasService {
     const total = Number(nota.valor ?? 0);
     const status_pagamento = newValorPago >= total - 0.01 ? 'pago' : 'parcial';
 
-    const lancamentoIdsField =
-      source === 'nubank' ? 'nubank_lancamento_ids' : 'asaas_lancamento_ids';
-    const lancamentoIdField = source === 'nubank' ? 'nubank_lancamento_id' : 'asaas_lancamento_id';
-
     const update: Record<string, unknown> = {
       $set: {
         valor_pago: newValorPago,
         status_pagamento,
-        [lancamentoIdField]: lancamentoId,
         data_pagamento: dataPagamento,
       },
-      $addToSet: { [lancamentoIdsField]: lancamentoId },
     };
-
     if (!alreadyLinked) {
       update.$push = {
-        pagamentos: buildPagamentoEntry(source, lancamentoId, amount, dataPagamento, detalhes),
+        pagamentos: buildPagamentoEntry('bank', lancamentoId, amount, dataPagamento, detalhes),
       };
     }
-
     return this.notaModel.findByIdAndUpdate(notaId, update, { new: true });
   }
 
-  async desvincularPagamento(notaId: string, lancamentoId: string, source: PagamentoSource) {
+  async desvincularPagamento(notaId: string, lancamentoId: string, _source?: PagamentoSource) {
     const nota = await this.notaModel.findById(notaId);
     if (!nota) {
       throw new BadRequestException('Nota não encontrada');
     }
 
-    const lancModel =
-      source === 'nubank' ? this.nubankLancamentoModel : this.asaasLancamentoModel;
-    const importModel =
-      source === 'nubank' ? this.nubankImportModel : this.asaasImportModel;
-
-    const lancamento = await lancModel.findById(lancamentoId);
+    const lancamento = await this.bankLancamentoModel.findById(lancamentoId);
     if (!lancamento) {
       throw new BadRequestException('Lançamento não encontrado');
     }
 
-    const lancamentoIdsField =
-      source === 'nubank' ? 'nubank_lancamento_ids' : 'asaas_lancamento_ids';
-    const lancamentoIdField = source === 'nubank' ? 'nubank_lancamento_id' : 'asaas_lancamento_id';
-
     const pagamento = (nota.pagamentos || []).find(
       (item: any) =>
-        String(item.lancamento_id) === String(lancamentoId) && item.source === source,
+        String(item.lancamento_id) === String(lancamentoId) && isBankPaymentSource(item.source),
     );
-    const linkedViaNota =
-      pagamento != null ||
-      (nota[lancamentoIdsField] || []).some((id: any) => String(id) === String(lancamentoId)) ||
-      String(nota[lancamentoIdField] || '') === String(lancamentoId);
-
-    if (!linkedViaNota) {
+    if (!pagamento) {
       throw new BadRequestException('Pagamento não está vinculado a esta nota');
     }
 
@@ -448,31 +445,18 @@ export class NotasService {
       throw new BadRequestException('Lançamento não está conciliado');
     }
 
-    if (lancamento.nota_id && String(lancamento.nota_id) !== String(notaId)) {
-      throw new BadRequestException('Lançamento vinculado a outra nota');
-    }
-
     const remainingPagamentos = (nota.pagamentos || []).filter(
       (item: any) =>
-        !(String(item.lancamento_id) === String(lancamentoId) && item.source === source),
+        !(String(item.lancamento_id) === String(lancamentoId) && isBankPaymentSource(item.source)),
     );
-    const removedAmount = pagamento
-      ? Number(pagamento.valor ?? 0)
-      : Number(lancamento.valor ?? 0);
-    const newValorPago = pagamento
-      ? remainingPagamentos.reduce((sum: number, item: any) => sum + Number(item.valor ?? 0), 0)
-      : Math.max(0, effectiveValorPago(nota) - removedAmount);
+    const removedAmount = Number(pagamento.valor ?? 0);
+    const newValorPago = remainingPagamentos.reduce(
+      (sum: number, item: any) => sum + Number(item.valor ?? 0),
+      0,
+    );
     const total = Number(nota.valor ?? 0);
     const status_pagamento =
-      newValorPago <= 0.01
-        ? 'em_aberto'
-        : newValorPago >= total - 0.01
-          ? 'pago'
-          : 'parcial';
-
-    const remainingIds = [...(nota[lancamentoIdsField] || [])]
-      .map(String)
-      .filter((id) => id !== String(lancamentoId));
+      newValorPago <= 0.01 ? 'em_aberto' : newValorPago >= total - 0.01 ? 'pago' : 'parcial';
 
     const latestPagamento = [...remainingPagamentos].sort(
       (a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime(),
@@ -483,9 +467,7 @@ export class NotasService {
         valor_pago: newValorPago,
         status_pagamento,
         pagamentos: remainingPagamentos,
-        [lancamentoIdField]: remainingIds.length ? remainingIds[remainingIds.length - 1] : null,
         data_pagamento: latestPagamento?.data ?? null,
-        [lancamentoIdsField]: remainingIds,
       },
     });
 
@@ -495,7 +477,7 @@ export class NotasService {
       new Date(lancamento.data),
     );
 
-    await lancModel.findByIdAndUpdate(lancamentoId, {
+    await this.bankLancamentoModel.findByIdAndUpdate(lancamentoId, {
       $set: {
         status_conciliacao: 'pendente_vinculo',
         nota_id: null,
@@ -505,21 +487,17 @@ export class NotasService {
 
     if (lancamento.importacao_id) {
       const statsInc: Record<string, number> = { 'stats.pendente_vinculo': 1 };
-      if (previousStatus === 'conciliado_manual') {
-        statsInc['stats.conciliado_manual'] = -1;
-      } else if (previousStatus === 'conciliado_auto') {
-        statsInc['stats.conciliado_auto'] = -1;
-      }
-      await importModel.findByIdAndUpdate(lancamento.importacao_id, { $inc: statsInc });
+      if (previousStatus === 'conciliado_manual') statsInc['stats.conciliado_manual'] = -1;
+      else if (previousStatus === 'conciliado_auto') statsInc['stats.conciliado_auto'] = -1;
+      await this.bankImportModel.findByIdAndUpdate(lancamento.importacao_id, { $inc: statsInc });
     }
 
     const notaAtualizada = await this.notaModel.findById(notaId).lean();
-
     return {
       ok: true,
       nota_id: notaId,
       lancamento_id: lancamentoId,
-      source,
+      source: 'bank' as const,
       status_pagamento,
       valor_pago: newValorPago,
       nota: notaAtualizada,
@@ -527,82 +505,7 @@ export class NotasService {
   }
 
   async backfillPagamentosHistorico() {
-    const notas = await this.notaModel
-      .find({
-        $or: [
-          { 'asaas_lancamento_ids.0': { $exists: true } },
-          { 'nubank_lancamento_ids.0': { $exists: true } },
-          { asaas_lancamento_id: { $exists: true, $ne: null } },
-          { nubank_lancamento_id: { $exists: true, $ne: null } },
-        ],
-      })
-      .lean();
-
-    let atualizadas = 0;
-
-    for (const nota of notas) {
-      const linked = new Set(
-        (nota.pagamentos || []).map((item: any) => `${item.source}:${item.lancamento_id}`),
-      );
-      const novos: any[] = [];
-
-      const asaasIds = [
-        ...new Set(
-          [...(nota.asaas_lancamento_ids || []), nota.asaas_lancamento_id]
-            .filter(Boolean)
-            .map(String),
-        ),
-      ];
-      for (const id of asaasIds) {
-        const key = `asaas:${id}`;
-        if (linked.has(key)) continue;
-        const lanc = asLeanOne<{ valor?: number; data?: Date | string }>(
-          await this.asaasLancamentoModel.findById(id).lean(),
-        );
-        if (!lanc || lanc.valor == null || !lanc.data) continue;
-        novos.push(
-          buildPagamentoEntry(
-            'asaas',
-            id,
-            lanc.valor,
-            new Date(lanc.data),
-            pagamentoDetalhesFromAsaas(lanc),
-          ),
-        );
-      }
-
-      const nubankIds = [
-        ...new Set(
-          [...(nota.nubank_lancamento_ids || []), nota.nubank_lancamento_id]
-            .filter(Boolean)
-            .map(String),
-        ),
-      ];
-      for (const id of nubankIds) {
-        const key = `nubank:${id}`;
-        if (linked.has(key)) continue;
-        const lanc = asLeanOne<{ valor?: number; data?: Date | string }>(
-          await this.nubankLancamentoModel.findById(id).lean(),
-        );
-        if (!lanc || lanc.valor == null || !lanc.data) continue;
-        novos.push(
-          buildPagamentoEntry(
-            'nubank',
-            id,
-            lanc.valor,
-            new Date(lanc.data),
-            pagamentoDetalhesFromNubank(lanc),
-          ),
-        );
-      }
-
-      if (novos.length > 0) {
-        await this.notaModel.findByIdAndUpdate(nota._id, { $push: { pagamentos: { $each: novos } } });
-        atualizadas += 1;
-      }
-    }
-
-    return { atualizadas, total_notas: notas.length };
+    return { atualizadas: 0, total_notas: 0 };
   }
 
   async enrichNotasMetadata() {
@@ -763,7 +666,7 @@ export class NotasService {
   async markAsPaid(notaId: string, lancamentoId: string, dataPagamento: Date, paymentAmount?: number) {
     const nota = asLeanOne<{ valor?: number }>(await this.notaModel.findById(notaId).lean());
     const amount = paymentAmount ?? nota?.valor ?? 0;
-    return this.applyPayment(notaId, lancamentoId, amount, dataPagamento, 'asaas');
+    return this.applyPayment(notaId, lancamentoId, amount, dataPagamento, 'bank');
   }
 
   async findById(id: string) {
@@ -774,49 +677,23 @@ export class NotasService {
   async deleteByImportacaoFaturaId(importacaoId: string): Promise<{ deleted: number }> {
     const notas = asLeanMany<{
       _id: unknown;
-      pagamentos?: Array<{ lancamento_id?: unknown; source?: PagamentoSource }>;
-      asaas_lancamento_ids?: unknown[];
-      nubank_lancamento_ids?: unknown[];
-      asaas_lancamento_id?: unknown;
-      nubank_lancamento_id?: unknown;
+      pagamentos?: Array<{ lancamento_id?: unknown; source?: string }>;
     }>(await this.notaModel.find({ importacao_fatura_id: importacaoId }).lean());
 
     for (const nota of notas) {
       const notaId = String(nota._id);
       const seen = new Set<string>();
-      const refs: Array<{ id: string; source: PagamentoSource }> = [];
 
       for (const pag of nota.pagamentos || []) {
-        if (!pag.lancamento_id || !pag.source) continue;
-        const key = `${pag.source}:${pag.lancamento_id}`;
+        if (!pag.lancamento_id || !isBankPaymentSource(pag.source)) continue;
+        const key = String(pag.lancamento_id);
         if (seen.has(key)) continue;
         seen.add(key);
-        refs.push({ id: String(pag.lancamento_id), source: pag.source });
-      }
-
-      for (const source of ['asaas', 'nubank'] as const) {
-        const idsField = source === 'nubank' ? 'nubank_lancamento_ids' : 'asaas_lancamento_ids';
-        const idField = source === 'nubank' ? 'nubank_lancamento_id' : 'asaas_lancamento_id';
-        const ids = [
-          ...(nota[idsField] || []),
-          ...(nota[idField] ? [nota[idField]] : []),
-        ].map(String);
-        for (const id of ids) {
-          const key = `${source}:${id}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          refs.push({ id, source });
-        }
-      }
-
-      for (const ref of refs) {
         try {
-          await this.desvincularPagamento(notaId, ref.id, ref.source);
+          await this.desvincularPagamento(notaId, key, 'bank');
         } catch {
-          const lancModel =
-            ref.source === 'nubank' ? this.nubankLancamentoModel : this.asaasLancamentoModel;
-          await lancModel.updateMany(
-            { _id: ref.id, nota_id: notaId },
+          await this.bankLancamentoModel.updateMany(
+            { _id: pag.lancamento_id, nota_id: notaId },
             {
               $set: { nota_id: null, status_conciliacao: 'pendente_vinculo' },
               $pull: { candidatas_nota_ids: notaId },
@@ -825,16 +702,10 @@ export class NotasService {
         }
       }
 
-      await Promise.all([
-        this.asaasLancamentoModel.updateMany(
-          { candidatas_nota_ids: notaId },
-          { $pull: { candidatas_nota_ids: notaId } },
-        ),
-        this.nubankLancamentoModel.updateMany(
-          { candidatas_nota_ids: notaId },
-          { $pull: { candidatas_nota_ids: notaId } },
-        ),
-      ]);
+      await this.bankLancamentoModel.updateMany(
+        { candidatas_nota_ids: notaId },
+        { $pull: { candidatas_nota_ids: notaId } },
+      );
     }
 
     const result = await this.notaModel.deleteMany({ importacao_fatura_id: importacaoId });

@@ -11,8 +11,7 @@ export class PlanLimitsService {
     @InjectModel('Organization') private organizationModel: Model<any>,
     @InjectModel('Nota') private notaModel: Model<any>,
     @InjectModel('Importacao') private importacaoModel: Model<any>,
-    @InjectModel('AsaasImportacao') private asaasImportacaoModel: Model<any>,
-    @InjectModel('NubankImportacao') private nubankImportacaoModel: Model<any>,
+    @InjectModel('BankImportacao') private bankImportacaoModel: Model<any>,
   ) {}
 
   private monthRange(now = new Date()) {
@@ -29,14 +28,13 @@ export class PlanLimitsService {
 
     const { start, end } = this.monthRange();
     const dateFilter = { tenantId: resolvedTenantId, createdAt: { $gte: start, $lt: end } };
-    const [notas, faturas, asaas, nubank] = await Promise.all([
+    const [notas, faturas, extratos] = await Promise.all([
       this.notaModel.countDocuments({ tenantId: resolvedTenantId }),
       this.importacaoModel.countDocuments(dateFilter),
-      this.asaasImportacaoModel.countDocuments(dateFilter),
-      this.nubankImportacaoModel.countDocuments(dateFilter),
+      this.bankImportacaoModel.countDocuments(dateFilter),
     ]);
 
-    return { notas, importsThisMonth: faturas + asaas + nubank };
+    return { notas, importsThisMonth: faturas + extratos };
   }
 
   async assertCanImport(extraCount = 1) {

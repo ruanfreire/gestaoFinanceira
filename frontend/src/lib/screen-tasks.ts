@@ -40,8 +40,8 @@ export const screenTasks: Record<string, ScreenTask> = {
   },
   arquivosExtratos: {
     goal: "Enviar o extrato do seu banco",
-    steps: ["Escolha Asaas ou Nubank", "Selecione o arquivo CSV", "Confira e importe"],
-    minutes: 2,
+    steps: ["Escolha o banco salvo ou um extrato novo", "Selecione o arquivo CSV", "Confira a prévia e importe"],
+    minutes: 3,
   },
   arquivosHistorico: {
     goal: "Consultar uma importação anterior",
@@ -57,11 +57,6 @@ export const screenTasks: Record<string, ScreenTask> = {
     goal: "Baixar o relatório de fluxo de caixa em Excel",
     steps: ["Escolha o período", "Escolha o banco", "Baixe o Excel"],
     minutes: 2,
-  },
-  analisesConfig: {
-    goal: "Salvar dados padrão para exportações de fluxo de caixa",
-    steps: ["Preencha empresa e conta", "Toque em Salvar padrões", "Use no wizard de fluxo de caixa"],
-    minutes: 1,
   },
 };
 

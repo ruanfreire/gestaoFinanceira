@@ -56,7 +56,7 @@ export class NotificationsService {
   }
 
   async notifyUser(userId: string, params: NotifyParams) {
-    await this.notificationModel.create({
+    const notification = await this.notificationModel.create({
       type: params.type,
       title: params.title,
       message: params.message,
@@ -70,18 +70,24 @@ export class NotificationsService {
     const eligible = await this.filterUsersByCategory([userId], params.type);
     if (eligible.length === 0) return;
 
-    await this.pushService.sendToUsers(eligible, {
+    const result = await this.pushService.sendToUsers(eligible, {
       title: params.title,
       message: params.message,
       url: params.url || '/',
       type: params.type,
     });
+    if (result.deliveredUserIds.includes(userId)) {
+      await this.notificationModel.updateOne(
+        { _id: notification._id },
+        { $set: { pushSentAt: new Date() } },
+      );
+    }
   }
 
   async notifyUsers(userIds: string[], params: NotifyParams) {
     if (userIds.length === 0) return;
 
-    await this.notificationModel.insertMany(
+    const notifications = await this.notificationModel.insertMany(
       userIds.map((userId) => ({
         type: params.type,
         title: params.title,
@@ -97,12 +103,24 @@ export class NotificationsService {
     const eligible = await this.filterUsersByCategory(userIds, params.type);
     if (eligible.length === 0) return;
 
-    await this.pushService.sendToUsers(eligible, {
+    const result = await this.pushService.sendToUsers(eligible, {
       title: params.title,
       message: params.message,
       url: params.url || '/',
       type: params.type,
     });
+    if (result.deliveredUserIds.length === 0) return;
+
+    const deliveredSet = new Set(result.deliveredUserIds);
+    const deliveredIds = notifications
+      .filter((notification) => deliveredSet.has(String(notification.userId)))
+      .map((notification) => notification._id);
+    if (deliveredIds.length > 0) {
+      await this.notificationModel.updateMany(
+        { _id: { $in: deliveredIds } },
+        { $set: { pushSentAt: new Date() } },
+      );
+    }
   }
 
   async notifyTenantOwners(tenantId: string, params: NotifyParams) {
@@ -236,5 +254,41 @@ export class NotificationsService {
         url: recebimentosUrl,
       });
     }
+  }
+
+  async notifyJsonImportComplete(params: {
+    userId?: string;
+    tenantId: string;
+    source?: 'honest' | 'upload';
+    stats: {
+      imported: number;
+      ignored: number;
+      total_faturas: number;
+      vinculadas: number;
+    };
+  }) {
+    const notasUrl = await this.tenantPath(params.tenantId, '/arquivos/notas');
+    const title =
+      params.source === 'honest' ? 'Sincronização Honest concluída' : 'Importação de notas concluída';
+    const parts = [
+      `${params.stats.imported} nova(s), ${params.stats.ignored} já existente(s) de ${params.stats.total_faturas} no arquivo.`,
+    ];
+    if (params.stats.vinculadas > 0) {
+      parts.push(`${params.stats.vinculadas} nota(s) vinculada(s) automaticamente a recebimentos.`);
+    }
+
+    const payload = {
+      type: 'import_json_done' as const,
+      title,
+      message: parts.join(' '),
+      url: notasUrl,
+    };
+
+    if (params.userId) {
+      await this.notifyUser(params.userId, payload);
+      return;
+    }
+
+    await this.notifyTenantOwners(params.tenantId, payload);
   }
 }

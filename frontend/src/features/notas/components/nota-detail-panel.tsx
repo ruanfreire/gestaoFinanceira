@@ -8,7 +8,7 @@ export function NotaDetailPanel({
   onDesvincular,
 }: {
   nota: Nota;
-  onDesvincular: (payload: { notaId: string; lancamentoId: string; source: "asaas" | "nubank" }) => void;
+  onDesvincular: (payload: { notaId: string; lancamentoId: string }) => void;
 }) {
   return (
     <div className="stack-gap p-4 lg:p-6">
@@ -42,7 +42,7 @@ export function NotaDetailPanel({
                 <Typography variant="small">{p.pagador_nome || p.descricao || "Pagamento"}</Typography>
                 <Typography variant="caption">{formatDate(p.data)}</Typography>
               </div>
-              {p.lancamento_id && p.source && (
+              {p.lancamento_id && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -50,7 +50,6 @@ export function NotaDetailPanel({
                     onDesvincular({
                       notaId: nota._id,
                       lancamentoId: p.lancamento_id!,
-                      source: p.source!,
                     })
                   }
                 >

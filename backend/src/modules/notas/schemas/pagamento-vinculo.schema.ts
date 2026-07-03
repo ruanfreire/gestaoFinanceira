@@ -2,7 +2,7 @@ import { Schema } from 'mongoose';
 
 export const PagamentoVinculoSchema = new Schema(
   {
-    source: { type: String, enum: ['asaas', 'nubank'], required: true },
+    source: { type: String, enum: ['bank'], required: true },
     lancamento_id: { type: Schema.Types.ObjectId, required: true, index: true },
     transacao_id: { type: String, index: true },
     valor: { type: Number, required: true },

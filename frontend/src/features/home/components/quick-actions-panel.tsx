@@ -15,7 +15,7 @@ import { cn } from "@/design-system/lib/cn";
 
 const PRIMARY_ACTIONS = [
   { to: ROUTES.arquivosNotas, label: "Importar notas", description: "Enviar arquivo JSON", icon: Upload },
-  { to: ROUTES.arquivosExtratos, label: "Importar extrato", description: "CSV Asaas ou Nubank", icon: FileSpreadsheet },
+  { to: ROUTES.arquivosExtratos, label: "Importar extrato", description: "CSV do seu banco", icon: FileSpreadsheet },
   { to: ROUTES.recebimentos, label: "Conciliar pagamentos", description: "Confirmar recebimentos", icon: Link2 },
 ] as const;
 

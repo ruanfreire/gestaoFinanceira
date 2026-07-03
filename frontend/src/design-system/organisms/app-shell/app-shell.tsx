@@ -14,7 +14,6 @@ function buildSidebarNav(isOwner: boolean) {
   const analisesChildren = [
     { to: ROUTES.analisesSituacao, label: "Situação das notas" },
     { to: ROUTES.analisesFluxo, label: "Fluxo de caixa" },
-    { to: ROUTES.analisesConfig, label: "Config. exportação" },
   ];
 
   const nav: Array<
@@ -31,6 +30,7 @@ function buildSidebarNav(isOwner: boolean) {
         { to: ROUTES.arquivosNotas, label: "Enviar notas" },
         { to: ROUTES.arquivosExtratos, label: "Enviar extrato bancário" },
         { to: ROUTES.arquivosHistorico, label: "Histórico" },
+        ...(isOwner ? [{ to: ROUTES.integracoesHonest, label: "Integração Honest" }] : []),
       ],
     },
     {
@@ -46,8 +46,11 @@ function buildSidebarNav(isOwner: boolean) {
       icon: Settings,
       children: [
         { to: ROUTES.configuracoes, label: "Visão geral" },
+        { to: ROUTES.perfil, label: "Perfil da organização" },
         { to: ROUTES.plano, label: "Plano e assinatura" },
         { to: ROUTES.equipe, label: "Equipe" },
+        { to: ROUTES.integracoes, label: "Integrações" },
+        { to: ROUTES.integracoesHonest, label: "Honest" },
       ],
     });
   }

@@ -9,13 +9,16 @@ const TITLES: Array<{ match: (path: string) => boolean; title: string }> = [
   { match: (p) => p.startsWith("/recebimentos"), title: "Confirmar recebimentos" },
   { match: (p) => p === ROUTES.arquivosNotas, title: "Enviar notas" },
   { match: (p) => p === ROUTES.arquivosExtratos, title: "Enviar extrato bancário" },
+  { match: (p) => p === ROUTES.arquivosImportarBanco, title: "Importar outro banco" },
   { match: (p) => p.startsWith("/arquivos/historico"), title: "Histórico de importações" },
   { match: (p) => p === ROUTES.analisesSituacao, title: "Situação das notas" },
   { match: (p) => p === ROUTES.analisesFluxo, title: "Fluxo de caixa" },
-  { match: (p) => p === ROUTES.analisesConfig, title: "Configurações de exportação" },
   { match: (p) => p === ROUTES.configuracoes, title: "Configurações" },
   { match: (p) => p === ROUTES.plano, title: "Plano e assinatura" },
   { match: (p) => p === ROUTES.equipe, title: "Equipe" },
+  { match: (p) => p === ROUTES.perfil, title: "Perfil da organização" },
+  { match: (p) => p === ROUTES.integracoesHonest, title: "Integração Honest" },
+  { match: (p) => p === ROUTES.integracoes, title: "Integrações" },
   { match: (p) => p === ROUTES.entrar, title: "Entrar" },
 ];
 

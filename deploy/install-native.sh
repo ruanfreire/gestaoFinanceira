@@ -254,10 +254,12 @@ if [ "$FIRST_INSTALL" = true ]; then
     cp deploy/env.native.example .env
     JWT_ACCESS=$(openssl rand -hex 32)
     JWT_REFRESH=$(openssl rand -hex 32)
+    INTEGRATIONS_SECRET=$(openssl rand -hex 32)
     SEED_PASS="${SEED_ADMIN_PASSWORD:-$(openssl rand -hex 8)}"
     sed -i "s/troque_por_um_segredo_forte/$JWT_ACCESS/" .env
     sed -i "s/troque_por_outro_segredo_forte/$JWT_REFRESH/" .env
     sed -i "s/troque_antes_do_primeiro_seed/$SEED_PASS/" .env
+    sed -i "s/troque_por_segredo_integracoes/$INTEGRATIONS_SECRET/" .env
     if ! grep -q '^FRONTEND_URL=' .env; then
       APP_DOMAIN_VAL=$(grep '^APP_DOMAIN=' .env | cut -d= -f2- | tr -d '\r')
       if [[ -n "$APP_DOMAIN_VAL" ]]; then

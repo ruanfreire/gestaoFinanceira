@@ -31,7 +31,7 @@ export type LancamentoConciliacao = {
   descricao?: string;
 };
 
-export type BancoSource = "asaas" | "nubank";
+export type BancoSource = "bank";
 
 export type LancamentoConciliacaoItem = {
   source: BancoSource;
@@ -47,6 +47,4 @@ export type ConciliacaoListResponse = {
 export type ConciliacaoCountsResponse = {
   pendentes: number;
   sem_match: number;
-  asaas: { pendentes: number; sem_match: number };
-  nubank: { pendentes: number; sem_match: number };
 };

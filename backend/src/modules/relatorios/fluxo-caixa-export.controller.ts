@@ -9,6 +9,7 @@ export class FluxoCaixaExportController {
   @Get('exportacao-fluxo-caixa')
   async exportacaoFluxoCaixa(
     @Query('banco') banco: FluxoCaixaExportBanco = 'consolidado',
+    @Query('profile_id') profile_id?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('mes_pagamento') mes_pagamento?: string,
@@ -29,7 +30,7 @@ export class FluxoCaixaExportController {
       empresa_cnpj,
       conta_corrente,
       saldo_inicial,
-    });
+    }, profile_id);
 
     return new StreamableFile(buffer, {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

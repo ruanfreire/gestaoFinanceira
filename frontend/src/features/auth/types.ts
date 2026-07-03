@@ -13,6 +13,7 @@ export type OrganizationSummary = {
   billingStatus?: string;
   currentPeriodEnd?: string;
   hasSubscription?: boolean;
+  ownerUserId?: string;
 };
 
 export type AuthUser = {
@@ -76,6 +77,12 @@ export function isClientAppUser(user: AuthUser | null | undefined): boolean {
   return true;
 }
 
+/** Alinhado ao TenantRolesGuard do backend. */
 export function isTenantOwner(user: AuthUser | null | undefined): boolean {
-  return user?.tenantRole === "owner";
+  if (!user) return false;
+  if (user.roles?.includes("superadmin")) return true;
+  if (user.tenantRole === "owner") return true;
+  if (user.roles?.includes("admin")) return true;
+  if (user.organization?.ownerUserId && user._id === user.organization.ownerUserId) return true;
+  return false;
 }

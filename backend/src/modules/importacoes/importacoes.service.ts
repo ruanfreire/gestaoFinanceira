@@ -9,6 +9,7 @@ import {
 } from './nf-json.mapper';
 import { NotasService } from '../notas/notas.service';
 import { NotificationsService } from '../platform/notifications.service';
+import { ConciliacaoService } from '../conciliacao/conciliacao.service';
 import { asLeanOne } from '../../common/mongoose-lean.util';
 
 function sanitizeImportacao(doc: any, includeJson = false) {
@@ -25,6 +26,7 @@ export class ImportacoesService {
   constructor(
     @InjectModel('Importacao') private importModel: Model<any>,
     private readonly notificationsService: NotificationsService,
+    private readonly conciliacaoService: ConciliacaoService,
   ) {}
 
   async createRecord(metadata: Record<string, unknown>) {
@@ -217,7 +219,11 @@ export class ImportacoesService {
 
   async processJson(importId: string, json: unknown, _userId: unknown, notasService: NotasService) {
     const start = Date.now();
-    const contentHash = hashJsonValue(json);
+    const payloadHash = hashJsonValue(json);
+    const existing = asLeanOne<{ tenantId?: unknown; source?: string; contentHash?: string }>(
+      await this.importModel.findById(importId).select('tenantId source contentHash').lean(),
+    );
+    const isHonest = existing?.source === 'honest_manual' || existing?.source === 'honest_worker';
     const notaItems = extractNotaItemsFromJson(json);
     const dtos = notaItems.map(({ empresa, item }) => ({
       ...mapNfItemToNotaDto(empresa, item),
@@ -225,40 +231,42 @@ export class ImportacoesService {
     }));
 
     const { imported, updated, ignored } = await notasService.importBulk(dtos, { batchSize: 40 });
+    const { vinculadas } = await this.conciliacaoService.rematchPendingLancamentos();
 
     const finishedAt = new Date();
     const processingTimeMs = Date.now() - start;
-    await this.importModel.findByIdAndUpdate(importId, {
-      $set: {
-        processingTimeMs,
-        contentHash,
-        'stats.total_faturas': notaItems.length,
-        'stats.imported': imported,
-        'stats.updated': updated,
-        'stats.ignored': ignored,
-        status: 'finished',
-        finishedAt,
-        originalJson: json,
-        errorMessage: null,
-      },
-    });
+    const update: Record<string, unknown> = {
+      processingTimeMs,
+      'stats.total_faturas': notaItems.length,
+      'stats.imported': imported,
+      'stats.updated': updated,
+      'stats.ignored': ignored,
+      'stats.vinculadas': vinculadas,
+      status: 'finished',
+      finishedAt,
+      originalJson: json,
+      errorMessage: null,
+    };
+    // Upload manual: contentHash = hash do JSON (dedupe). Honest: mantém hash único por sync.
+    if (!isHonest) {
+      update.contentHash = payloadHash;
+    } else if (!existing?.contentHash) {
+      update.contentHash = `${payloadHash}:${Date.now()}`;
+    }
 
-    if (_userId) {
-      const doc = asLeanOne<{ tenantId?: unknown }>(
-        await this.importModel.findById(importId).select('tenantId').lean(),
-      );
-      const tenantId = doc?.tenantId;
-      const url = tenantId
-        ? await this.notificationsService.tenantPath(String(tenantId), '/arquivos/notas')
-        : '/arquivos/notas';
-      await this.notificationsService.notifyUser(String(_userId), {
-        type: 'import_json_done',
-        title: 'Importação de notas concluída',
-        message: `${imported} nova(s), ${ignored} já existente(s) de ${notaItems.length} no arquivo.`,
-        url,
+    await this.importModel.findByIdAndUpdate(importId, { $set: update });
+
+    const tenantId = existing?.tenantId ? String(existing.tenantId) : undefined;
+
+    if (tenantId) {
+      await this.notificationsService.notifyJsonImportComplete({
+        userId: _userId ? String(_userId) : undefined,
+        tenantId,
+        source: isHonest ? 'honest' : 'upload',
+        stats: { imported, ignored, total_faturas: notaItems.length, vinculadas },
       });
     }
 
-    return { imported, updated, ignored, total_faturas: notaItems.length, processingTimeMs };
+    return { imported, updated, ignored, vinculadas, total_faturas: notaItems.length, processingTimeMs };
   }
 }

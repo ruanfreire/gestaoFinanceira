@@ -6,19 +6,14 @@ import {
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import {
-  BancoImportacao,
-  mapAsaasLancamentoDetalhe,
-  mapNubankLancamentoDetalhe,
+  mapCustomLancamentoDetalhe,
   sanitizeImportacaoBancaria,
   withBancoTag,
 } from '../../common/importacao-bancaria.util';
-import { parseAsaasCsv } from '../extrato-asaas/asaas-csv.parser';
-import { parseNubankCsv } from '../extrato-nubank/nubank-csv.parser';
 import { asLeanMany, asLeanOne } from '../../common/mongoose-lean.util';
-import { NotasService, PagamentoSource } from '../notas/notas.service';
+import { NotasService } from '../notas/notas.service';
 
 type ListOptions = {
-  banco?: BancoImportacao;
   page?: number;
   limit?: number;
   search?: string;
@@ -35,25 +30,10 @@ type LancamentosOptions = {
 @Injectable()
 export class ImportacoesBancariasService {
   constructor(
-    @InjectModel('AsaasImportacao') private asaasImportModel: Model<any>,
-    @InjectModel('NubankImportacao') private nubankImportModel: Model<any>,
-    @InjectModel('AsaasLancamento') private asaasLancamentoModel: Model<any>,
-    @InjectModel('NubankLancamento') private nubankLancamentoModel: Model<any>,
+    @InjectModel('BankImportacao') private bankImportModel: Model<any>,
+    @InjectModel('BankLancamento') private bankLancamentoModel: Model<any>,
     private readonly notasService: NotasService,
   ) {}
-
-  private resolveBanco(banco: string): BancoImportacao {
-    if (banco === 'asaas' || banco === 'nubank') return banco;
-    throw new BadRequestException('Banco inválido. Use asaas ou nubank.');
-  }
-
-  private importModel(banco: BancoImportacao) {
-    return banco === 'asaas' ? this.asaasImportModel : this.nubankImportModel;
-  }
-
-  private lancamentoModel(banco: BancoImportacao) {
-    return banco === 'asaas' ? this.asaasLancamentoModel : this.nubankLancamentoModel;
-  }
 
   private buildImportSearchFilter(term?: string) {
     if (!term?.trim()) return {};
@@ -63,21 +43,9 @@ export class ImportacoesBancariasService {
     };
   }
 
-  private buildLancamentoSearchFilter(banco: BancoImportacao, term?: string) {
+  private buildLancamentoSearchFilter(term?: string) {
     if (!term?.trim()) return {};
     const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    if (banco === 'asaas') {
-      return {
-        $or: [
-          { transacao_id: regex },
-          { descricao: regex },
-          { pagador_nome: regex },
-          { tipo_transacao: regex },
-          { fatura_cobranca_id: regex },
-          { fatura_parcelamento_id: regex },
-        ],
-      };
-    }
     return {
       $or: [
         { transacao_id: regex },
@@ -86,26 +54,6 @@ export class ImportacoesBancariasService {
         { categoria: regex },
       ],
     };
-  }
-
-  /** IDs de todas as linhas do arquivo — inclui movimentos já importados em lotes anteriores */
-  private async resolveTransacaoIds(banco: BancoImportacao, importacao: any): Promise<string[]> {
-    const stored = (importacao.transacao_ids || []) as string[];
-    if (stored.length > 0) return stored;
-
-    if (!importacao.originalCsv) return [];
-
-    const rows =
-      banco === 'asaas'
-        ? parseAsaasCsv(String(importacao.originalCsv)).rows
-        : parseNubankCsv(String(importacao.originalCsv)).rows;
-    const transacao_ids = rows.map((row) => row.transacao_id);
-
-    if (transacao_ids.length > 0) {
-      await this.importModel(banco).findByIdAndUpdate(importacao._id, { $set: { transacao_ids } });
-    }
-
-    return transacao_ids;
   }
 
   private buildLancamentoImportFilter(
@@ -118,75 +66,74 @@ export class ImportacoesBancariasService {
     return { importacao_id: importacaoId };
   }
 
+  private resolveBanco(banco: string): 'bank' {
+    if (banco === 'bank' || banco === 'custom' || banco === 'asaas' || banco === 'nubank') return 'bank';
+    throw new BadRequestException('Banco inválido. Use bank.');
+  }
+
   async list(options: ListOptions = {}) {
     const page = Math.max(1, options.page ?? 1);
     const limit = Math.min(100, Math.max(1, options.limit ?? 20));
     const skip = (page - 1) * limit;
     const filter = this.buildImportSearchFilter(options.search);
 
-    const fetchAsaas = options.banco == null || options.banco === 'asaas';
-    const fetchNubank = options.banco == null || options.banco === 'nubank';
-
-    const [asaasItems, nubankItems, asaasTotal, nubankTotal] = await Promise.all([
-      fetchAsaas
-        ? this.asaasImportModel.find(filter).sort({ createdAt: -1 }).select('-originalCsv').lean()
-        : Promise.resolve([]),
-      fetchNubank
-        ? this.nubankImportModel.find(filter).sort({ createdAt: -1 }).select('-originalCsv').lean()
-        : Promise.resolve([]),
-      fetchAsaas ? this.asaasImportModel.countDocuments(filter) : Promise.resolve(0),
-      fetchNubank ? this.nubankImportModel.countDocuments(filter) : Promise.resolve(0),
+    const [items, total] = await Promise.all([
+      this.bankImportModel.find(filter).sort({ createdAt: -1 }).select('-originalCsv').lean(),
+      this.bankImportModel.countDocuments(filter),
     ]);
 
-    const merged = [
-      ...asaasItems.map((item) => withBancoTag(item, 'asaas')),
-      ...nubankItems.map((item) => withBancoTag(item, 'nubank')),
-    ].sort((a, b) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime());
+    const mapped = items.map((item) =>
+      withBancoTag(item, 'bank', {
+        banco_label: item.banco_label,
+        profile_id: item.profile_id ? String(item.profile_id) : undefined,
+      }),
+    );
 
-    const total = asaasTotal + nubankTotal;
-    const items = merged.slice(skip, skip + limit);
-
-    return { items, total, page, limit };
+    return { items: mapped.slice(skip, skip + limit), total, page, limit };
   }
 
   async findById(bancoRaw: string, id: string) {
-    const banco = this.resolveBanco(bancoRaw);
+    this.resolveBanco(bancoRaw);
     const doc = asLeanOne<Record<string, unknown>>(
-      await this.importModel(banco).findById(id).select('-originalCsv').lean(),
+      await this.bankImportModel.findById(id).select('-originalCsv').lean(),
     );
     if (!doc) throw new NotFoundException('Importação bancária não encontrada');
-    return withBancoTag(doc, banco);
+    return withBancoTag(doc, 'bank', {
+      banco_label: doc.banco_label,
+      profile_id: doc.profile_id ? String(doc.profile_id) : undefined,
+    });
   }
 
   async updateMetadata(bancoRaw: string, id: string, payload: { label?: string; descricao?: string }) {
-    const banco = this.resolveBanco(bancoRaw);
+    this.resolveBanco(bancoRaw);
     const update: Record<string, string> = {};
     if (payload.label !== undefined) update.label = payload.label.trim();
     if (payload.descricao !== undefined) update.descricao = payload.descricao.trim();
 
     const doc = asLeanOne<Record<string, unknown>>(
-      await this.importModel(banco)
+      await this.bankImportModel
         .findByIdAndUpdate(id, { $set: update }, { new: true })
         .select('-originalCsv')
         .lean(),
     );
 
     if (!doc) throw new NotFoundException('Importação bancária não encontrada');
-    return withBancoTag(doc, banco);
+    return withBancoTag(doc, 'bank', {
+      banco_label: doc.banco_label,
+      profile_id: doc.profile_id ? String(doc.profile_id) : undefined,
+    });
   }
 
   async remove(bancoRaw: string, id: string) {
-    const banco = this.resolveBanco(bancoRaw);
-    const doc = await this.importModel(banco).findById(id).lean();
+    this.resolveBanco(bancoRaw);
+    const doc = await this.bankImportModel.findById(id).lean();
     if (!doc) throw new NotFoundException('Importação bancária não encontrada');
 
     const lancamentos = asLeanMany<{
       _id: unknown;
       nota_id?: unknown;
       status_conciliacao?: string;
-    }>(await this.lancamentoModel(banco).find({ importacao_id: id }).lean());
-
-    const source: PagamentoSource = banco === 'nubank' ? 'nubank' : 'asaas';
+    }>(await this.bankLancamentoModel.find({ importacao_id: id }).lean());
 
     for (const lancamento of lancamentos) {
       if (
@@ -197,7 +144,7 @@ export class ImportacoesBancariasService {
           await this.notasService.desvincularPagamento(
             String(lancamento.nota_id),
             String(lancamento._id),
-            source,
+            'bank',
           );
         } catch {
           // segue com exclusão do lançamento
@@ -205,23 +152,23 @@ export class ImportacoesBancariasService {
       }
     }
 
-    const deleted = await this.lancamentoModel(banco).deleteMany({ importacao_id: id });
-    await this.importModel(banco).findByIdAndDelete(id);
+    const deleted = await this.bankLancamentoModel.deleteMany({ importacao_id: id });
+    await this.bankImportModel.findByIdAndDelete(id);
 
-    return { ok: true, id, banco, lancamentos_excluidos: deleted.deletedCount ?? 0 };
+    return { ok: true, id, banco: 'bank', lancamentos_excluidos: deleted.deletedCount ?? 0 };
   }
 
   async listLancamentos(bancoRaw: string, importacaoId: string, options: LancamentosOptions = {}) {
-    const banco = this.resolveBanco(bancoRaw);
+    this.resolveBanco(bancoRaw);
     const importacao = asLeanOne<Record<string, unknown> & { stats?: { total_linhas?: number } }>(
-      await this.importModel(banco)
+      await this.bankImportModel
         .findById(importacaoId)
         .select('+originalCsv')
         .lean(),
     );
     if (!importacao) throw new NotFoundException('Importação bancária não encontrada');
 
-    const transacaoIds = await this.resolveTransacaoIds(banco, importacao);
+    const transacaoIds = (importacao.transacao_ids || []) as string[];
 
     const page = Math.max(1, options.page ?? 1);
     const limit = Math.min(500, Math.max(1, options.limit ?? 50));
@@ -230,50 +177,46 @@ export class ImportacoesBancariasService {
 
     const filter: Record<string, unknown> = {
       ...this.buildLancamentoImportFilter(importacaoId, transacaoIds),
-      ...this.buildLancamentoSearchFilter(banco, options.search),
+      ...this.buildLancamentoSearchFilter(options.search),
     };
     if (options.status_conciliacao) {
       filter.status_conciliacao = options.status_conciliacao;
     }
 
     const [items, total] = await Promise.all([
-      this.lancamentoModel(banco)
+      this.bankLancamentoModel
         .find(filter)
         .sort({ data: sortDir, _id: sortDir })
         .skip(skip)
         .limit(limit)
         .populate('nota_id', 'numero tomador mes_competencia')
         .lean(),
-      this.lancamentoModel(banco).countDocuments(filter),
+      this.bankLancamentoModel.countDocuments(filter),
     ]);
-
-    const mapped =
-      banco === 'asaas'
-        ? items.map(mapAsaasLancamentoDetalhe)
-        : items.map(mapNubankLancamentoDetalhe);
 
     const importacaoSanitized = sanitizeImportacaoBancaria(importacao);
     delete (importacaoSanitized as { originalCsv?: string }).originalCsv;
 
     return {
-      items: mapped,
+      items: items.map(mapCustomLancamentoDetalhe),
       total,
       linhas_arquivo: transacaoIds.length || importacao.stats?.total_linhas || total,
       page,
       limit,
-      importacao: withBancoTag(importacaoSanitized, banco),
+      importacao: withBancoTag(importacaoSanitized, 'bank', {
+        banco_label: importacao.banco_label,
+        profile_id: importacao.profile_id ? String(importacao.profile_id) : undefined,
+      }),
     };
   }
 
   async getOriginalCsv(bancoRaw: string, id: string) {
-    const banco = this.resolveBanco(bancoRaw);
+    this.resolveBanco(bancoRaw);
     const doc = asLeanOne<{
       originalCsv?: string;
       filename?: string;
       originalName?: string;
-    }>(
-      await this.importModel(banco).findById(id).select('originalCsv filename originalName').lean(),
-    );
+    }>(await this.bankImportModel.findById(id).select('originalCsv filename originalName').lean());
     if (!doc) throw new NotFoundException('Importação bancária não encontrada');
     if (!doc.originalCsv) {
       throw new BadRequestException('CSV original não disponível para esta importação');

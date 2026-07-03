@@ -66,11 +66,14 @@ api.interceptors.response.use(
 );
 
 export function getApiErrorMessage(error: unknown, fallback = "Ocorreu um erro"): string {
+  const err = error as { response?: { data?: { message?: string | string[] } } };
+  const message = err?.response?.data?.message;
+  if (Array.isArray(message)) return message.join(" ");
+  if (typeof message === "string" && message.trim()) return message;
   if (error instanceof Error && error.message) {
     return error.message;
   }
-  const err = error as { response?: { data?: { message?: string } } };
-  return err?.response?.data?.message ?? fallback;
+  return fallback;
 }
 
 export default api;

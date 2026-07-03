@@ -6,6 +6,7 @@ import { ImportacaoSchema } from './schemas/importacao.schema';
 import { NotasModule } from '../notas/notas.module';
 import { BillingModule } from '../billing/billing.module';
 import { PlatformModule } from '../platform/platform.module';
+import { ConciliacaoModule } from '../conciliacao/conciliacao.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { PlatformModule } from '../platform/platform.module';
     NotasModule,
     BillingModule,
     PlatformModule,
+    ConciliacaoModule,
   ],
   providers: [ImportacoesService],
   controllers: [ImportacoesController],

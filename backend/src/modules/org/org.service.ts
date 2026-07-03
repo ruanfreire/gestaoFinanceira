@@ -188,4 +188,38 @@ export class OrgService {
     invite.acceptedUserId = userId;
     await invite.save();
   }
+
+  async getProfile(tenantId: string) {
+    const org = asLeanOne<{ name: string; cnpj?: string; phone?: string; slug?: string }>(
+      await this.organizationModel.findById(tenantId).select('name cnpj phone slug').lean(),
+    );
+    if (!org) throw new NotFoundException('Organização não encontrada');
+    return {
+      name: org.name,
+      cnpj: org.cnpj ?? '',
+      phone: org.phone ?? '',
+      slug: org.slug,
+    };
+  }
+
+  async updateProfile(tenantId: string, dto: { name?: string; cnpj?: string; phone?: string }) {
+    const update: Record<string, string> = {};
+    if (dto.name !== undefined) update.name = dto.name.trim();
+    if (dto.cnpj !== undefined) update.cnpj = dto.cnpj.trim();
+    if (dto.phone !== undefined) update.phone = dto.phone.trim();
+
+    const org = asLeanOne<{ name: string; cnpj?: string; phone?: string; slug?: string }>(
+      await this.organizationModel
+        .findByIdAndUpdate(tenantId, { $set: update }, { new: true })
+        .select('name cnpj phone slug')
+        .lean(),
+    );
+    if (!org) throw new NotFoundException('Organização não encontrada');
+    return {
+      name: org.name,
+      cnpj: org.cnpj ?? '',
+      phone: org.phone ?? '',
+      slug: org.slug,
+    };
+  }
 }

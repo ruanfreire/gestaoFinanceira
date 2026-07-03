@@ -16,6 +16,7 @@ export const NOTIFICATION_TYPES = [
   // Conciliação
   'conciliation_pending',
   'conciliation_sem_match',
+  'conciliation_auto_linked',
   // Equipe
   'invite_sent',
   'invite_accepted',
@@ -39,6 +40,7 @@ export const NOTIFICATION_CATEGORY: Record<NotificationType, NotificationCategor
   import_csv_failed: 'imports',
   conciliation_pending: 'conciliation',
   conciliation_sem_match: 'conciliation',
+  conciliation_auto_linked: 'conciliation',
   invite_sent: 'team',
   invite_accepted: 'team',
   billing_trial_ending: 'billing',

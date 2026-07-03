@@ -1,6 +1,6 @@
 import api, { getApiErrorMessage } from "@/lib/api-client";
 import { downloadApiFile } from "@/lib/download";
-import type { BancoExtrato, ExtratoUploadResult, ImportacaoExtrato, ImportacaoFatura, ImportacaoUploadResult } from "./types";
+import type { BancoExtrato, ImportacaoExtrato, ImportacaoFatura, ImportacaoUploadResult } from "./types";
 
 export const arquivosApi = {
   async listNotas(params: { page?: number; search?: string }) {
@@ -60,14 +60,6 @@ export const arquivosApi = {
     const form = new FormData();
     form.append("file", file);
     const res = await api.post<ImportacaoUploadResult>("/importacoes/upload", form);
-    return res.data;
-  },
-
-  async uploadExtrato(banco: BancoExtrato, file: File) {
-    const form = new FormData();
-    form.append("file", file);
-    const endpoint = banco === "asaas" ? "/extrato-asaas/upload" : "/extrato-nubank/upload";
-    const res = await api.post<ExtratoUploadResult>(endpoint, form);
     return res.data;
   },
 

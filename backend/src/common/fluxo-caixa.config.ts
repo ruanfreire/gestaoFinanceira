@@ -1,10 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 
-export type FluxoCaixaBanco = 'nubank' | 'asaas';
-
-export const FLUXO_CAIXA_BANCOS: FluxoCaixaBanco[] = ['nubank', 'asaas'];
-
-export type FluxoCaixaExportBanco = FluxoCaixaBanco | 'consolidado';
+export type FluxoCaixaExportBanco = 'consolidado' | 'custom';
 
 export type FluxoCaixaQueryOverrides = {
   empresa_nome?: string;
@@ -14,29 +10,11 @@ export type FluxoCaixaQueryOverrides = {
   banco_label?: string;
 };
 
-const NUBANK_DEFAULTS = {
-  empresaNome: 'ANA LUISA RICCI BARDI CALADO NECA',
-  empresaCnpj: '39.803.761/0001-17',
-  banco: 'NUBANK',
-  contaCorrente: '',
-  envPrefix: 'FLUXO_CAIXA',
-};
-
-const ASAAS_DEFAULTS = {
-  empresaNome:
-    'MOVIMENTO ORGANIZACIONAL E HUMANO // ANA LUISA RICCI BARDI CALADO NECA 00356359913',
-  empresaCnpj: '39.803.761/0001-17',
-  banco: 'ASAAS Gestão Financeira Instituição de Pagamento S.A.',
-  contaCorrente: '5826845 9',
-  envPrefix: 'FLUXO_CAIXA_ASAAS',
-};
-
 function parseSaldoInicial(
   config: ConfigService,
-  banco: FluxoCaixaBanco,
   overrides: FluxoCaixaQueryOverrides,
   autoSaldoInicial?: number | null,
-) {
+): number {
   if (overrides.saldo_inicial?.trim()) {
     const parsed = Number.parseFloat(String(overrides.saldo_inicial).replace(',', '.'));
     return Number.isFinite(parsed) ? parsed : 0;
@@ -44,43 +22,23 @@ function parseSaldoInicial(
   if (autoSaldoInicial != null && Number.isFinite(autoSaldoInicial)) {
     return autoSaldoInicial;
   }
-  const prefix = banco === 'asaas' ? 'FLUXO_CAIXA_ASAAS' : 'FLUXO_CAIXA';
-  const saldoRaw =
-    config.get<string>(`${prefix}_SALDO_INICIAL`) ??
-    config.get<string>('FLUXO_CAIXA_SALDO_INICIAL') ??
-    '0';
+  const saldoRaw = config.get<string>('FLUXO_CAIXA_SALDO_INICIAL') ?? '0';
   return Number.parseFloat(String(saldoRaw).replace(',', '.')) || 0;
 }
 
 export function resolveFluxoCaixaHeader(
   config: ConfigService,
-  banco: FluxoCaixaBanco,
   overrides: FluxoCaixaQueryOverrides = {},
   autoSaldoInicial?: number | null,
 ) {
-  const defaults = banco === 'asaas' ? ASAAS_DEFAULTS : NUBANK_DEFAULTS;
-  const prefix = defaults.envPrefix;
-
   return {
     empresaNome:
-      overrides.empresa_nome?.trim() ||
-      config.get<string>(`${prefix}_EMPRESA_NOME`) ||
-      defaults.empresaNome,
+      overrides.empresa_nome?.trim() || config.get<string>('FLUXO_CAIXA_EMPRESA_NOME') || '',
     empresaCnpj:
-      overrides.empresa_cnpj?.trim() ||
-      config.get<string>(`${prefix}_EMPRESA_CNPJ`) ||
-      config.get<string>('FLUXO_CAIXA_EMPRESA_CNPJ') ||
-      defaults.empresaCnpj,
-    banco:
-      overrides.banco_label?.trim() ||
-      config.get<string>(`${prefix}_BANCO`) ||
-      defaults.banco,
-    contaCorrente:
-      overrides.conta_corrente?.trim() ||
-      config.get<string>(`${prefix}_CONTA`) ||
-      config.get<string>(banco === 'nubank' ? 'FLUXO_CAIXA_NUBANK_CONTA' : '') ||
-      defaults.contaCorrente,
-    saldoInicial: parseSaldoInicial(config, banco, overrides, autoSaldoInicial),
+      overrides.empresa_cnpj?.trim() || config.get<string>('FLUXO_CAIXA_EMPRESA_CNPJ') || '',
+    banco: overrides.banco_label?.trim() || config.get<string>('FLUXO_CAIXA_BANCO') || '',
+    contaCorrente: overrides.conta_corrente?.trim() || config.get<string>('FLUXO_CAIXA_CONTA') || '',
+    saldoInicial: parseSaldoInicial(config, overrides, autoSaldoInicial),
   };
 }
 
@@ -126,9 +84,10 @@ function exportPeriodLabel(params: FluxoCaixaExportParams): string {
   );
 }
 
-export function buildFluxoCaixaFilename(banco: FluxoCaixaBanco, params: FluxoCaixaExportParams) {
+export function buildFluxoCaixaFilename(bankSlug: string, params: FluxoCaixaExportParams) {
   const stamp = new Date().toISOString().slice(0, 10);
-  return `fluxo-caixa-${banco}-${exportPeriodLabel(params)}-${stamp}.xlsx`;
+  const slug = bankSlug.toLowerCase().replace(/[^a-z0-9]+/gi, '-').slice(0, 24) || 'banco';
+  return `fluxo-caixa-${slug}-${exportPeriodLabel(params)}-${stamp}.xlsx`;
 }
 
 export function buildFluxoCaixaConsolidadoFilename(params: FluxoCaixaExportParams) {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { PrefetchLink } from "@/design-system/molecules";
 import { useQuery } from "@tanstack/react-query";
 import { Upload, FileSpreadsheet } from "lucide-react";
 import { arquivosApi } from "../api";
@@ -52,14 +52,14 @@ export default function ArquivosHistoricoPage() {
             description="Faça sua primeira importação — leva poucos minutos."
           />
           <Button asChild>
-            <Link to={tab === "notas" ? ROUTES.arquivosNotas : ROUTES.arquivosExtratos}>
+            <PrefetchLink to={tab === "notas" ? ROUTES.arquivosNotas : ROUTES.arquivosExtratos}>
               {tab === "notas" ? (
                 <Upload className="h-4 w-4 shrink-0" aria-hidden />
               ) : (
                 <FileSpreadsheet className="h-4 w-4 shrink-0" aria-hidden />
               )}
               {tab === "notas" ? "Enviar notas" : "Enviar extrato bancário"}
-            </Link>
+            </PrefetchLink>
           </Button>
         </div>
       )}
@@ -67,7 +67,7 @@ export default function ArquivosHistoricoPage() {
       <div className="stack-gap">
         {tab === "notas" &&
           notasQuery.data?.items.map((item) => (
-            <Link key={item._id} to={`/arquivos/historico/notas/${item._id}`}>
+            <PrefetchLink key={item._id} to={`/arquivos/historico/notas/${item._id}`}>
               <Card hover>
                 <CardBody className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -81,12 +81,15 @@ export default function ArquivosHistoricoPage() {
                   </Badge>
                 </CardBody>
               </Card>
-            </Link>
+            </PrefetchLink>
           ))}
 
         {tab === "extratos" &&
           extratosQuery.data?.items.map((item) => (
-            <Link key={`${item.banco}-${item._id}`} to={`/arquivos/historico/extratos/${item.banco}/${item._id}`}>
+            <PrefetchLink
+              key={`${item.banco}-${item._id}`}
+              to={`/arquivos/historico/extratos/${item.banco}/${item._id}`}
+            >
               <Card hover>
                 <CardBody className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -94,7 +97,8 @@ export default function ArquivosHistoricoPage() {
                       {item.label || item.originalName || item.filename}
                     </Typography>
                     <Typography variant="caption">
-                      {bancoLabel(item.banco)} · {formatDateTime(item.createdAt)}
+                      {bancoLabel(item.banco, item.banco_label)} ·{" "}
+                      {formatDateTime(item.createdAt)}
                     </Typography>
                   </div>
                   <Badge variant={item.status === "failed" ? "danger" : "success"}>
@@ -102,7 +106,7 @@ export default function ArquivosHistoricoPage() {
                   </Badge>
                 </CardBody>
               </Card>
-            </Link>
+            </PrefetchLink>
           ))}
       </div>
     </ListTemplate>

@@ -126,7 +126,86 @@ type LancamentoComOrigem = {
   nota_id?: unknown;
   data?: Date | string;
   descricao?: string;
+  importacao_id?: unknown;
+  json_original?: Record<string, unknown>;
 };
+
+export type NubankLancamentoOrigem = 'conta' | 'cartao';
+
+/** Detecta CSV de cartão Nubank (date/title/amount) vs conta (Data/Identificador/Descrição). */
+export function detectNubankOrigemFromMapping(mapping: {
+  columns: {
+    data?: string | null;
+    valor?: string | null;
+    descricao?: string | null;
+    transacao_id?: string | null;
+  };
+}): NubankLancamentoOrigem {
+  const dataCol = mapping.columns.data?.trim().toLowerCase() ?? '';
+  const valorCol = mapping.columns.valor?.trim().toLowerCase() ?? '';
+  const descCol = mapping.columns.descricao?.trim().toLowerCase() ?? '';
+  const txCol = mapping.columns.transacao_id?.trim().toLowerCase() ?? '';
+
+  if (descCol === 'title' || valorCol === 'amount' || (dataCol === 'date' && valorCol === 'amount')) {
+    return 'cartao';
+  }
+  if (txCol === 'identificador' || descCol.includes('descri')) {
+    return 'conta';
+  }
+  return 'conta';
+}
+
+export function inferNubankOrigemFromJsonOriginal(
+  json?: Record<string, unknown>,
+): NubankLancamentoOrigem | undefined {
+  if (!json) return undefined;
+  const keys = Object.keys(json).map((key) => key.toLowerCase());
+  if (keys.includes('title') && keys.includes('amount')) return 'cartao';
+  if (keys.includes('identificador') || keys.some((key) => key.includes('descri'))) return 'conta';
+  return undefined;
+}
+
+export function annotateLancamentosOrigem<
+  T extends LancamentoComOrigem,
+>(params: {
+  lancamentos: T[];
+  profileSystemKey?: string;
+  profileMapping?: {
+    columns: {
+      data?: string | null;
+      valor?: string | null;
+      descricao?: string | null;
+      transacao_id?: string | null;
+    };
+  };
+  importOrigemById?: Map<string, NubankLancamentoOrigem>;
+  defaultOrigem?: NubankLancamentoOrigem;
+}): Array<T & { origem: NubankLancamentoOrigem }> {
+  const mappingDefault = params.profileMapping
+    ? detectNubankOrigemFromMapping(params.profileMapping)
+    : params.profileSystemKey === 'nubank'
+      ? 'conta'
+      : params.defaultOrigem ?? 'conta';
+
+  return params.lancamentos.map((lancamento) => {
+    const fromDb = lancamento.origem === 'cartao' ? 'cartao' : undefined;
+    const fromImport = lancamento.importacao_id
+      ? params.importOrigemById?.get(String(lancamento.importacao_id))
+      : undefined;
+    const fromJson = inferNubankOrigemFromJsonOriginal(lancamento.json_original);
+    return {
+      ...lancamento,
+      origem: fromDb ?? fromImport ?? fromJson ?? mappingDefault,
+    };
+  });
+}
+
+/** Extrai AAAA-MM do nome do arquivo de extrato/fatura (ex.: Nubank_2026-06-02.csv). */
+export function resolveStatementMonthFromFileName(fileName: string): string | undefined {
+  const match = fileName.match(/(\d{4})-(\d{2})/);
+  if (!match) return undefined;
+  return `${match[1]}-${match[2]}`;
+}
 
 /** Separa conta corrente (NF/taxas) e cartão Nubank (por mês da compra). */
 export function splitNubankLancamentosFluxoCaixa<T extends LancamentoComOrigem>(

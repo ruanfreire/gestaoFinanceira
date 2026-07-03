@@ -1,6 +1,7 @@
 import type { ConfigService } from '@nestjs/config';
 import type { Model } from 'mongoose';
-import type { FluxoCaixaBanco, FluxoCaixaExportParams } from './fluxo-caixa.config';
+import type { FluxoCaixaExportParams } from './fluxo-caixa.config';
+import type { FluxoCaixaLayout } from './fluxo-caixa-lista';
 import { asLeanMany, asLeanOne } from './mongoose-lean.util';
 import {
   hasSaldoInicialOverride,
@@ -17,37 +18,43 @@ type SaldoResolverDeps = {
   config: ConfigService;
 };
 
-function parseSeedSaldo(config: ConfigService, banco: FluxoCaixaBanco): number {
-  const key = banco === 'asaas' ? 'FLUXO_CAIXA_ASAAS_SALDO_INICIAL' : 'FLUXO_CAIXA_SALDO_INICIAL';
-  const raw = config.get<string>(key) ?? config.get<string>('FLUXO_CAIXA_SALDO_INICIAL') ?? '0';
+function parseSeedSaldo(config: ConfigService): number {
+  const raw = config.get<string>('FLUXO_CAIXA_SALDO_INICIAL') ?? '0';
   return Number.parseFloat(String(raw).replace(',', '.')) || 0;
 }
 
 export async function resolveSaldoInicialAutomatico(
   deps: SaldoResolverDeps,
-  banco: FluxoCaixaBanco,
+  layout: FluxoCaixaLayout,
   params: FluxoCaixaExportParams,
   lancamentosFiltrados: LancamentoSaldoInput[],
+  profileId?: string,
 ): Promise<number | null> {
   if (hasSaldoInicialOverride(params)) return null;
 
   const referenceDate = resolveSaldoReferenceDate(params, lancamentosFiltrados);
   if (!referenceDate) return null;
 
-  if (banco === 'asaas') {
-    return resolveAsaasSaldo(deps, referenceDate, lancamentosFiltrados);
+  if (layout === 'wide') {
+    return resolveWideLayoutSaldo(deps, referenceDate, lancamentosFiltrados, profileId);
   }
-  return resolveNubankSaldo(deps, referenceDate);
+  return resolveCompactLayoutSaldo(deps, referenceDate, profileId);
 }
 
-async function resolveAsaasSaldo(
+function profileFilter(profileId?: string): Record<string, unknown> {
+  return profileId ? { profile_id: profileId } : {};
+}
+
+async function resolveWideLayoutSaldo(
   deps: SaldoResolverDeps,
   referenceDate: Date,
   lancamentosFiltrados: LancamentoSaldoInput[],
+  profileId?: string,
 ): Promise<number | null> {
   const anterior = asLeanOne<{ saldo?: number }>(
     await deps.lancamentoModel
       .findOne({
+        ...profileFilter(profileId),
         data: { $lt: referenceDate },
         saldo: { $type: 'number' },
       })
@@ -68,7 +75,7 @@ async function resolveAsaasSaldo(
 
   const importacoes = asLeanMany<{ _id: unknown; saldo_inicial?: number }>(
     await deps.importModel
-      .find({ saldo_inicial: { $type: 'number' } })
+      .find({ saldo_inicial: { $type: 'number' }, ...profileFilter(profileId) })
       .sort({ createdAt: 1 })
       .lean(),
   );
@@ -93,10 +100,14 @@ async function resolveAsaasSaldo(
   return null;
 }
 
-async function resolveNubankSaldo(deps: SaldoResolverDeps, referenceDate: Date): Promise<number | null> {
+async function resolveCompactLayoutSaldo(
+  deps: SaldoResolverDeps,
+  referenceDate: Date,
+  profileId?: string,
+): Promise<number | null> {
   const imports = asLeanMany<{ _id: unknown; saldo_inicial?: number; saldo_final?: number }>(
     await deps.importModel
-      .find({ status: 'finished' })
+      .find({ status: 'finished', ...profileFilter(profileId) })
       .sort({ createdAt: 1 })
       .lean(),
   );
@@ -104,22 +115,22 @@ async function resolveNubankSaldo(deps: SaldoResolverDeps, referenceDate: Date):
   if (imports.length === 0) {
     const anteriores = asLeanMany<LancamentoSaldoInput>(
       await deps.lancamentoModel
-        .find({ data: { $lt: referenceDate } })
+        .find({ data: { $lt: referenceDate }, ...profileFilter(profileId) })
         .select('valor tipo_movimento json_original')
         .lean(),
     );
-    return parseSeedSaldo(deps.config, 'nubank') + sumNetMovimentos(anteriores);
+    return parseSeedSaldo(deps.config) + sumNetMovimentos(anteriores);
   }
 
-  return findNubankSaldoAtReference(deps, referenceDate, imports);
+  return findCompactSaldoAtReference(deps, referenceDate, imports);
 }
 
-async function findNubankSaldoAtReference(
+async function findCompactSaldoAtReference(
   deps: SaldoResolverDeps,
   referenceDate: Date,
   imports: Array<{ _id: unknown; saldo_inicial?: number; saldo_final?: number }>,
 ): Promise<number> {
-  let runningSaldo = parseSeedSaldo(deps.config, 'nubank');
+  let runningSaldo = parseSeedSaldo(deps.config);
 
   for (const importacao of imports) {
     const lancamentos = asLeanMany<LancamentoSaldoInput & { data: Date | string }>(
@@ -162,7 +173,7 @@ async function findNubankSaldoAtReference(
   return runningSaldo;
 }
 
-export async function persistNubankImportSaldos(
+export async function persistImportSaldos(
   importModel: Model<any>,
   lancamentoModel: Model<any>,
   config: ConfigService,
@@ -185,10 +196,13 @@ export async function persistNubankImportSaldos(
       .lean(),
   );
 
-  const saldoInicial = previousImport?.saldo_final ?? parseSeedSaldo(config, 'nubank');
+  const saldoInicial = previousImport?.saldo_final ?? parseSeedSaldo(config);
   const saldoFinal = saldoInicial + sumNetMovimentos(lancamentos);
 
   await importModel.findByIdAndUpdate(importacaoId, {
     $set: { saldo_inicial: saldoInicial, saldo_final: saldoFinal },
   });
 }
+
+/** @deprecated use persistImportSaldos */
+export const persistNubankImportSaldos = persistImportSaldos;

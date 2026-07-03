@@ -14,10 +14,12 @@ const routeLoaders: Record<string, Loader> = {
   [ROUTES.arquivosHistorico]: lazyRoutes.arquivosHistorico,
   [ROUTES.analisesSituacao]: lazyRoutes.analisesSituacao,
   [ROUTES.analisesFluxo]: lazyRoutes.analisesFluxo,
-  [ROUTES.analisesConfig]: lazyRoutes.analisesConfig,
   [ROUTES.configuracoes]: lazyRoutes.configuracoes,
   [ROUTES.plano]: lazyRoutes.plano,
   [ROUTES.equipe]: lazyRoutes.equipe,
+  [ROUTES.perfil]: lazyRoutes.perfil,
+  [ROUTES.integracoes]: lazyRoutes.integracoes,
+  [ROUTES.integracoesHonest]: lazyRoutes.integracoesHonest,
 };
 
 const prefetched = new Set<string>();

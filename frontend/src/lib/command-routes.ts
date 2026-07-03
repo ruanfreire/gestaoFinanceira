@@ -10,13 +10,16 @@ import {
   Settings,
   CreditCard,
   Users,
+  Plug,
+  Bell,
 } from "lucide-react";
 import { ROUTES } from "@/lib/constants";
 
 export type CommandRoute = {
   id: string;
   label: string;
-  to: string;
+  to?: string;
+  action?: "enable-push";
   keywords: string;
   icon: LucideIcon;
   ownerOnly?: boolean;
@@ -37,7 +40,7 @@ export const COMMAND_ROUTES: CommandRoute[] = [
     id: "extratos-upload",
     label: "Enviar extrato bancário",
     to: ROUTES.arquivosExtratos,
-    keywords: "importar csv asaas nubank",
+    keywords: "importar csv extrato banco",
     icon: FileSpreadsheet,
   },
   { id: "historico", label: "Histórico de importações", to: ROUTES.arquivosHistorico, keywords: "arquivos passado", icon: History },
@@ -56,11 +59,11 @@ export const COMMAND_ROUTES: CommandRoute[] = [
     icon: BarChart3,
   },
   {
-    id: "config",
-    label: "Configurações de exportação",
-    to: ROUTES.analisesConfig,
-    keywords: "padrões fluxo excel",
-    icon: Settings,
+    id: "push",
+    label: "Ativar notificações push",
+    action: "enable-push",
+    keywords: "push alerta aviso mensagem browser",
+    icon: Bell,
   },
   {
     id: "configuracoes",
@@ -79,11 +82,35 @@ export const COMMAND_ROUTES: CommandRoute[] = [
     ownerOnly: true,
   },
   {
+    id: "perfil",
+    label: "Perfil da organização",
+    to: ROUTES.perfil,
+    keywords: "cnpj razão social empresa telefone",
+    icon: Settings,
+    ownerOnly: true,
+  },
+  {
     id: "equipe",
     label: "Equipe",
     to: ROUTES.equipe,
     keywords: "convite membros operador proprietário",
     icon: Users,
+    ownerOnly: true,
+  },
+  {
+    id: "integracoes",
+    label: "Integrações",
+    to: ROUTES.integracoes,
+    keywords: "honest conexões externas api",
+    icon: Plug,
+    ownerOnly: true,
+  },
+  {
+    id: "integracao-honest",
+    label: "Integração Honest",
+    to: ROUTES.integracoesHonest,
+    keywords: "honest json notas automático sync sincronizar links exportação",
+    icon: Plug,
     ownerOnly: true,
   },
 ];

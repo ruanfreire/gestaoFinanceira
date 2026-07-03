@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ChevronRight, CreditCard, Users } from "lucide-react";
+import { ChevronRight, CreditCard, Building2, Plug, Sparkles, Users } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { PageHeader } from "@/design-system/molecules";
 import { PrefetchLink } from "@/design-system/molecules";
@@ -16,10 +16,34 @@ const settingsLinks = [
     icon: CreditCard,
   },
   {
+    to: ROUTES.perfil,
+    title: "Perfil da organização",
+    description: "Razão social, CNPJ e telefone para integrações e documentos",
+    icon: Building2,
+  },
+  {
     to: ROUTES.equipe,
     title: "Equipe",
     description: "Convide operadores e gerencie membros da organização",
     icon: Users,
+  },
+  {
+    to: ROUTES.integracoesHonest,
+    title: "Integração Honest",
+    description: "Conecte com login e senha do portal para importar notas automaticamente",
+    icon: Plug,
+  },
+  {
+    to: ROUTES.integracoes,
+    title: "Todas as integrações",
+    description: "Visão geral das conexões externas da organização",
+    icon: Plug,
+  },
+  {
+    to: ROUTES.importIntelligenceOps,
+    title: "Importação inteligente",
+    description: "Métricas de qualidade, uso de IA e sessões de análise",
+    icon: Sparkles,
   },
 ];
 
@@ -34,7 +58,7 @@ export default function ConfiguracoesPage() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto max-w-3xl space-y-6">
       <PageHeader
         title="Configurações"
-        description="Plano, assinatura e gestão da equipe da sua organização"
+        description="Plano, equipe, integrações e demais ajustes da organização"
       />
 
       <div className="grid gap-3">

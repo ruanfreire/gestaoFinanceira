@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Public } from '../../common/decorators/public.decorator';
 import { TenantRoles } from '../../common/decorators/tenant-roles.decorator';
 import { TenantRolesGuard } from '../../common/guards/tenant-roles.guard';
 import { SkipTenant } from '../../common/tenant/skip-tenant.decorator';
 import { OrgService } from './org.service';
 import { CreateInviteDto } from './dto/invite.dto';
+import { UpdateOrgProfileDto } from './dto/update-org-profile.dto';
 
 @Controller('orgs')
 @SkipTenant()
@@ -22,6 +23,18 @@ export class OrgsPublicController {
 @UseGuards(TenantRolesGuard)
 export class OrgController {
   constructor(private readonly orgService: OrgService) {}
+
+  @Get('profile')
+  @TenantRoles('owner')
+  getProfile(@Req() req: { user: { tenantId?: string } }) {
+    return this.orgService.getProfile(req.user.tenantId!);
+  }
+
+  @Patch('profile')
+  @TenantRoles('owner')
+  updateProfile(@Req() req: { user: { tenantId?: string } }, @Body() body: UpdateOrgProfileDto) {
+    return this.orgService.updateProfile(req.user.tenantId!, body);
+  }
 
   @Get('members')
   @TenantRoles('owner')

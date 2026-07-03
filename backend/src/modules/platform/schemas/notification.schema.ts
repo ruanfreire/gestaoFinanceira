@@ -15,6 +15,7 @@ export const NotificationSchema = new Schema(
     targetUserId: { type: Schema.Types.ObjectId, ref: 'User' },
     read: { type: Boolean, default: false },
     readAt: { type: Date },
+    pushSentAt: { type: Date },
   },
   { timestamps: true },
 );

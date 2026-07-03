@@ -1,16 +1,26 @@
-import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useParams } from "react-router-dom";
+import { PrefetchLink } from "@/design-system/molecules";
+import { useOrgPath } from "@/features/org/org-slug-context";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { arquivosApi } from "../api";
 import type { BancoExtrato } from "../types";
 import { ListTemplate } from "@/design-system/templates";
-import { Card, CardBody } from "@/design-system/organisms";
+import { Card, CardBody, ConfirmDialog } from "@/design-system/organisms";
 import { Button, Typography } from "@/design-system/atoms";
 import { EmptyState, StatisticCard, TaskGuide } from "@/design-system/molecules";
 import { queryKeys, CONCILIACAO_STATUS_LABELS, ROUTES } from "@/lib/constants";
 import { formatDateTime, bancoLabel } from "@/lib/format";
+import { useToast } from "@/app/toast-provider";
+import { useState } from "react";
 
 export default function ArquivoExtratoDetalhePage() {
-  const { banco = "asaas", id = "" } = useParams<{ banco: BancoExtrato; id: string }>();
+  const { id = "" } = useParams<{ banco?: string; id: string }>();
+  const banco: BancoExtrato = "bank";
+  const navigate = useNavigate();
+  const orgPath = useOrgPath();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.arquivosExtrato(banco, id),
     queryFn: () => arquivosApi.getExtrato(banco, id),
@@ -26,12 +36,30 @@ export default function ArquivoExtratoDetalhePage() {
   const lancamentoItems =
     (lancamentos.data?.items as { descricao?: string; status_conciliacao?: string }[]) ?? [];
 
+  const deleteMutation = useMutation({
+    mutationFn: () => arquivosApi.deleteExtrato(banco, id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["arquivos"] });
+      qc.invalidateQueries({ queryKey: ["home"] });
+      qc.invalidateQueries({ queryKey: ["recebimentos"] });
+      toast("Importação excluída", "success");
+      navigate(orgPath(ROUTES.arquivosHistorico));
+    },
+    onError: (err) => {
+      toast(arquivosApi.getError(err, "Não foi possível excluir a importação"), "error");
+    },
+  });
+
   return (
     <ListTemplate
-      title={data?.label || data?.originalName || `Extrato ${bancoLabel(banco)}`}
+      title={data?.label || data?.originalName || `Extrato ${bancoLabel(banco, data?.banco_label)}`}
       description={data?.createdAt ? formatDateTime(data.createdAt) : "Detalhe da importação"}
       loading={isLoading}
-      error={isError ? "Não foi possível carregar este extrato." : undefined}
+      error={
+        isError
+          ? "Não foi possível carregar este extrato. Ele pode ter sido excluído ou removido em um reset do banco."
+          : undefined
+      }
       onRetry={() => refetch()}
       taskGuide={
         <TaskGuide
@@ -46,9 +74,14 @@ export default function ArquivoExtratoDetalhePage() {
         />
       }
       actions={
-        <Button variant="outline" onClick={() => arquivosApi.downloadCsv(banco, id, `extrato-${id}.csv`)}>
-          Baixar CSV
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => arquivosApi.downloadCsv(banco, id, `extrato-${id}.csv`)}>
+            Baixar CSV
+          </Button>
+          <Button variant="danger" onClick={() => setConfirmDelete(true)}>
+            Excluir importação
+          </Button>
+        </div>
       }
     >
       <Card>
@@ -64,7 +97,7 @@ export default function ArquivoExtratoDetalhePage() {
 
       {pending > 0 && (
         <Button asChild className="w-full sm:w-auto">
-          <Link to={ROUTES.recebimentos}>Confirmar {pending} pagamento(s)</Link>
+          <PrefetchLink to={ROUTES.recebimentos}>Confirmar {pending} pagamento(s)</PrefetchLink>
         </Button>
       )}
 
@@ -94,8 +127,19 @@ export default function ArquivoExtratoDetalhePage() {
       )}
 
       <Button variant="outline" asChild>
-        <Link to={ROUTES.arquivosHistorico}>Voltar ao histórico</Link>
+        <PrefetchLink to={ROUTES.arquivosHistorico}>Voltar ao histórico</PrefetchLink>
       </Button>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Excluir importação?"
+        description="Os lançamentos deste extrato serão removidos. Você poderá enviar o mesmo arquivo de novo depois."
+        confirmLabel="Excluir"
+        variant="danger"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+      />
     </ListTemplate>
   );
 }

@@ -27,7 +27,7 @@ describe("useConciliacaoUndo", () => {
     const { result } = renderHook(() => useConciliacaoUndo());
 
     act(() => {
-      result.current.showSuccessWithUndo("nota1", "lanc1", "asaas");
+      result.current.showSuccessWithUndo("nota1", "lanc1");
     });
 
     expect(showToast).toHaveBeenCalledWith(
@@ -43,7 +43,7 @@ describe("useConciliacaoUndo", () => {
     const { result } = renderHook(() => useConciliacaoUndo());
 
     act(() => {
-      result.current.showSuccessWithUndo("nota1", "lanc1", "nubank");
+      result.current.showSuccessWithUndo("nota1", "lanc1");
     });
 
     const call = showToast.mock.calls[0][0] as {
@@ -56,7 +56,6 @@ describe("useConciliacaoUndo", () => {
     expect(mutateAsync).toHaveBeenCalledWith({
       nota_id: "nota1",
       lancamento_id: "lanc1",
-      source: "nubank",
     });
   });
 });

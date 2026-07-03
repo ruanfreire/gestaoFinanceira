@@ -88,32 +88,21 @@ async function purgeNotasNaoPagas() {
     const ids = await notas.find(filter).project({ _id: 1 }).toArray();
     const notaIds = ids.map((n) => n._id as Types.ObjectId);
 
-    const asaas = connection.collection('asaaslancamentos');
-    const nubank = connection.collection('nubanklancamentos');
+    const bankLancamentos = connection.collection('banklancamentos');
 
-    const asaasUnlink = await asaas.updateMany(
-      { nota_id: { $in: notaIds } },
-      { $set: { nota_id: null, status_conciliacao: 'pendente_vinculo' } },
-    );
-    const nubankUnlink = await nubank.updateMany(
+    const bankUnlink = await bankLancamentos.updateMany(
       { nota_id: { $in: notaIds } },
       { $set: { nota_id: null, status_conciliacao: 'pendente_vinculo' } },
     );
     const pullCandidatas = { $pullAll: { candidatas_nota_ids: notaIds } } as Record<string, unknown>;
-    const asaasCandidatas = await asaas.updateMany(
-      { candidatas_nota_ids: { $in: notaIds } },
-      pullCandidatas,
-    );
-    const nubankCandidatas = await nubank.updateMany(
+    const bankCandidatas = await bankLancamentos.updateMany(
       { candidatas_nota_ids: { $in: notaIds } },
       pullCandidatas,
     );
 
     const result = await notas.deleteMany(filter);
-    console.log('\nLançamentos Asaas desvinculados (nota_id):', asaasUnlink.modifiedCount);
-    console.log('Lançamentos Nubank desvinculados (nota_id):', nubankUnlink.modifiedCount);
-    console.log('Candidatas Asaas atualizadas:', asaasCandidatas.modifiedCount);
-    console.log('Candidatas Nubank atualizadas:', nubankCandidatas.modifiedCount);
+    console.log('\nLançamentos bancários desvinculados (nota_id):', bankUnlink.modifiedCount);
+    console.log('Candidatas bancárias atualizadas:', bankCandidatas.modifiedCount);
     console.log('Notas removidas:', result.deletedCount);
   } else if (dryRun) {
     console.log('\nPara executar: DRY_RUN=0 PURGE_CONFIRM=1 npm run purge-notas-nao-pagas --workspace backend');

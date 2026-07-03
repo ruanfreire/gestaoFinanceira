@@ -68,9 +68,12 @@ export class PushService {
     }
   }
 
-  async sendToUsers(userIds: string[], payload: PushPayload) {
+  async sendToUsers(
+    userIds: string[],
+    payload: PushPayload,
+  ): Promise<{ delivered: number; deliveredUserIds: string[] }> {
     const webpush = this.loadWebPush();
-    if (!webpush) return;
+    if (!webpush) return { delivered: 0, deliveredUserIds: [] };
 
     webpush.setVapidDetails(
       process.env.VAPID_SUBJECT || 'mailto:admin@finance.local',
@@ -78,11 +81,19 @@ export class PushService {
       process.env.VAPID_PRIVATE_KEY!,
     );
 
-    const subs = asLeanMany<{ _id: Types.ObjectId; endpoint: string; keys: { p256dh: string; auth: string } }>(
+    const subs = asLeanMany<{
+      _id: Types.ObjectId;
+      userId: Types.ObjectId;
+      endpoint: string;
+      keys: { p256dh: string; auth: string };
+    }>(
       await this.subscriptionModel
         .find({ userId: { $in: userIds.map((id) => new Types.ObjectId(id)) } })
         .lean(),
     );
+
+    const deliveredUserIds = new Set<string>();
+    let delivered = 0;
 
     await Promise.allSettled(
       subs.map(async (sub) => {
@@ -96,6 +107,8 @@ export class PushService {
               type: payload.type,
             }),
           );
+          delivered += 1;
+          deliveredUserIds.add(String(sub.userId));
         } catch (error: unknown) {
           const statusCode = (error as { statusCode?: number })?.statusCode;
           if (statusCode === 404 || statusCode === 410) {
@@ -106,6 +119,8 @@ export class PushService {
         }
       }),
     );
+
+    return { delivered, deliveredUserIds: [...deliveredUserIds] };
   }
 
   async sendToSuperadmins(payload: PushPayload, superadminIds: string[]) {

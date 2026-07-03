@@ -5,8 +5,6 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './modules/auth/auth.module';
 import { NotasModule } from './modules/notas/notas.module';
 import { ImportacoesModule } from './modules/importacoes/importacoes.module';
-import { ExtratoAsaasModule } from './modules/extrato-asaas/extrato-asaas.module';
-import { ExtratoNubankModule } from './modules/extrato-nubank/extrato-nubank.module';
 import { ImportacoesBancariasModule } from './modules/importacoes-bancarias/importacoes-bancarias.module';
 import { RelatoriosModule } from './modules/relatorios/relatorios.module';
 import { AuditModule } from './modules/audit_logs/audit.module';
@@ -15,6 +13,8 @@ import { ConciliacaoModule } from './modules/conciliacao/conciliacao.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { OrgModule } from './modules/org/org.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { ImportIntelligenceModule } from './modules/import-intelligence/import-intelligence.module';
+import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtGuard } from './modules/auth/jwt.guard';
 import { TenantGuard } from './common/tenant/tenant.guard';
@@ -36,8 +36,6 @@ import { TenantInterceptor } from './common/tenant/tenant.interceptor';
     AuthModule,
     NotasModule,
     ImportacoesModule,
-    ExtratoAsaasModule,
-    ExtratoNubankModule,
     ImportacoesBancariasModule,
     RelatoriosModule,
     AuditModule,
@@ -46,6 +44,8 @@ import { TenantInterceptor } from './common/tenant/tenant.interceptor';
     PlatformModule,
     OrgModule,
     BillingModule,
+    ImportIntelligenceModule,
+    IntegrationsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtGuard },

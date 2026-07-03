@@ -15,6 +15,7 @@ export const ImportacaoSchema = new Schema(
       imported: { type: Number, default: 0 },
       updated: { type: Number, default: 0 },
       ignored: { type: Number, default: 0 },
+      vinculadas: { type: Number, default: 0 },
     },
     status: {
       type: String,
@@ -26,8 +27,14 @@ export const ImportacaoSchema = new Schema(
     startedAt: { type: Date, default: Date.now },
     finishedAt: { type: Date },
     originalJson: { type: Object },
-    /** Hash SHA-256 do JSON parseado — impede reimportar o mesmo arquivo */
+    /** Hash SHA-256 do JSON parseado — impede reimportar o mesmo arquivo (upload manual) */
     contentHash: { type: String, index: true },
+    source: {
+      type: String,
+      enum: ['upload', 'honest_manual', 'honest_worker'],
+      default: 'upload',
+      index: true,
+    },
   },
   { timestamps: true },
 );

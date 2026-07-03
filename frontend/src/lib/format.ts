@@ -57,7 +57,7 @@ export function currentMonthDateRange(): { from: string; to: string } {
 }
 
 export type PagamentoResumo = {
-  source?: "asaas" | "nubank";
+  source?: "bank";
   lancamento_id?: string;
   valor?: number;
   data?: string;
@@ -72,8 +72,8 @@ export function paymentStatusLabel(status?: string): string {
   return status ?? "—";
 }
 
-export function bancoLabel(banco: string): string {
-  if (banco === "asaas") return "Asaas";
-  if (banco === "nubank") return "Nubank";
+export function bancoLabel(banco: string, bancoLabelFromApi?: string): string {
+  if (bancoLabelFromApi?.trim()) return bancoLabelFromApi.trim();
+  if (banco === "bank") return "Banco";
   return banco;
 }

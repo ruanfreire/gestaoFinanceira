@@ -5,11 +5,11 @@ import type { LancamentoConciliacaoItem } from "./types";
 describe("itemKey", () => {
   it("combina source e id do lançamento", () => {
     const item = {
-      source: "asaas" as const,
+      source: "bank" as const,
       lancamento: { _id: "abc123" },
       candidatas: [],
     } satisfies LancamentoConciliacaoItem;
-    expect(itemKey(item)).toBe("asaas-abc123");
+    expect(itemKey(item)).toBe("bank-abc123");
   });
 });
 

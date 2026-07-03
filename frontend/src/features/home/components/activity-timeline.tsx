@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { PrefetchLink } from "@/design-system/molecules";
 import { FileSpreadsheet, Upload, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Badge, Typography } from "@/design-system/atoms";
 import { Card, CardBody, CardHeader } from "@/design-system/organisms";
@@ -28,9 +28,9 @@ export function RecentImportsList({ items }: { items: RecentImport[] }) {
         title="Últimas importações"
         description="Lotes recentes de notas e extratos"
         actions={
-          <Link to="/arquivos/historico" className="text-small font-medium text-primary hover:underline">
+          <PrefetchLink to="/arquivos/historico" className="text-small font-medium text-primary hover:underline">
             Histórico
-          </Link>
+          </PrefetchLink>
         }
       />
       <CardBody>
@@ -43,7 +43,7 @@ export function RecentImportsList({ items }: { items: RecentImport[] }) {
           <ul className="space-y-2">
             {visible.map((item) => (
               <li key={item.id}>
-                <Link
+                <PrefetchLink
                   to={item.link}
                   className="flex items-start gap-3 rounded-lg border border-border p-3 transition-default hover:bg-muted/50"
                 >
@@ -61,7 +61,7 @@ export function RecentImportsList({ items }: { items: RecentImport[] }) {
                       {IMPORT_STATUS_LABELS[item.status] ?? item.status}
                     </Badge>
                   )}
-                </Link>
+                </PrefetchLink>
               </li>
             ))}
           </ul>
@@ -119,7 +119,7 @@ export function ActivityTimeline({ imports }: { imports: RecentImport[] }) {
                 >
                   <ActivityIcon kind={activity.kind} />
                 </span>
-                <Link to={activity.link} className="block rounded-lg transition-default hover:bg-muted/50 p-2 -ml-2">
+                <PrefetchLink to={activity.link} className="block rounded-lg transition-default hover:bg-muted/50 p-2 -ml-2">
                   <Typography variant="subtitle">{activity.title}</Typography>
                   <Typography variant="caption" tone="muted">
                     {formatDateTime(activity.createdAt)}
@@ -128,7 +128,7 @@ export function ActivityTimeline({ imports }: { imports: RecentImport[] }) {
                   <Typography variant="body" tone="muted" className="mt-0.5">
                     {activity.subtitle}
                   </Typography>
-                </Link>
+                </PrefetchLink>
               </li>
             ))}
           </ol>

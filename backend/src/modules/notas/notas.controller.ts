@@ -12,17 +12,16 @@ export class NotasController {
 
   @Post('desvincular-pagamento')
   async desvincularPagamento(
-    @Body() body: { nota_id?: string; lancamento_id?: string; source?: string },
+    @Body() body: { nota_id?: string; lancamento_id?: string },
   ) {
     const notaId = body.nota_id?.trim();
     const lancamentoId = body.lancamento_id?.trim();
-    const source = body.source === 'nubank' ? 'nubank' : body.source === 'asaas' ? 'asaas' : null;
 
-    if (!notaId || !lancamentoId || !source) {
-      throw new BadRequestException('nota_id, lancamento_id e source (asaas|nubank) são obrigatórios');
+    if (!notaId || !lancamentoId) {
+      throw new BadRequestException('nota_id e lancamento_id são obrigatórios');
     }
 
-    return this.notasService.desvincularPagamento(notaId, lancamentoId, source);
+    return this.notasService.desvincularPagamento(notaId, lancamentoId, 'bank');
   }
 
   @Get('extracao')
@@ -55,4 +54,3 @@ export class NotasController {
     return this.notasService.findAll(filter, options);
   }
 }
-

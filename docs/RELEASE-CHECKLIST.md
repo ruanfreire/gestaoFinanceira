@@ -27,3 +27,20 @@ Use antes de cada deploy em produção (`main` → GitHub Actions).
 | Variável | Uso |
 |----------|-----|
 | `SWAGGER_ENABLED=true` | Expõe `/api/docs` (somente ambientes internos) |
+| `INTEGRATIONS_WORKER_ENABLED` | Worker Honest no backend (`true` em produção) |
+| `INTEGRATIONS_WORKER_INTERVAL_MS` | Intervalo do worker (prod: `300000` = 5 min) |
+| `INTEGRATIONS_CRON_SECRET` | Segredo para `POST /api/integrations/worker/run` |
+| `HONEST_REQUEST_TIMEOUT_MS` | Timeout por link Honest (prod: `45000`) |
+
+### Integrações Honest (VM já em produção)
+
+Se o `.env` foi criado antes desta feature, adicione em `/opt/gestao-financeira/.env`:
+
+```env
+INTEGRATIONS_WORKER_ENABLED=true
+INTEGRATIONS_WORKER_INTERVAL_MS=300000
+INTEGRATIONS_CRON_SECRET=<openssl rand -hex 32>
+HONEST_REQUEST_TIMEOUT_MS=45000
+```
+
+Depois: `sudo systemctl restart gestao-financeira-backend`

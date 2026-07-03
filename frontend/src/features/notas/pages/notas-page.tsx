@@ -36,7 +36,6 @@ const columns: DataTableColumn<Nota>[] = [
 type PendingUndo = {
   notaId: string;
   lancamentoId: string;
-  source: "asaas" | "nubank";
 };
 
 export default function NotasPage() {
@@ -68,7 +67,6 @@ export default function NotasPage() {
       await desvincular.mutateAsync({
         nota_id: pendingUndo.notaId,
         lancamento_id: pendingUndo.lancamentoId,
-        source: pendingUndo.source,
       });
       toast("Vínculo desfeito", "success");
       setPendingUndo(null);

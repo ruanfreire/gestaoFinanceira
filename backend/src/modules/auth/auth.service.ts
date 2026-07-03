@@ -85,7 +85,7 @@ export class AuthService {
     return {
       sub: user._id,
       roles: user.roles,
-      tenantId: user.tenantId ? String(user.tenantId) : undefined,
+      tenantId: this.resolveDocumentId(user.tenantId) ?? undefined,
       tenantRole: user.tenantRole as TenantRole | undefined,
     };
   }
@@ -100,15 +100,85 @@ export class AuthService {
     );
   }
 
+  private resolveDocumentId(value: unknown): string | null {
+    if (!value) return null;
+    if (typeof value === 'object' && value !== null && '_id' in value) {
+      return String((value as { _id: unknown })._id);
+    }
+    return String(value);
+  }
+
+  /**
+   * Corrige cadastros legados em que o único membro aprovado não é owner
+   * (ex.: após reset do banco sem recriar ownerUserId na organização).
+   */
+  async repairTenantOwnershipIfNeeded(user: { _id: unknown; tenantId?: unknown; tenantRole?: TenantRole }) {
+    const tenantId = this.resolveDocumentId(user.tenantId);
+    if (!tenantId) return;
+    const userId = String(user._id);
+
+    const org = asLeanOne<{ ownerUserId?: unknown }>(
+      await this.organizationModel.findById(tenantId).select('ownerUserId').lean(),
+    );
+    if (!org) return;
+
+    const ownerId = org.ownerUserId ? String(org.ownerUserId) : null;
+
+    if (ownerId === userId && user.tenantRole !== 'owner') {
+      await this.userModel.findByIdAndUpdate(userId, { $set: { tenantRole: 'owner' } });
+      user.tenantRole = 'owner';
+      return;
+    }
+
+    if (ownerId) return;
+
+    const approvedMembers = await this.userModel.countDocuments({
+      tenantId,
+      status: 'approved',
+    });
+    if (approvedMembers !== 1) return;
+
+    await this.userModel.findByIdAndUpdate(userId, { $set: { tenantRole: 'owner' } });
+    await this.organizationModel.findByIdAndUpdate(tenantId, { $set: { ownerUserId: user._id } });
+    user.tenantRole = 'owner';
+  }
+
   async getUserById(id: string) {
+    const baseUser = asLeanOne<{
+      _id: unknown;
+      tenantId?: unknown;
+      tenantRole?: TenantRole;
+      name?: string;
+      email?: string;
+      roles?: string[];
+      status?: UserStatus;
+      company?: string;
+      cnpj?: string;
+      phone?: string;
+      createdAt?: Date;
+      lastLogin?: Date;
+    }>(
+      await this.userModel
+        .findById(id)
+        .select('name email roles tenantRole status company cnpj phone tenantId createdAt lastLogin')
+        .lean(),
+    );
+    if (!baseUser) return null;
+
+    await this.repairTenantOwnershipIfNeeded(baseUser);
+
     const user = asLeanOne(
       await this.userModel
         .findById(id)
         .select('name email roles tenantRole status company cnpj phone tenantId createdAt lastLogin')
-        .populate('tenantId', 'name slug status cnpj trialEndsAt plan billingStatus currentPeriodEnd stripeSubscriptionId')
+        .populate(
+          'tenantId',
+          'name slug status cnpj trialEndsAt plan billingStatus currentPeriodEnd stripeSubscriptionId ownerUserId',
+        )
         .lean(),
     );
     if (!user) return null;
+
     const safe = this.sanitizeUser(user) as Record<string, unknown>;
     const org = safe.tenantId as Record<string, unknown> | null;
     if (org && typeof org === 'object' && org._id) {
@@ -123,6 +193,7 @@ export class AuthService {
         billingStatus: org.billingStatus,
         currentPeriodEnd: org.currentPeriodEnd,
         hasSubscription: Boolean(org.stripeSubscriptionId),
+        ownerUserId: org.ownerUserId ? String(org.ownerUserId) : undefined,
       };
       safe.tenantId = String(org._id);
     }

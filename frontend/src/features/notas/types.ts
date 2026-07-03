@@ -28,5 +28,4 @@ export type CreateNotaPayload = {
 export type DesvincularPagamentoPayload = {
   nota_id: string;
   lancamento_id: string;
-  source: "asaas" | "nubank";
 };

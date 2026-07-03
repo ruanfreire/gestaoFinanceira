@@ -10,3 +10,8 @@ export function asLeanMany<T>(result: unknown): T[] {
   if (result == null) return [];
   return (Array.isArray(result) ? result : [result]) as T[];
 }
+
+/** Normaliza lean de Model<any> para documento único tipado como record. */
+export function asLeanRecord(result: unknown): Record<string, unknown> | null {
+  return asLeanOne<Record<string, unknown>>(result);
+}

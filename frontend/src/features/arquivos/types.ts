@@ -44,10 +44,12 @@ export type ImportacaoUploadResult = {
   processingTimeMs?: number;
 };
 
-export type BancoExtrato = "asaas" | "nubank";
+export type BancoExtrato = "bank";
 
 export type ImportacaoExtrato = ImportacaoFatura & {
   banco: BancoExtrato;
+  banco_label?: string;
+  profile_id?: string;
   stats?: {
     total_linhas?: number;
     imported?: number;

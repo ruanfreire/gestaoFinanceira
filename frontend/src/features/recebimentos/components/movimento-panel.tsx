@@ -23,7 +23,7 @@ export function MovimentoPanel({ item }: { item: LancamentoConciliacaoItem }) {
   const debouncedSearch = useDebouncedValue(search, 300);
 
   const selected = candidatas.find((c) => c._id === notaId) ?? candidatas[0];
-  const needsPagador = item.source === "nubank" && !item.lancamento.pagador_nome;
+  const needsPagador = !item.lancamento.pagador_nome;
   const canConfirm = !needsPagador && Boolean(selected);
 
   useEffect(() => {
@@ -80,7 +80,7 @@ export function MovimentoPanel({ item }: { item: LancamentoConciliacaoItem }) {
         lancamentoId: item.lancamento._id,
         notaId: id,
       });
-      showSuccessWithUndo(id, item.lancamento._id, item.source);
+      showSuccessWithUndo(id, item.lancamento._id);
     } catch (err) {
       toast(recebimentosApi.getErrorMessage(err, "Não foi possível confirmar"), "error");
     }
@@ -88,7 +88,7 @@ export function MovimentoPanel({ item }: { item: LancamentoConciliacaoItem }) {
 
   const savePagador = async () => {
     try {
-      const res = await recebimentosApi.updatePagadorNubank(item.lancamento._id, pagador);
+      const res = await recebimentosApi.updatePagador(item.lancamento._id, pagador);
       setCandidatas(res.candidatas);
       if (res.candidatas[0]) setNotaId(res.candidatas[0]._id);
       toast("Pagador atualizado", "success");
@@ -149,10 +149,10 @@ export function MovimentoPanel({ item }: { item: LancamentoConciliacaoItem }) {
             </Typography>
           ) : (
             <ul className="stack-gap" role="radiogroup" aria-label="Selecionar nota">
-              {candidatas.map((c) => {
+              {candidatas.map((c, index) => {
                 const active = c._id === (notaId || candidatas[0]?._id);
                 return (
-                  <li key={c._id}>
+                  <li key={c._id || `candidata-${index}`}>
                     <button
                       type="button"
                       role="radio"

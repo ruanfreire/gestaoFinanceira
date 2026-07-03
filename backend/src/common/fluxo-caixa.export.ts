@@ -1,11 +1,11 @@
 import path from 'node:path';
 import ExcelJS from 'exceljs';
-import type { FluxoCaixaBanco } from './fluxo-caixa.config';
+import type { FluxoCaixaLayout } from './fluxo-caixa-lista';
 import {
   CARTAO_CREDITO_SHEET,
   FLUXO_CAIXA_CATEGORIAS,
-  FLUXO_CAIXA_SHEET_NAMES,
   FLUXO_CAIXA_TEMPLATE_ROWS,
+  FLUXO_CAIXA_TEMPLATE_SHEETS,
   FLUXO_CAIXA_TIPOS,
   REEMBOLSO_SHEET,
   buildSaldoBancoFormula,
@@ -32,7 +32,6 @@ export type FluxoCaixaHeader = {
 const HEADER_ROW = 7;
 const DATA_START_ROW = 8;
 const LISTA_SHEET = 'Lista';
-const MIN_FORMULA_ROWS = 10;
 const SUMMARY_SLOT_ROWS = 2;
 
 const CURRENCY_FMT = 'R$ #,##0.00';
@@ -49,16 +48,16 @@ type LayoutPlan = {
   filterEndRow: number;
 };
 
-function buildLayoutPlan(banco: FluxoCaixaBanco, rowCount: number): LayoutPlan {
-  const templateDataRows = FLUXO_CAIXA_TEMPLATE_ROWS[banco] - SUMMARY_SLOT_ROWS;
+function buildLayoutPlan(layout: FluxoCaixaLayout, rowCount: number): LayoutPlan {
+  const templateDataRows = FLUXO_CAIXA_TEMPLATE_ROWS[layout] - SUMMARY_SLOT_ROWS;
   const dataRows = Math.max(rowCount, templateDataRows);
   const dataEndRow = DATA_START_ROW + dataRows - 1;
   const summaryStartRow = dataEndRow + 1;
   const saldoFinalRow = dataEndRow + SUMMARY_SLOT_ROWS + 1;
-  const formulaEndRow = Math.min(
-    DATA_START_ROW + Math.max(rowCount, MIN_FORMULA_ROWS) - 1,
-    dataEndRow,
-  );
+  const formulaEndRow =
+    rowCount > 0
+      ? Math.min(DATA_START_ROW + rowCount - 1, dataEndRow)
+      : DATA_START_ROW;
 
   return {
     dataRows,
@@ -81,13 +80,71 @@ const FOOTER_FONT: Partial<ExcelJS.Font> = {
   bold: true,
 };
 
+const TITLE_FONT: Partial<ExcelJS.Font> = {
+  color: { argb: 'FFFFFFFF' },
+  bold: true,
+  size: 14,
+};
+
+const TABLE_HEADER_FILL: ExcelJS.Fill = {
+  type: 'pattern',
+  pattern: 'solid',
+  fgColor: { argb: 'FF374151' },
+};
+
+const TABLE_HEADER_FONT: Partial<ExcelJS.Font> = {
+  color: { argb: 'FFFFFFFF' },
+  bold: true,
+};
+
+const LABEL_FONT: Partial<ExcelJS.Font> = { bold: true };
+
+const FLUXO_COLUMN_WIDTHS = [
+  { width: 13.29 },
+  { width: 10.86 },
+  { width: 19.86 },
+  { width: 17 },
+  { width: 60 },
+  { width: 22.57 },
+  { width: 14.86 },
+  { width: 11.43 },
+] as const;
+
+const FLUXO_TABLE_HEADERS = [
+  'Data',
+  'Tipo',
+  'Categoria/ Plano de contas',
+  'Nº Documento / NF',
+  'Cliente / Fornecedor',
+  'Histórico',
+  'Valor',
+  'Saldo Banco',
+] as const;
+
+function resetCell(cell: ExcelJS.Cell) {
+  cell.value = null;
+  cell.style = {};
+}
+
 function clearSheetRows(sheet: ExcelJS.Worksheet, fromRow: number, toRow: number) {
   for (let rowNum = fromRow; rowNum <= toRow; rowNum += 1) {
     const row = sheet.getRow(rowNum);
     for (let col = 1; col <= 8; col += 1) {
+      resetCell(row.getCell(col));
+    }
+  }
+}
+
+/** Remove fórmulas compartilhadas do modelo que ficaram abaixo do bloco preenchido. */
+function scrubResidualTemplateFormulas(sheet: ExcelJS.Worksheet, fromRow: number) {
+  const maxRow = Math.max(sheet.rowCount, fromRow);
+  for (let rowNum = fromRow; rowNum <= maxRow; rowNum += 1) {
+    const row = sheet.getRow(rowNum);
+    for (let col = 1; col <= 8; col += 1) {
       const cell = row.getCell(col);
-      cell.value = null;
-      cell.style = {};
+      if (cell.type === ExcelJS.ValueType.Formula) {
+        resetCell(cell);
+      }
     }
   }
 }
@@ -127,7 +184,7 @@ function removeOtherFluxoSheets(
   keepCartaoCredito = false,
   keepReembolso = false,
 ) {
-  for (const name of Object.values(FLUXO_CAIXA_SHEET_NAMES)) {
+  for (const name of Object.values(FLUXO_CAIXA_TEMPLATE_SHEETS)) {
     if (name === activeSheet) continue;
     const sheet = workbook.getWorksheet(name);
     if (sheet) workbook.removeWorksheet(sheet.id);
@@ -141,26 +198,157 @@ function removeOtherFluxoSheets(
   }
 }
 
-function setupFluxoSheetLayout(
-  sheet: ExcelJS.Worksheet,
-  header: FluxoCaixaHeader,
-  preserveLayout = false,
-) {
-  if (!preserveLayout) {
-    sheet.mergeCells('A1:H1');
-    sheet.mergeCells('B3:H3');
+function removeUnusedTemplateSheets(workbook: ExcelJS.Workbook, keepSheetNames: Set<string>) {
+  for (const name of Object.values(FLUXO_CAIXA_TEMPLATE_SHEETS)) {
+    if (keepSheetNames.has(name)) continue;
+    const sheet = workbook.getWorksheet(name);
+    if (sheet) workbook.removeWorksheet(sheet.id);
   }
-  sheet.getCell('A1').value = 'CONTROLE DE FLUXO DE CAIXA';
+}
 
-  if (!preserveLayout) {
-    sheet.mergeCells('B3:H3');
+function removeUnusedSecondarySheets(
+  workbook: ExcelJS.Workbook,
+  keepCartaoCredito: boolean,
+  keepReembolso: boolean,
+) {
+  if (!keepCartaoCredito) {
+    const cartao = workbook.getWorksheet(CARTAO_CREDITO_SHEET);
+    if (cartao) workbook.removeWorksheet(cartao.id);
   }
+  if (!keepReembolso) {
+    const reembolso = workbook.getWorksheet(REEMBOLSO_SHEET);
+    if (reembolso) workbook.removeWorksheet(reembolso.id);
+  }
+}
+
+type AcquiredFluxoSheet = {
+  sheet: ExcelJS.Worksheet;
+  fromTemplate: boolean;
+};
+
+function normalizeSheetKey(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function isSheetNameTaken(
+  workbook: ExcelJS.Workbook,
+  name: string,
+  assignedNames: Set<string>,
+): boolean {
+  const key = normalizeSheetKey(name);
+  if ([...assignedNames].some((candidate) => normalizeSheetKey(candidate) === key)) return true;
+  return workbook.worksheets.some((sheet) => normalizeSheetKey(sheet.name) === key);
+}
+
+function ensureUniqueSheetName(
+  workbook: ExcelJS.Workbook,
+  desiredName: string,
+  assignedNames: Set<string>,
+): string {
+  const base = desiredName.slice(0, 31);
+  if (!isSheetNameTaken(workbook, base, assignedNames)) return base;
+
+  for (let index = 2; index < 100; index += 1) {
+    const suffix = ` (${index})`;
+    const candidate = `${desiredName.slice(0, 31 - suffix.length)}${suffix}`;
+    if (!isSheetNameTaken(workbook, candidate, assignedNames)) return candidate;
+  }
+
+  return `${base.slice(0, 24)}_${Date.now()}`.slice(0, 31);
+}
+
+function acquireFluxoSheetFallback(
+  workbook: ExcelJS.Workbook,
+  desiredName: string,
+  assignedNames: Set<string>,
+  reservedName?: string,
+): AcquiredFluxoSheet {
+  if (reservedName) assignedNames.delete(reservedName);
+  const fallback = ensureUniqueSheetName(workbook, desiredName, assignedNames);
+  assignedNames.add(fallback);
+  return { sheet: workbook.addWorksheet(fallback), fromTemplate: false };
+}
+
+function acquireFluxoSheet(
+  workbook: ExcelJS.Workbook,
+  layout: FluxoCaixaLayout,
+  sheetName: string,
+  preserveLayout: boolean,
+  usedTemplateSheets: Set<string>,
+  assignedNames: Set<string>,
+): AcquiredFluxoSheet {
+  const safeName = ensureUniqueSheetName(workbook, sheetName, assignedNames);
+  assignedNames.add(safeName);
+
+  const requested = sheetName.slice(0, 31);
+  const mayUseTemplate = preserveLayout && safeName === requested;
+
+  if (mayUseTemplate) {
+    const preferredTemplate = FLUXO_CAIXA_TEMPLATE_SHEETS[layout];
+    if (!usedTemplateSheets.has(preferredTemplate)) {
+      const templateSheet = workbook.getWorksheet(preferredTemplate);
+      if (templateSheet) {
+        usedTemplateSheets.add(preferredTemplate);
+        if (preferredTemplate !== safeName) {
+          try {
+            templateSheet.name = safeName;
+          } catch {
+            return acquireFluxoSheetFallback(workbook, sheetName, assignedNames, safeName);
+          }
+        }
+        return { sheet: templateSheet, fromTemplate: true };
+      }
+    }
+    for (const templateName of Object.values(FLUXO_CAIXA_TEMPLATE_SHEETS)) {
+      if (usedTemplateSheets.has(templateName)) continue;
+      const templateSheet = workbook.getWorksheet(templateName);
+      if (!templateSheet) continue;
+      usedTemplateSheets.add(templateName);
+      if (templateName !== safeName) {
+        try {
+          templateSheet.name = safeName;
+        } catch {
+          return acquireFluxoSheetFallback(workbook, sheetName, assignedNames, safeName);
+        }
+      }
+      return { sheet: templateSheet, fromTemplate: true };
+    }
+  }
+
+  return acquireFluxoSheetFallback(workbook, sheetName, assignedNames, safeName);
+}
+
+function applySheetChrome(sheet: ExcelJS.Worksheet) {
+  sheet.getRow(1).height = 28;
+  for (let col = 1; col <= 8; col += 1) {
+    const cell = sheet.getRow(1).getCell(col);
+    cell.fill = FOOTER_FILL;
+    cell.font = TITLE_FONT;
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+  }
+
+  for (const rowNum of [3, 4, 5]) {
+    sheet.getRow(rowNum).getCell(1).font = LABEL_FONT;
+    sheet.getRow(rowNum).getCell(7).font = LABEL_FONT;
+  }
+
+  sheet.getRow(HEADER_ROW).height = 22;
+  for (let col = 1; col <= 8; col += 1) {
+    const cell = sheet.getRow(HEADER_ROW).getCell(col);
+    cell.fill = TABLE_HEADER_FILL;
+    cell.font = TABLE_HEADER_FONT;
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+  }
+
+  sheet.columns = [...FLUXO_COLUMN_WIDTHS];
+}
+
+function writeFluxoHeaderBlock(sheet: ExcelJS.Worksheet, header: FluxoCaixaHeader) {
+  sheet.getCell('A1').value = 'CONTROLE DE FLUXO DE CAIXA';
   sheet.getCell('A3').value = 'Empresa:';
   sheet.getCell('B3').value = header.empresaNome;
-
   sheet.getCell('A4').value = 'CNPJ ';
   sheet.getCell('B4').value = header.empresaCnpj;
-
   sheet.getCell('A5').value = 'Banco:';
   sheet.getCell('B5').value = header.banco;
   sheet.getCell('C5').value = 'Conta Corrente:';
@@ -171,80 +359,38 @@ function setupFluxoSheetLayout(
   saldoInicialCell.value = header.saldoInicial;
   saldoInicialCell.numFmt = CURRENCY_FMT;
 
-  const headers = [
-    'Data',
-    'Tipo',
-    'Categoria/ Plano de contas',
-    'Nº Documento / NF',
-    'Cliente / Fornecedor',
-    'Histórico',
-    'Valor',
-    'Saldo Banco',
-  ];
-  headers.forEach((text, index) => {
+  FLUXO_TABLE_HEADERS.forEach((text, index) => {
     sheet.getRow(HEADER_ROW).getCell(index + 1).value = text;
   });
+}
 
-  sheet.columns = [
-    { width: 13.29 },
-    { width: 10.86 },
-    { width: 19.86 },
-    { width: 17 },
-    { width: 60 },
-    { width: 22.57 },
-    { width: 14.86 },
-    { width: 11.43 },
-  ];
+function safeMergeCells(sheet: ExcelJS.Worksheet, range: string) {
+  try {
+    sheet.mergeCells(range);
+  } catch {
+    // célula já mesclada (reuso de aba no consolidado sem modelo Excel)
+  }
+}
+
+function setupFluxoSheetLayout(
+  sheet: ExcelJS.Worksheet,
+  header: FluxoCaixaHeader,
+  preserveLayout = false,
+) {
+  if (!preserveLayout) {
+    safeMergeCells(sheet, 'A1:H1');
+    safeMergeCells(sheet, 'B3:H3');
+  }
+  writeFluxoHeaderBlock(sheet, header);
+  applySheetChrome(sheet);
 }
 
 function setupSecondaryFluxoSheetLayout(
   sheet: ExcelJS.Worksheet,
   header: FluxoCaixaHeader,
-  sectionLabel: string,
   preserveLayout = false,
 ) {
-  if (!preserveLayout) {
-    sheet.mergeCells('A1:H1');
-    sheet.mergeCells('B3:H3');
-  }
-  sheet.getCell('A1').value = 'CONTROLE DE FLUXO DE CAIXA';
-  sheet.getCell('A3').value = 'Empresa:';
-  sheet.getCell('B3').value = header.empresaNome;
-  sheet.getCell('A4').value = 'CNPJ ';
-  sheet.getCell('B4').value = header.empresaCnpj;
-  sheet.getCell('A5').value = 'Banco:';
-  sheet.getCell('B5').value = header.banco;
-  sheet.getCell('C5').value = sectionLabel;
-  sheet.getCell('G5').value = 'Saldo Inicial:';
-
-  const saldoInicialCell = sheet.getCell('H5');
-  saldoInicialCell.value = header.saldoInicial;
-  saldoInicialCell.numFmt = CURRENCY_FMT;
-
-  const headers = [
-    'Data',
-    'Tipo',
-    'Categoria/ Plano de contas',
-    'Nº Documento / NF',
-    'Cliente / Fornecedor',
-    'Histórico',
-    'Valor',
-    'Saldo Banco',
-  ];
-  headers.forEach((text, index) => {
-    sheet.getRow(HEADER_ROW).getCell(index + 1).value = text;
-  });
-
-  sheet.columns = [
-    { width: 13.29 },
-    { width: 10.86 },
-    { width: 19.86 },
-    { width: 17 },
-    { width: 60 },
-    { width: 22.57 },
-    { width: 14.86 },
-    { width: 11.43 },
-  ];
+  setupFluxoSheetLayout(sheet, header, preserveLayout);
 }
 
 function setupCartaoCreditoSheetLayout(
@@ -252,12 +398,11 @@ function setupCartaoCreditoSheetLayout(
   header: FluxoCaixaHeader,
   preserveLayout = false,
 ) {
-  setupSecondaryFluxoSheetLayout(sheet, header, 'Cartão de crédito', preserveLayout);
+  setupFluxoSheetLayout(sheet, header, preserveLayout);
 }
 
 function fillDataBlock(
   sheet: ExcelJS.Worksheet,
-  banco: FluxoCaixaBanco,
   rows: FluxoCaixaRow[],
   plan: LayoutPlan,
 ) {
@@ -286,7 +431,7 @@ function fillDataBlock(
 
     const saldoCell = sheetRow.getCell(8);
     if (excelRow <= plan.formulaEndRow) {
-      saldoCell.value = { formula: buildSaldoBancoFormula(banco, excelRow, prevFormulaRow) };
+      saldoCell.value = { formula: buildSaldoBancoFormula(excelRow, prevFormulaRow) };
       prevFormulaRow = excelRow;
     } else {
       saldoCell.value = null;
@@ -307,7 +452,7 @@ function fillDataBlock(
 }
 
 function fillSummaryRows(sheet: ExcelJS.Worksheet, plan: LayoutPlan) {
-  const dataEndRow = plan.dataEndRow;
+  const dataEndRow = plan.formulaEndRow >= DATA_START_ROW ? plan.formulaEndRow : plan.dataEndRow;
 
   const entradasRow = sheet.getRow(plan.summaryStartRow);
   entradasRow.getCell(6).value = 'Total Entradas';
@@ -330,7 +475,9 @@ function fillSaldoFinal(sheet: ExcelJS.Worksheet, plan: LayoutPlan) {
   const row = sheet.getRow(plan.saldoFinalRow);
   row.getCell(1).value = 'Saldo Final do Extrato Bancário';
   const saldoFinalCell = row.getCell(8);
-  saldoFinalCell.value = { formula: `H${plan.formulaEndRow}` };
+  const entradasCell = `G${plan.summaryStartRow}`;
+  const saidasCell = `G${plan.summaryStartRow + 1}`;
+  saldoFinalCell.value = { formula: `H5+${entradasCell}-${saidasCell}` };
   saldoFinalCell.numFmt = CURRENCY_FMT;
   applyFooterRowStyle(sheet, plan.saldoFinalRow);
 }
@@ -338,39 +485,52 @@ function fillSaldoFinal(sheet: ExcelJS.Worksheet, plan: LayoutPlan) {
 function prepareSheetDataArea(
   sheet: ExcelJS.Worksheet,
   plan: LayoutPlan,
-  banco: FluxoCaixaBanco,
+  layout: FluxoCaixaLayout,
 ) {
-  const templateEnd = DATA_START_ROW + FLUXO_CAIXA_TEMPLATE_ROWS[banco] + SUMMARY_SLOT_ROWS;
+  const templateEnd = DATA_START_ROW + FLUXO_CAIXA_TEMPLATE_ROWS[layout] + SUMMARY_SLOT_ROWS;
   const clearUntil = Math.max(plan.saldoFinalRow, templateEnd);
   clearSheetRows(sheet, DATA_START_ROW, clearUntil);
 }
 
-async function populateFluxoBancoSheet(
+function populateFluxoBancoSheet(
   workbook: ExcelJS.Workbook,
-  banco: FluxoCaixaBanco,
+  layout: FluxoCaixaLayout,
+  sheetName: string,
   header: FluxoCaixaHeader,
   rows: FluxoCaixaRow[],
   preserveLayout = false,
-) {
-  const sheetName = FLUXO_CAIXA_SHEET_NAMES[banco];
-  let sheet = workbook.getWorksheet(sheetName);
-  if (!sheet) {
-    sheet = workbook.addWorksheet(sheetName);
-  }
+  usedTemplateSheets: Set<string> = new Set(),
+  assignedNames: Set<string> = new Set(),
+): string {
+  const { sheet, fromTemplate } = acquireFluxoSheet(
+    workbook,
+    layout,
+    sheetName,
+    preserveLayout,
+    usedTemplateSheets,
+    assignedNames,
+  );
+  const sheetPreserveLayout = preserveLayout && fromTemplate;
+  setupFluxoSheetLayout(sheet, header, sheetPreserveLayout);
 
-  const plan = buildLayoutPlan(banco, rows.length);
-  setupFluxoSheetLayout(sheet, header, preserveLayout);
-  if (preserveLayout) {
-    prepareSheetDataArea(sheet, plan, banco);
+  const plan = buildLayoutPlan(layout, rows.length);
+  if (sheetPreserveLayout) {
+    prepareSheetDataArea(sheet, plan, layout);
   }
-  fillDataBlock(sheet, banco, rows, plan);
+  fillDataBlock(sheet, rows, plan);
   fillSummaryRows(sheet, plan);
   fillSaldoFinal(sheet, plan);
+
+  if (sheetPreserveLayout) {
+    scrubResidualTemplateFormulas(sheet, plan.saldoFinalRow + 1);
+  }
 
   sheet.autoFilter = {
     from: { row: HEADER_ROW, column: 1 },
     to: { row: plan.filterEndRow, column: 1 },
   };
+
+  return sheet.name;
 }
 
 function populateCartaoCreditoSheet(
@@ -386,14 +546,18 @@ function populateCartaoCreditoSheet(
     sheet = workbook.addWorksheet(CARTAO_CREDITO_SHEET);
   }
 
-  const plan = buildLayoutPlan('nubank', rows.length);
+  const plan = buildLayoutPlan('compact', rows.length);
   setupCartaoCreditoSheetLayout(sheet, header, preserveLayout);
   if (preserveLayout) {
-    prepareSheetDataArea(sheet, plan, 'nubank');
+    prepareSheetDataArea(sheet, plan, 'compact');
   }
-  fillDataBlock(sheet, 'nubank', rows, plan);
+  fillDataBlock(sheet, rows, plan);
   fillSummaryRows(sheet, plan);
   fillSaldoFinal(sheet, plan);
+
+  if (preserveLayout) {
+    scrubResidualTemplateFormulas(sheet, plan.saldoFinalRow + 1);
+  }
 
   sheet.autoFilter = {
     from: { row: HEADER_ROW, column: 1 },
@@ -421,14 +585,18 @@ function populateReembolsoSheet(
     sheet = workbook.addWorksheet(REEMBOLSO_SHEET);
   }
 
-  const plan = buildLayoutPlan('nubank', rows.length);
-  setupSecondaryFluxoSheetLayout(sheet, header, 'Reembolso de despesas', preserveLayout);
+  const plan = buildLayoutPlan('compact', rows.length);
+  setupSecondaryFluxoSheetLayout(sheet, header, preserveLayout);
   if (preserveLayout) {
-    prepareSheetDataArea(sheet, plan, 'nubank');
+    prepareSheetDataArea(sheet, plan, 'compact');
   }
-  fillDataBlock(sheet, 'nubank', rows, plan);
+  fillDataBlock(sheet, rows, plan);
   fillSummaryRows(sheet, plan);
   fillSaldoFinal(sheet, plan);
+
+  if (preserveLayout) {
+    scrubResidualTemplateFormulas(sheet, plan.saldoFinalRow + 1);
+  }
 
   sheet.autoFilter = {
     from: { row: HEADER_ROW, column: 1 },
@@ -438,7 +606,8 @@ function populateReembolsoSheet(
 
 async function populateWorkbook(
   workbook: ExcelJS.Workbook,
-  banco: FluxoCaixaBanco,
+  layout: FluxoCaixaLayout,
+  sheetName: string,
   header: FluxoCaixaHeader,
   rows: FluxoCaixaRow[],
   preserveLayout = false,
@@ -449,18 +618,18 @@ async function populateWorkbook(
   registerNamedRanges(workbook);
   removeOtherFluxoSheets(
     workbook,
-    FLUXO_CAIXA_SHEET_NAMES[banco],
+    sheetName,
     Boolean(cartao?.rows.length),
     Boolean(reembolso?.rows.length),
   );
-  populateFluxoBancoSheet(workbook, banco, header, rows, preserveLayout);
+  populateFluxoBancoSheet(workbook, layout, sheetName, header, rows, preserveLayout);
   if (cartao?.rows.length) {
     populateCartaoCreditoSheet(workbook, cartao.header, cartao.rows, preserveLayout);
   }
   if (reembolso?.rows.length) {
     populateReembolsoSheet(workbook, reembolso.header, reembolso.rows, preserveLayout);
   }
-  setActiveSheet(workbook, FLUXO_CAIXA_SHEET_NAMES[banco]);
+  setActiveSheet(workbook, sheetName);
 }
 
 export type FluxoCaixaCartaoSection = {
@@ -473,13 +642,22 @@ export type FluxoCaixaReembolsoSection = {
   rows: FluxoCaixaRow[];
 };
 
+export type FluxoCaixaBancoSection = {
+  layout: FluxoCaixaLayout;
+  sheetName: string;
+  header: FluxoCaixaHeader;
+  rows: FluxoCaixaRow[];
+};
+
 export async function buildFluxoCaixaWorkbook(
-  banco: FluxoCaixaBanco,
+  layout: FluxoCaixaLayout,
   header: FluxoCaixaHeader,
   rows: FluxoCaixaRow[],
   cartao?: FluxoCaixaCartaoSection,
   reembolso?: FluxoCaixaReembolsoSection,
+  sheetName?: string,
 ): Promise<Buffer> {
+  const resolvedSheetName = (sheetName ?? `Fluxo de caixa_${header.banco}`).slice(0, 31);
   const workbook = new ExcelJS.Workbook();
   let preserveLayout = false;
 
@@ -490,23 +668,15 @@ export async function buildFluxoCaixaWorkbook(
     // modelo ausente — workbook vazio com fallback programático
   }
 
-  await populateWorkbook(workbook, banco, header, rows, preserveLayout, cartao, reembolso);
+  await populateWorkbook(workbook, layout, resolvedSheetName, header, rows, preserveLayout, cartao, reembolso);
 
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);
 }
 
-export type FluxoCaixaBancoSection = {
-  banco: FluxoCaixaBanco;
-  header: FluxoCaixaHeader;
-  rows: FluxoCaixaRow[];
-};
-
-/** Planilha com abas de todos os bancos (modelo Ana Luisa completo). */
+/** Planilha com uma aba por perfil de banco configurado no sistema. */
 export async function buildFluxoCaixaConsolidadoWorkbook(
   sections: FluxoCaixaBancoSection[],
-  cartao?: FluxoCaixaCartaoSection,
-  reembolso?: FluxoCaixaReembolsoSection,
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   let preserveLayout = false;
@@ -521,21 +691,35 @@ export async function buildFluxoCaixaConsolidadoWorkbook(
   applyListSheet(workbook);
   registerNamedRanges(workbook);
 
+  const layoutsInUse = new Set<FluxoCaixaLayout>(['compact']);
+  for (const [layout, templateName] of Object.entries(FLUXO_CAIXA_TEMPLATE_SHEETS)) {
+    if (layoutsInUse.has(layout as FluxoCaixaLayout)) continue;
+    const sheet = workbook.getWorksheet(templateName);
+    if (sheet) workbook.removeWorksheet(sheet.id);
+  }
+
+  const usedTemplateSheets = new Set<string>();
+  const assignedNames = new Set<string>();
+  const sheetNames = new Set<string>();
+
   for (const section of sections) {
-    populateFluxoBancoSheet(workbook, section.banco, section.header, section.rows, preserveLayout);
+    const actualSheetName = populateFluxoBancoSheet(
+      workbook,
+      'compact',
+      section.sheetName,
+      section.header,
+      section.rows,
+      preserveLayout,
+      usedTemplateSheets,
+      assignedNames,
+    );
+    sheetNames.add(actualSheetName);
   }
 
-  if (cartao?.rows.length) {
-    populateCartaoCreditoSheet(workbook, cartao.header, cartao.rows, preserveLayout);
-  }
+  removeUnusedTemplateSheets(workbook, sheetNames);
+  removeUnusedSecondarySheets(workbook, false, false);
 
-  if (reembolso?.rows.length) {
-    populateReembolsoSheet(workbook, reembolso.header, reembolso.rows, preserveLayout);
-  }
-
-  const firstSheet = sections[0]
-    ? FLUXO_CAIXA_SHEET_NAMES[sections[0].banco]
-    : FLUXO_CAIXA_SHEET_NAMES.nubank;
+  const firstSheet = sections[0] ? [...sheetNames][0] : 'Fluxo de caixa';
   setActiveSheet(workbook, firstSheet);
 
   const buffer = await workbook.xlsx.writeBuffer();

@@ -52,10 +52,12 @@ if [[ ! -f .env ]]; then
   cp deploy/env.production.example .env
   JWT_ACCESS=$(openssl rand -hex 32)
   JWT_REFRESH=$(openssl rand -hex 32)
+  INTEGRATIONS_SECRET=$(openssl rand -hex 32)
   SEED_PASS=$(openssl rand -hex 8)
   sed -i "s/troque_por_um_segredo_forte/$JWT_ACCESS/" .env
   sed -i "s/troque_por_outro_segredo_forte/$JWT_REFRESH/" .env
   sed -i "s/troque_antes_do_primeiro_seed/$SEED_PASS/" .env
+  sed -i "s/troque_por_segredo_integracoes/$INTEGRATIONS_SECRET/" .env
   echo ""
   echo "Senha admin inicial (SEED_ADMIN_PASSWORD): $SEED_PASS"
   echo "Salve essa senha — login: admin@finance.local"

@@ -97,16 +97,29 @@ export function resolveFluxoCaixaCategoriaCartao(
   return 'Pagamento de cartão';
 }
 
-/** Linhas de dados do template por banco (inclui linhas em branco para edição manual). */
-export const FLUXO_CAIXA_TEMPLATE_ROWS: Record<'nubank' | 'asaas', number> = {
-  nubank: 36,
-  asaas: 53,
+/** Layout da planilha modelo — compact (padrão) ou wide (mais linhas). */
+export type FluxoCaixaLayout = 'compact' | 'wide';
+
+export const FLUXO_CAIXA_TEMPLATE_ROWS: Record<FluxoCaixaLayout, number> = {
+  compact: 36,
+  wide: 53,
 };
 
-export const FLUXO_CAIXA_SHEET_NAMES: Record<'nubank' | 'asaas', string> = {
-  nubank: 'Fluxo de caixa_Nubank',
-  asaas: 'Fluxo de caixa_ASAAS',
+/** Nomes das abas no arquivo modelo Excel (referência interna, não exibida ao usuário). */
+export const FLUXO_CAIXA_TEMPLATE_SHEETS: Record<FluxoCaixaLayout, string> = {
+  compact: 'Fluxo de caixa_Nubank',
+  wide: 'Fluxo de caixa_ASAAS',
 };
+
+/** @deprecated use buildFluxoCaixaSheetName com o rótulo do perfil */
+export const FLUXO_CAIXA_SHEET_NAMES = FLUXO_CAIXA_TEMPLATE_SHEETS;
+
+/** Nome da aba Excel a partir do nome do perfil (card) — máx. 31 caracteres. */
+export function buildFluxoCaixaSheetName(bancoLabel: string, profileName?: string): string {
+  const label = (profileName?.trim() || bancoLabel.trim()).replace(/[:\\/?*[\]]/g, '');
+  const name = label ? `Fluxo de caixa_${label}` : 'Fluxo de caixa';
+  return name.slice(0, 31);
+}
 
 export const CARTAO_CREDITO_SHEET = 'Cartão de Crédito';
 export const REEMBOLSO_SHEET = 'Reembolso de despesas';
@@ -126,29 +139,22 @@ export function splitFluxoRowsByReembolso<T extends { categoria: string }>(
 }
 
 /**
- * Fórmula de saldo corrido conforme o modelo (valores em G sempre positivos;
- * sinal alternado por linha, com primeira operação distinta entre Nubank e Asaas).
+ * Fórmula de saldo corrido: valores em G sempre positivos;
+ * o sinal vem do tipo (Entrada soma, Saída subtrai).
  */
-export function buildSaldoBancoFormula(
-  banco: 'nubank' | 'asaas',
-  excelRow: number,
-  prevRow: number,
-): string {
+export function buildSaldoBancoFormula(excelRow: number, prevRow: number): string {
+  const signed = `IF(B${excelRow}="Entrada";G${excelRow};-G${excelRow})`;
   if (excelRow === 8) {
-    return banco === 'nubank' ? `H5-G${excelRow}` : `H5+G${excelRow}`;
+    return `H5+${signed}`;
   }
-  const subtract = banco === 'nubank' ? (excelRow - 8) % 2 === 0 : (excelRow - 8) % 2 === 1;
-  const op = subtract ? '-' : '+';
-  return `H${prevRow}${op}G${excelRow}`;
+  return `H${prevRow}+${signed}`;
 }
 
 /** Última linha com fórmula de saldo ativa no bloco de dados. */
-export function resolveUltimaLinhaFormulaSaldo(
-  banco: 'nubank' | 'asaas',
-  dataRows: number,
-): number {
-  const templateRows = FLUXO_CAIXA_TEMPLATE_ROWS[banco];
-  const bodyDataRows = Math.max(dataRows, templateRows - 2);
-  const formulaEndRow = 8 + Math.max(dataRows, 10) - 1;
-  return Math.min(formulaEndRow, 8 + bodyDataRows - 1);
+export function resolveUltimaLinhaFormulaSaldo(layout: FluxoCaixaLayout, dataRows: number): number {
+  const dataStartRow = 8;
+  if (dataRows <= 0) return dataStartRow;
+  const templateBodyRows = FLUXO_CAIXA_TEMPLATE_ROWS[layout] - 2;
+  const lastDataRow = dataStartRow + Math.max(dataRows, templateBodyRows) - 1;
+  return Math.min(dataStartRow + dataRows - 1, lastDataRow);
 }

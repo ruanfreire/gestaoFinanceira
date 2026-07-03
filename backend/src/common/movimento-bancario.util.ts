@@ -31,6 +31,24 @@ export function fluxoCaixaTipoFromMovimento(tipo: TipoMovimento): 'Entrada' | 'S
   return tipo === 'saida' ? 'Saída' : 'Entrada';
 }
 
+const OUTGOING_DESC_PATTERN =
+  /\btransfer[eê]ncia\s+enviad[oa]\b|\bpix\s+enviad[oa]\b|\bpagamento\s+de\s+(?:fatura|boleto)\b|dinheiro\s+guardado|resgate\s+planejad/i;
+const INCOMING_DESC_PATTERN = /\brecebid[oa]\b|\bdep[oó]sito\b|\bcr[eé]dito\b/i;
+const FEE_DESC_PATTERN = /^taxa\s+(?:de|do)\b|^tarifa\b|mensageria/i;
+
+/** Infere entrada/saída pela descrição quando o banco não usa sinal no valor. */
+export function resolveTipoMovimento(valor: number, descricao: string): TipoMovimento {
+  const text = descricao.trim();
+  if (text) {
+    if (FEE_DESC_PATTERN.test(text)) return 'saida';
+    const outgoing = OUTGOING_DESC_PATTERN.test(text);
+    const incoming = INCOMING_DESC_PATTERN.test(text);
+    if (outgoing && !incoming) return 'saida';
+    if (incoming && !outgoing) return 'entrada';
+  }
+  return valor >= 0 ? 'entrada' : 'saida';
+}
+
 export function isAsaasCobrancaRecebida(tipoTransacao?: string, tipoLancamento?: string): boolean {
   return tipoTransacao === 'Cobrança recebida' && isAsaasEntrada(tipoLancamento);
 }

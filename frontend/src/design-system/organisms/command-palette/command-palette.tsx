@@ -4,9 +4,11 @@ import { Search } from "lucide-react";
 import { Modal } from "../modal/modal";
 import { Input, Typography } from "@/design-system/atoms";
 import { COMMAND_ROUTES } from "@/lib/command-routes";
+import { openPushPermissionPrompt } from "@/lib/push-prompt-events";
 import { cn } from "@/design-system/lib/cn";
 import { useAuth } from "@/features/auth/context";
 import { isTenantOwner } from "@/features/auth/types";
+import { useOrgPath } from "@/features/org/org-slug-context";
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [query, setQuery] = useState("");
@@ -14,6 +16,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   const navigate = useNavigate();
   const listRef = useRef<HTMLUListElement>(null);
   const { user } = useAuth();
+  const orgPath = useOrgPath();
 
   const availableRoutes = useMemo(
     () => COMMAND_ROUTES.filter((item) => !item.ownerOnly || isTenantOwner(user)),
@@ -39,9 +42,13 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     setActiveIndex(0);
   }, [query]);
 
-  const go = (to: string) => {
+  const go = (item: (typeof results)[number]) => {
     onOpenChange(false);
-    navigate(to);
+    if (item.action === "enable-push") {
+      openPushPermissionPrompt();
+      return;
+    }
+    if (item.to) navigate(orgPath(item.to));
   };
 
   const onKeyDown = (event: React.KeyboardEvent) => {
@@ -55,7 +62,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     }
     if (event.key === "Enter" && results[activeIndex]) {
       event.preventDefault();
-      go(results[activeIndex].to);
+      go(results[activeIndex]);
     }
   };
 
@@ -99,7 +106,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                       active ? "bg-accent text-accent-foreground" : "hover:bg-muted",
                     )}
                     onMouseEnter={() => setActiveIndex(index)}
-                    onClick={() => go(item.to)}
+                    onClick={() => go(item)}
                   >
                     <Icon className="h-4 w-4 shrink-0" aria-hidden />
                     <span>{item.label}</span>

@@ -7,16 +7,10 @@ import {
 } from './fluxo-caixa-lista';
 
 describe('fluxo-caixa-lista', () => {
-  it('gera fórmulas de saldo no padrão do modelo Nubank', () => {
-    expect(buildSaldoBancoFormula('nubank', 8, 5)).toBe('H5-G8');
-    expect(buildSaldoBancoFormula('nubank', 9, 8)).toBe('H8+G9');
-    expect(buildSaldoBancoFormula('nubank', 10, 9)).toBe('H9-G10');
-  });
-
-  it('gera fórmulas de saldo no padrão do modelo Asaas', () => {
-    expect(buildSaldoBancoFormula('asaas', 8, 5)).toBe('H5+G8');
-    expect(buildSaldoBancoFormula('asaas', 9, 8)).toBe('H8-G9');
-    expect(buildSaldoBancoFormula('asaas', 10, 9)).toBe('H9+G10');
+  it('gera fórmulas de saldo com base no tipo Entrada/Saída', () => {
+    expect(buildSaldoBancoFormula(8, 5)).toBe('H5+IF(B8="Entrada";G8;-G8)');
+    expect(buildSaldoBancoFormula(9, 8)).toBe('H8+IF(B9="Entrada";G9;-G9)');
+    expect(buildSaldoBancoFormula(10, 9)).toBe('H9+IF(B10="Entrada";G10;-G10)');
   });
 
   it('mapeia categorias para a lista consolidada', () => {
@@ -30,8 +24,8 @@ describe('fluxo-caixa-lista', () => {
     expect(resolveFluxoCaixaCategoriaCartao('Entrada', 'Estorno de compra')).toBe('Estorno');
   });
 
-  it('define última linha de fórmula respeitando o template', () => {
-    expect(resolveUltimaLinhaFormulaSaldo('nubank', 3)).toBe(17);
-    expect(resolveUltimaLinhaFormulaSaldo('nubank', 40)).toBe(47);
+  it('define última linha de fórmula apenas até os lançamentos reais', () => {
+    expect(resolveUltimaLinhaFormulaSaldo('compact', 3)).toBe(10);
+    expect(resolveUltimaLinhaFormulaSaldo('compact', 40)).toBe(47);
   });
 });

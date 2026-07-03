@@ -9,7 +9,8 @@ export type ExtracaoNotasFilters = PeriodFilterValue & {
 };
 
 export type FluxoCaixaFilters = PeriodFilterValue & {
-  banco: "consolidado" | "nubank" | "asaas";
+  banco: "consolidado" | "custom";
+  profileId?: string;
   mesCompetenciaNf: string;
   empresaNome: string;
   empresaCnpj: string;
@@ -54,7 +55,10 @@ export const analisesApi = {
       banco: filters.banco,
       ...paymentDateApiParams(filters),
     };
-    if (filters.banco !== "consolidado") {
+    if (filters.banco === "custom" && filters.profileId) {
+      params.profile_id = filters.profileId;
+    }
+    if (filters.banco !== "consolidado" && filters.banco !== "custom") {
       if (filters.empresaNome.trim()) params.empresa_nome = filters.empresaNome.trim();
       if (filters.empresaCnpj.trim()) params.empresa_cnpj = filters.empresaCnpj.trim();
       if (filters.contaCorrente.trim()) params.conta_corrente = filters.contaCorrente.trim();

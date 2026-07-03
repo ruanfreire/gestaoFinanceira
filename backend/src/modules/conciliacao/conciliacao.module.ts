@@ -1,16 +1,20 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AsaasLancamentoSchema } from '../extrato-asaas/schemas/asaas-lancamento.schema';
-import { NubankLancamentoSchema } from '../extrato-nubank/schemas/nubank-lancamento.schema';
+import {
+  BankImportacaoSchema,
+  BankLancamentoSchema,
+} from '../import-intelligence/schemas/import-intelligence.schema';
+import { NotasModule } from '../notas/notas.module';
 import { ConciliacaoController } from './conciliacao.controller';
 import { ConciliacaoService } from './conciliacao.service';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: 'AsaasLancamento', schema: AsaasLancamentoSchema },
-      { name: 'NubankLancamento', schema: NubankLancamentoSchema },
+      { name: 'BankLancamento', schema: BankLancamentoSchema },
+      { name: 'BankImportacao', schema: BankImportacaoSchema },
     ]),
+    NotasModule,
   ],
   providers: [ConciliacaoService],
   controllers: [ConciliacaoController],

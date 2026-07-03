@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
-import { ExtratoNubankModule } from '../extrato-nubank/extrato-nubank.module';
-import { ExtratoAsaasModule } from '../extrato-asaas/extrato-asaas.module';
+import { ImportIntelligenceModule } from '../import-intelligence/import-intelligence.module';
 import { FluxoCaixaExportController } from './fluxo-caixa-export.controller';
 import { FluxoCaixaExportService } from './fluxo-caixa-export.service';
 
 @Module({
-  imports: [ExtratoNubankModule, ExtratoAsaasModule],
+  imports: [ImportIntelligenceModule],
   providers: [FluxoCaixaExportService],
   controllers: [FluxoCaixaExportController],
 })

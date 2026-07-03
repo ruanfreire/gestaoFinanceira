@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { recebimentosApi } from "./api";
+import type { BancoSource } from "./types";
 import { queryKeys } from "@/lib/constants";
 
 export function useRecebimentosQuery(variant: "pendente" | "sem_match") {
@@ -27,7 +28,7 @@ export function useVincularMutation() {
       lancamentoId,
       notaId,
     }: {
-      source: "asaas" | "nubank";
+      source: BancoSource;
       lancamentoId: string;
       notaId: string;
     }) => recebimentosApi.vincular(source, lancamentoId, notaId),
