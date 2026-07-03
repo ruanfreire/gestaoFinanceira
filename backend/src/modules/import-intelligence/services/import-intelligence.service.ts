@@ -1075,16 +1075,27 @@ export class ImportIntelligenceService implements OnModuleInit {
         .lean(),
     );
 
-    const withData: typeof profiles = [];
+    const withCounts: Array<(typeof profiles)[number] & { lancamentoCount: number }> = [];
     for (const profile of profiles) {
-      const count = await this.lancamentoModel.countDocuments({ profile_id: profile._id });
-      if (count > 0) withData.push(profile);
+      const lancamentoCount = await this.lancamentoModel.countDocuments({ profile_id: profile._id });
+      if (lancamentoCount > 0) withCounts.push({ ...profile, lancamentoCount });
     }
-    return withData;
+
+    const bestByKey = new Map<string, (typeof withCounts)[number]>();
+    for (const profile of withCounts) {
+      const key = (profile.system_key || profile.banco_label).trim().toLowerCase();
+      const current = bestByKey.get(key);
+      if (!current || profile.lancamentoCount > current.lancamentoCount) {
+        bestByKey.set(key, profile);
+      }
+    }
+
+    return [...bestByKey.values()].map(({ lancamentoCount: _omit, ...profile }) => profile);
   }
 
-  private resolveFluxoLayout(_profile: ImportProfileLean): FluxoCaixaLayout {
-    return 'compact';
+  private resolveFluxoLayout(profile: ImportProfileLean): FluxoCaixaLayout {
+    const preset = profile.system_key ? getImportPreset(profile.system_key) : null;
+    return preset?.fluxo_layout ?? 'compact';
   }
 
   private async findImportIdsForStatementMonth(

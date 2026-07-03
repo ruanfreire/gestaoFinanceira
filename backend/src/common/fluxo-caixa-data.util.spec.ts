@@ -85,6 +85,28 @@ describe('filterLancamentosForFluxoCaixaExport', () => {
     expect(extractFaturaIdFromDescricao('Taxa do Pix - fatura nr. 834825982')).toBe('834825982');
   });
 
+  it('exclui baixa de antecipação na exportação', () => {
+    const lancamentos = [
+      {
+        data: '2026-06-22',
+        descricao: 'Baixa da antecipação - fatura nr. 706998687 Beatriz Vivanco',
+        valor: 689.1,
+        tipo_movimento: 'saida' as const,
+      },
+      {
+        data: '2026-06-22',
+        descricao: 'Cobrança recebida - fatura nr. 706998687 Beatriz Vivanco',
+        valor: 689.1,
+        nota_id: 'n1',
+        tipo_movimento: 'entrada' as const,
+      },
+    ];
+    const notaById = new Map([['n1', { _id: 'n1', mes_competencia: '2026-06', numero: '383' }]]);
+    const filtered = filterLancamentosForFluxoCaixaExport(lancamentos, '2026-06', notaById);
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].descricao).toContain('Cobrança recebida');
+  });
+
   it('retorna todos os lançamentos no modo período (sem competência)', () => {
     const result = filterLancamentosForFluxoCaixaExport(lancamentos, undefined, notaById);
     expect(result).toHaveLength(lancamentos.length);

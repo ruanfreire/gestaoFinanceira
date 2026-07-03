@@ -32,13 +32,13 @@ export function fluxoCaixaTipoFromMovimento(tipo: TipoMovimento): 'Entrada' | 'S
 }
 
 const OUTGOING_DESC_PATTERN =
-  /\btransfer[eê]ncia\s+enviad[oa]\b|\bpix\s+enviad[oa]\b|\bpagamento\s+de\s+(?:fatura|boleto|conta)\b|\bpagamento\s+efetuado\b|dinheiro\s+guardado|resgate\s+planejad/i;
+  /\btransfer[eê]ncia\s+enviad[oa]\b|\bpix\s+enviad[oa]\b|\btransa[cç][aã]o\s+via\s+pix\s+com\s+dados\s+manuais\b|\bpix\s+com\s+qr\s+code\b|\bminist[eé]rio\s+da\s+fazenda\b|\bpagamento\s+de\s+(?:fatura|boleto|conta)\b|\bpagamento\s+efetuado\b|dinheiro\s+guardado|resgate\s+planejad/i;
 const INCOMING_DESC_PATTERN =
   /\brecebid[oa]\b|\bdep[oó]sito\b|\bcr[eé]dito\b|\bcobran[cç]a\s+recebid[oa]\b/i;
 const FEE_DESC_PATTERN = /^taxa\s+(?:de|do)\b|^tarifa\b|mensageria|taxa\s+asaas/i;
 
 const OUTGOING_TX_PATTERN =
-  /\btransfer[eê]ncia\s+enviad|\btransfer[eê]ncia\s+para\s+conta|\bpix\s+enviad|\btaxa\b|\btarifa\b|mensageria|\bd[eé]bito\b|\bsaque\b|\bpagamento\s+de\s+conta/i;
+  /\btransfer[eê]ncia\s+enviad|\btransfer[eê]ncia\s+para\s+conta|\bpix\s+enviad|\btransa[cç][aã]o\s+via\s+pix|\bpix\s+com\s+qr|\btaxa\b|\btarifa\b|mensageria|\bd[eé]bito\b|\bsaque\b|\bpagamento\s+de\s+conta/i;
 const INCOMING_TX_PATTERN =
   /\bcobran[cç]a\s+recebid|\btransfer[eê]ncia\s+recebid|\bpix\s+recebid|\bestorno\b|\bcr[eé]dito\b|\brecebimento\b/i;
 
@@ -64,6 +64,12 @@ export function isAsaasCobrancaRecebida(tipoTransacao?: string, tipoLancamento?:
 
 export function isCobrancaRecebidaDescricao(descricao?: string): boolean {
   return /\bcobran[cç]a\s+recebid[oa]\b/i.test(descricao?.trim() ?? '');
+}
+
+/** Lançamentos contábeis que não entram no fluxo (duplicam cobrança ou são ajuste interno). */
+export function shouldExcludeFromFluxoCaixaExport(descricao?: string, tipo_transacao?: string): boolean {
+  const text = `${descricao ?? ''} ${tipo_transacao ?? ''}`.trim();
+  return /\bbaixa\s+da\s+antecipa[cç][aã]o\b/i.test(text);
 }
 
 export function isCobrancaRecebidaLancamento(input: {

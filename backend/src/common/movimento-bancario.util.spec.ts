@@ -3,6 +3,7 @@ import {
   isAsaasCobrancaRecebida,
   resolveLancamentoTipoMovimento,
   resolveTipoMovimento,
+  shouldExcludeFromFluxoCaixaExport,
   tipoMovimentoFromAsaas,
   tipoMovimentoFromNubank,
 } from './movimento-bancario.util';
@@ -76,5 +77,31 @@ describe('movimento-bancario.util', () => {
         tipo_movimento: 'entrada',
       }),
     ).toBe('saida');
+  });
+
+  it('classifica pix manual e imposto como saída', () => {
+    expect(
+      resolveLancamentoTipoMovimento({
+        valor: 1200,
+        descricao: 'Transação via Pix com dados manuais para Ana Luisa Ricci Bardi Calado Neca',
+        tipo_movimento: 'entrada',
+      }),
+    ).toBe('saida');
+    expect(
+      resolveLancamentoTipoMovimento({
+        valor: 2220.47,
+        descricao: 'Transação via Pix com QR Code para MINISTERIO DA FAZENDA',
+        tipo_movimento: 'entrada',
+      }),
+    ).toBe('saida');
+  });
+
+  it('exclui baixa de antecipação do fluxo', () => {
+    expect(
+      shouldExcludeFromFluxoCaixaExport(
+        'Baixa da antecipação - fatura nr. 706998687 Beatriz Vivanco',
+      ),
+    ).toBe(true);
+    expect(shouldExcludeFromFluxoCaixaExport('Cobrança recebida - fatura nr. 123')).toBe(false);
   });
 });

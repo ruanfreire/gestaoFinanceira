@@ -481,4 +481,42 @@ describe('fluxo-caixa.export', () => {
       totalFill && "fgColor" in totalFill ? totalFill.fgColor?.argb : undefined;
     expect(fgColor).toBe("FF000000");
   });
+
+  it('exportação ASAAS única não deixa aba template vazia duplicada', async () => {
+    const rows = [
+      {
+        data: new Date('2026-06-01'),
+        tipo: 'Entrada' as const,
+        categoria: 'Recebimento',
+        numeroDocumento: '384',
+        clienteFornecedor: 'Cliente',
+        historico: 'Cobrança recebida - fatura nr. 744505217',
+        valor: 389.1,
+      },
+    ];
+
+    const buffer = await buildFluxoCaixaWorkbook(
+      'wide',
+      {
+        empresaNome: 'EMPRESA',
+        empresaCnpj: '00.000.000/0001-00',
+        banco: 'ASAAS',
+        contaCorrente: '',
+        saldoInicial: 0,
+      },
+      rows,
+      undefined,
+      undefined,
+      'Fluxo de caixa_ASAAS',
+    );
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const asaasSheets = workbook.worksheets.filter((sheet) =>
+      sheet.name.toLowerCase().startsWith('fluxo de caixa_asaas'),
+    );
+    expect(asaasSheets).toHaveLength(1);
+    expect(asaasSheets[0]?.getCell(8, 2).value).toBe('Entrada');
+    expect(asaasSheets[0]?.getCell(8, 7).value).toBe(389.1);
+  });
 });

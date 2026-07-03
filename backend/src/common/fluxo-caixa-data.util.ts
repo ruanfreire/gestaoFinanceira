@@ -5,9 +5,14 @@ import {
   isCobrancaRecebidaLancamento,
   mesCompetenciaFromLancamentoData,
   resolveLancamentoTipoMovimento,
+  shouldExcludeFromFluxoCaixaExport,
   type TipoMovimento,
 } from './movimento-bancario.util';
 import { FLUXO_CAIXA_CATEGORIAS, resolveFluxoCaixaCategoria, resolveFluxoCaixaCategoriaCartao } from './fluxo-caixa-lista';
+
+function isExcludedFromFluxoExport(lancamento: { descricao?: string; tipo_transacao?: string }): boolean {
+  return shouldExcludeFromFluxoCaixaExport(lancamento.descricao, lancamento.tipo_transacao);
+}
 
 type LancamentoFluxo = {
   data?: Date | string;
@@ -108,7 +113,9 @@ export function filterLancamentosForFluxoCaixaExport<
     tipo_transacao?: string;
   },
 >(lancamentos: T[], mesCompetencia: string | undefined, notaById: Map<string, NotaResumo>): T[] {
-  if (!mesCompetencia) return lancamentos;
+  if (!mesCompetencia) {
+    return lancamentos.filter((lancamento) => !isExcludedFromFluxoExport(lancamento));
+  }
 
   const notaIdsDaCompetencia = new Set(
     [...notaById.entries()]
@@ -140,7 +147,9 @@ export function filterLancamentosForFluxoCaixaExport<
     return mesCompetenciaFromLancamentoData(lancamento.data) === mesCompetencia;
   });
 
-  return [...principais, ...taxasRelacionadas, ...cobrancasSemVinculo];
+  return [...principais, ...taxasRelacionadas, ...cobrancasSemVinculo].filter(
+    (lancamento) => !isExcludedFromFluxoExport(lancamento),
+  );
 }
 
 type LancamentoComOrigem = {
@@ -298,6 +307,7 @@ export function mapLancamentosToFluxoCaixaRows(
 
   for (const lancamento of lancamentos) {
     if (!lancamento.data) continue;
+    if (isExcludedFromFluxoExport(lancamento)) continue;
     const nota = lancamento.nota_id ? notaById.get(String(lancamento.nota_id)) : undefined;
     const tipoMovimento =
       getTipoMovimento?.(lancamento) ||

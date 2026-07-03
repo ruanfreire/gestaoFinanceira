@@ -180,12 +180,11 @@ function registerNamedRanges(workbook: ExcelJS.Workbook) {
 
 function removeOtherFluxoSheets(
   workbook: ExcelJS.Workbook,
-  activeSheet: string,
+  _activeSheet: string,
   keepCartaoCredito = false,
   keepReembolso = false,
 ) {
   for (const name of Object.values(FLUXO_CAIXA_TEMPLATE_SHEETS)) {
-    if (name === activeSheet) continue;
     const sheet = workbook.getWorksheet(name);
     if (sheet) workbook.removeWorksheet(sheet.id);
   }
