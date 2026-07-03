@@ -15,6 +15,7 @@ import { OrgModule } from './modules/org/org.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { ImportIntelligenceModule } from './modules/import-intelligence/import-intelligence.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
+import { ResourceJobsModule } from './common/jobs/resource-jobs.module';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtGuard } from './modules/auth/jwt.guard';
 import { TenantGuard } from './common/tenant/tenant.guard';
@@ -46,6 +47,7 @@ import { TenantInterceptor } from './common/tenant/tenant.interceptor';
     BillingModule,
     ImportIntelligenceModule,
     IntegrationsModule,
+    ResourceJobsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtGuard },

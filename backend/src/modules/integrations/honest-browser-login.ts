@@ -46,6 +46,31 @@ function buildAuthUrl(oidc: HonestOidcConfig, redirectUri: string, clientEntryPa
   return `${authBase}/realms/${oidc.realm}/protocol/openid-connect/auth?${authParams}`;
 }
 
+async function launchChromium(playwright: NonNullable<Awaited<ReturnType<typeof loadPlaywright>>>) {
+  const serverArgs = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
+  const useBundled =
+    process.platform === 'linux' && (process.env.HONEST_BROWSER_BUNDLED ?? 'true').trim().toLowerCase() !== 'false';
+
+  if (useBundled) {
+    try {
+      const bundled = await import('@sparticuz/chromium');
+      const chromium = bundled.default ?? bundled;
+      return playwright.chromium.launch({
+        headless: true,
+        args: [...(chromium.args ?? []), ...serverArgs],
+        executablePath: await chromium.executablePath(),
+      });
+    } catch {
+      // fallback: playwright cache local
+    }
+  }
+
+  return playwright.chromium.launch({
+    headless: true,
+    args: serverArgs,
+  });
+}
+
 export async function honestPlaywrightLogin(
   oidc: HonestOidcConfig,
   username: string,
@@ -69,7 +94,7 @@ export async function honestPlaywrightLogin(
   let browser: Awaited<ReturnType<typeof playwright.chromium.launch>> | undefined;
 
   try {
-    browser = await playwright.chromium.launch({ headless: true });
+    browser = await launchChromium(playwright);
     const context = await browser.newContext();
     const page = await context.newPage();
     const deadline = Date.now() + timeoutMs;
@@ -129,5 +154,6 @@ export async function honestPlaywrightLogin(
 export function isBrowserLoginEnabled(options?: BrowserLoginOptions): boolean {
   if (options?.browserLogin === false) return false;
   if (options?.browserLogin === true) return true;
-  return process.env.HONEST_BROWSER_LOGIN !== 'false';
+  const mode = (process.env.HONEST_BROWSER_LOGIN ?? 'false').trim().toLowerCase();
+  return mode === 'true' || mode === '1' || mode === 'docker';
 }

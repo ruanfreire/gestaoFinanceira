@@ -171,6 +171,14 @@ function jarToHeader(jar: CookieJar): string {
     .join('; ');
 }
 
+function mergeCookieJars(...jars: CookieJar[]): CookieJar {
+  const merged: CookieJar = new Map();
+  for (const jar of jars) {
+    for (const [key, value] of jar) merged.set(key, value);
+  }
+  return merged;
+}
+
 function parseKeycloakFormAction(html: string): string | undefined {
   const match =
     html.match(/<form[^>]*id="kc-form-login"[^>]*action="([^"]+)"/i) ??
@@ -415,18 +423,17 @@ export async function honestOAuthLogin(
             ? location
             : `${appBaseUrl.replace(/\/$/, '')}${location.startsWith('/') ? '' : '/'}${location}`;
 
-          const honestResult = await completeHonestOAuthCallback(callbackUrl, honestJar, appBaseUrl, controller.signal);
+          const sessionJar = mergeCookieJars(keycloakJar, honestJar);
+          const honestResult = await completeHonestOAuthCallback(
+            callbackUrl,
+            sessionJar,
+            appBaseUrl,
+            controller.signal,
+          );
           if (honestResult.ok && honestResult.session) return honestResult;
 
-          if (oidc.clientSecret) {
-            const exchanged = await exchangeAuthorizationCode(oidc, code, redirectUri, controller.signal);
-            if (!exchanged.ok || !exchanged.json) {
-              return {
-                ok: false,
-                error: `Keycloak auth code: ${exchanged.error ?? 'falha ao trocar code por token'}`,
-                attempts: [`Keycloak auth code: ${exchanged.error ?? 'troca de token falhou'}`],
-              };
-            }
+          const exchanged = await exchangeAuthorizationCode(oidc, code, redirectUri, controller.signal);
+          if (exchanged.ok && exchanged.json) {
             const tokenPath = `/realms/${oidc.realm}/protocol/openid-connect/token`;
             const session = buildSessionFromTokenPayload(
               exchanged.json,
@@ -444,12 +451,19 @@ export async function honestOAuthLogin(
             return { ok: true, loginPath: tokenPath, session };
           }
 
+          const exchangeHint = oidc.clientSecret
+            ? exchanged.error
+              ? ` Troca do code: ${exchanged.error}.`
+              : ''
+            : ' Configure HONEST_KEYCLOAK_CLIENT_SECRET no .env (client back-front é confidencial).';
+
           return {
             ok: false,
-            error:
-              `${honestResult.error ?? 'Honest /oauth2/callback falhou'}. ` +
-              'Configure HONEST_KEYCLOAK_CLIENT_SECRET no .env se a Honest fornecer o secret do client back-front.',
-            attempts: honestResult.attempts ?? ['Honest callback: falhou'],
+            error: `${honestResult.error ?? 'Honest /oauth2/callback falhou'}.${exchangeHint}`,
+            attempts: [
+              ...(honestResult.attempts ?? ['Honest callback: falhou']),
+              ...(exchanged.error ? [`Keycloak code exchange: ${exchanged.error}`] : []),
+            ],
           };
         }
       }
@@ -680,10 +694,12 @@ export async function honestLogin(
     }
 
     const summary = attemptLog.length ? ` Tentativas: ${attemptLog.join('; ')}.` : '';
+    const browserOff = !isBrowserLoginEnabled(options);
     const secretHint = options.oidc.clientSecret
       ? ''
-      : ' Para login automático sem navegador, solicite HONEST_KEYCLOAK_CLIENT_SECRET à Honest. ' +
-        'Enquanto isso, HONEST_BROWSER_LOGIN=true usa Playwright (padrão).';
+      : browserOff
+        ? ' Login Honest em servidor exige HONEST_KEYCLOAK_CLIENT_SECRET (sem Chromium). Solicite o secret do client back-front à Honest.'
+        : ' Para login sem navegador, configure HONEST_KEYCLOAK_CLIENT_SECRET. Com HONEST_BROWSER_LOGIN=true é necessário Playwright + Chromium no servidor.';
     return {
       ok: false,
       error: `${lastError}.${summary}${secretHint}`,

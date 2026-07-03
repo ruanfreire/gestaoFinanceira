@@ -1098,7 +1098,26 @@ export class ImportIntelligenceService implements OnModuleInit {
     }
 
     const lancamentos = asLeanMany<BankLancamentoFluxoLean>(
-      await this.lancamentoModel.find(filter).sort({ data: 1 }).lean(),
+      await this.lancamentoModel
+        .find(filter)
+        .select(
+          [
+            'data',
+            'nota_id',
+            'pagador_nome',
+            'descricao',
+            'valor',
+            'categoria',
+            'tipo_movimento',
+            'tipo_transacao',
+            'tipo_lancamento',
+            'importacao_id',
+            'origem',
+            'saldo',
+          ].join(' '),
+        )
+        .sort({ data: 1 })
+        .lean(),
     );
     const importIds = [
       ...new Set(

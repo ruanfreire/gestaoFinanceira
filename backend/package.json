@@ -12,13 +12,16 @@
     "seed:ruan": "ts-node -r tsconfig-paths/register src/common/seed-ruan-data.ts",
     "seed:ruan:prod": "node dist/common/seed-ruan-data.js",
     "migrate:tenant": "ts-node -r tsconfig-paths/register src/common/migrate-default-tenant.ts",
-    "reset-db": "ts-node -r tsconfig-paths/register src/common/reset-database.ts",
+    "reset-db": "node scripts/reset-business-data.mjs",
+    "reset-db:prod": "node scripts/reset-business-data.mjs",
     "purge-notas-nao-pagas": "ts-node -r tsconfig-paths/register src/common/purge-notas-nao-pagas.ts",
     "push:replay": "ts-node -r tsconfig-paths/register src/common/replay-push-notifications.ts",
     "push:replay:prod": "node dist/common/replay-push-notifications.js",
     "db:diagnose": "node scripts/diagnose-db.mjs",
     "db:diagnose:prod": "node scripts/diagnose-db.mjs",
     "db:repair-notas": "node scripts/repair-notas-tenant.mjs",
+    "db:export-tenant": "node scripts/sync-tenant-data.mjs export",
+    "db:import-tenant": "node scripts/sync-tenant-data.mjs import",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:honest": "ts-node scripts/test-honest-login.ts"
@@ -60,6 +63,7 @@
     "vitest": "^3.2.6"
   },
   "optionalDependencies": {
+    "@sparticuz/chromium": "^133.0.0",
     "playwright": "^1.61.1"
   }
 }

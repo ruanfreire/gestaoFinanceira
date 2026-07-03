@@ -71,9 +71,16 @@ export function validateFluxoCaixaExportParams(params: FluxoCaixaExportParams): 
     if (from > to) {
       return 'A data inicial não pode ser posterior à data final.';
     }
+    const fromDate = new Date(`${from}T00:00:00.000Z`);
+    const toDate = new Date(`${to}T00:00:00.000Z`);
+    const days = (toDate.getTime() - fromDate.getTime()) / (24 * 60 * 60 * 1000) + 1;
+    if (!Number.isFinite(days) || days > 93) {
+      return 'O intervalo do relatório deve ter no máximo 93 dias. Use o filtro por mês para melhor desempenho.';
+    }
+    return null;
   }
 
-  return null;
+  return 'Informe o mês de pagamento ou um intervalo de datas para gerar o relatório.';
 }
 
 function exportPeriodLabel(params: FluxoCaixaExportParams): string {

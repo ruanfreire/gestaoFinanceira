@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Building2, Check, ChevronRight, Download, Landmark } from "lucide-react";
-import { analisesApi, defaultFluxoFilters } from "../api";
+import { analisesApi, defaultFluxoFilters, fluxoJobStatusLabel, type FluxoCaixaJob } from "../api";
 import { importIntelligenceApi } from "@/features/import-intelligence/api";
 import { loadFluxoDefaults, useFluxoDefaults } from "../hooks/use-fluxo-defaults";
 import { WizardTemplate } from "@/design-system/templates";
@@ -49,6 +49,7 @@ export default function AnalisesFluxoPage() {
     ...stored,
   }));
   const [exporting, setExporting] = useState(false);
+  const [exportJob, setExportJob] = useState<FluxoCaixaJob | null>(null);
   const { toast } = useToast();
   const { save: saveFluxoDefaults } = useFluxoDefaults();
 
@@ -76,13 +77,15 @@ export default function AnalisesFluxoPage() {
 
   const onExport = async () => {
     setExporting(true);
+    setExportJob(null);
     try {
-      await analisesApi.exportFluxoCaixa(filters);
+      await analisesApi.exportFluxoCaixa(filters, setExportJob);
       toast("Arquivo salvo na pasta de downloads.", "success");
     } catch (err) {
       toast(err instanceof Error ? err.message : "Falha ao exportar", "error");
     } finally {
       setExporting(false);
+      setExportJob(null);
     }
   };
 
@@ -242,6 +245,15 @@ export default function AnalisesFluxoPage() {
             O arquivo inclui movimentos conciliados do período selecionado.
           </Typography>
 
+          {exporting && (
+            <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
+              <Typography variant="subtitle">Preparando relatório</Typography>
+              <Typography variant="caption" tone="muted" className="mt-1 block">
+                {fluxoJobStatusLabel(exportJob)}
+              </Typography>
+            </div>
+          )}
+
           {filters.banco !== "consolidado" && (
             <details className="rounded-xl border border-border px-4 py-3">
               <summary className="cursor-pointer text-small font-medium text-foreground">
@@ -304,9 +316,9 @@ export default function AnalisesFluxoPage() {
             <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setStep(1)}>
               Voltar
             </Button>
-            <Button size="sm" className="w-full sm:w-auto" onClick={onExport} loading={exporting}>
+            <Button size="sm" className="w-full sm:w-auto" onClick={onExport} loading={exporting} disabled={exporting}>
               <Download className="h-4 w-4 shrink-0" aria-hidden />
-              Baixar Excel
+              {exporting ? "Preparando..." : "Baixar Excel"}
             </Button>
           </WizardTemplate.Footer>
         </div>

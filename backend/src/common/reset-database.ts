@@ -1,7 +1,7 @@
 import { connect, connection } from 'mongoose';
 
-/** Coleções preservadas ao zerar o banco (somente login). */
-const KEEP_COLLECTIONS = new Set(['users']);
+/** Coleções preservadas ao zerar o banco (cadastro básico para login). */
+const KEEP_COLLECTIONS = new Set(['users', 'organizations', 'organizationinvites']);
 
 async function resetDatabase() {
   if (process.env.RESET_DB_CONFIRM !== '1') {
@@ -36,12 +36,20 @@ async function resetDatabase() {
 
   const users = db.collection('users');
   const userCount = await users.countDocuments();
-  const clearedSessions = await users.updateMany({}, { $set: { refreshTokens: [] } });
+  const clearedSessions = await users.updateMany(
+    {},
+    {
+      $set: { refreshTokens: [] },
+      $unset: { lastLogin: '', lastLoginIp: '' },
+    },
+  );
+  const orgCount = await db.collection('organizations').countDocuments();
+  const inviteCount = await db.collection('organizationinvites').countDocuments();
   console.log(
-    `Usuários mantidos: ${userCount} · sessões refresh limpas: ${clearedSessions.modifiedCount}`,
+    `Usuários mantidos: ${userCount} · organizações: ${orgCount} · convites: ${inviteCount} · sessões refresh limpas: ${clearedSessions.modifiedCount}`,
   );
 
-  console.log('\nBanco zerado. Mantidos apenas os logins em "users".');
+  console.log('\nBanco zerado. Mantidos users, organizations e organizationinvites.');
   await connection.close();
 }
 

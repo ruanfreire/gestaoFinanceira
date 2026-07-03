@@ -36,6 +36,7 @@ export class PushService {
       },
       { upsert: true, new: true },
     );
+    this.logger.log(`Push inscrito: user=${userId} endpoint=${subscription.endpoint.slice(0, 48)}...`);
     return { ok: true };
   }
 

@@ -18,6 +18,21 @@ export type FluxoCaixaFilters = PeriodFilterValue & {
   saldoInicial: string;
 };
 
+export type FluxoCaixaJobStatus = "queued" | "running" | "succeeded" | "failed" | "expired";
+
+export type FluxoCaixaJob = {
+  id: string;
+  kind: "fluxo_caixa";
+  status: FluxoCaixaJobStatus;
+  position?: number;
+  progressMessage?: string;
+  error?: string;
+  filename?: string;
+  createdAt: string;
+  startedAt?: string;
+  finishedAt?: string;
+};
+
 export type NotaExtracao = {
   _id: string;
   numero?: string;
@@ -38,6 +53,40 @@ export type ExtracaoNotasResponse = {
   totais: { valor_nf: number; valor_pago: number; saldo_aberto: number };
 };
 
+function fluxoCaixaParams(filters: FluxoCaixaFilters): Record<string, string> {
+  const params: Record<string, string> = {
+    banco: filters.banco,
+    ...paymentDateApiParams(filters),
+  };
+  if (filters.banco === "custom" && filters.profileId) {
+    params.profile_id = filters.profileId;
+  }
+  if (filters.banco !== "consolidado" && filters.banco !== "custom") {
+    if (filters.empresaNome.trim()) params.empresa_nome = filters.empresaNome.trim();
+    if (filters.empresaCnpj.trim()) params.empresa_cnpj = filters.empresaCnpj.trim();
+    if (filters.contaCorrente.trim()) params.conta_corrente = filters.contaCorrente.trim();
+    if (filters.saldoInicial.trim()) params.saldo_inicial = filters.saldoInicial.trim();
+  }
+  if (filters.mesCompetenciaNf.trim()) params.mes_competencia_nf = filters.mesCompetenciaNf.trim();
+  return params;
+}
+
+function fluxoFallbackFilename(filters: FluxoCaixaFilters): string {
+  const stamp = new Date().toISOString().slice(0, 10);
+  const period =
+    filters.filterMode === "mes" && filters.mesPagamento
+      ? filters.mesPagamento
+      : `${filters.from}-a-${filters.to}`;
+  return `fluxo-caixa-${filters.banco}-${period}-${stamp}.xlsx`;
+}
+
+const JOB_POLL_MS = 2000;
+const JOB_TIMEOUT_MS = 10 * 60 * 1000;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export const analisesApi = {
   async getExtracao(filters: ExtracaoNotasFilters) {
     const res = await api.get<ExtracaoNotasResponse>("/notas/extracao", {
@@ -50,31 +99,57 @@ export const analisesApi = {
     return res.data;
   },
 
-  async exportFluxoCaixa(filters: FluxoCaixaFilters) {
-    const params: Record<string, string> = {
-      banco: filters.banco,
-      ...paymentDateApiParams(filters),
-    };
-    if (filters.banco === "custom" && filters.profileId) {
-      params.profile_id = filters.profileId;
-    }
-    if (filters.banco !== "consolidado" && filters.banco !== "custom") {
-      if (filters.empresaNome.trim()) params.empresa_nome = filters.empresaNome.trim();
-      if (filters.empresaCnpj.trim()) params.empresa_cnpj = filters.empresaCnpj.trim();
-      if (filters.contaCorrente.trim()) params.conta_corrente = filters.contaCorrente.trim();
-      if (filters.saldoInicial.trim()) params.saldo_inicial = filters.saldoInicial.trim();
-    }
-    if (filters.mesCompetenciaNf.trim()) params.mes_competencia_nf = filters.mesCompetenciaNf.trim();
-    const stamp = new Date().toISOString().slice(0, 10);
-    const period =
-      filters.filterMode === "mes" && filters.mesPagamento
-        ? filters.mesPagamento
-        : `${filters.from}-a-${filters.to}`;
+  async createFluxoCaixaJob(filters: FluxoCaixaFilters) {
+    const res = await api.post<FluxoCaixaJob>("/relatorios/fluxo-caixa/jobs", null, {
+      params: fluxoCaixaParams(filters),
+    });
+    return res.data;
+  },
+
+  async getFluxoCaixaJob(jobId: string) {
+    const res = await api.get<FluxoCaixaJob>(`/relatorios/fluxo-caixa/jobs/${jobId}`);
+    return res.data;
+  },
+
+  async downloadFluxoCaixaJob(jobId: string, fallbackFilename: string) {
     await downloadApiFile(
-      "/relatorios/exportacao-fluxo-caixa",
-      params,
-      `fluxo-caixa-${filters.banco}-${period}-${stamp}.xlsx`,
+      `/relatorios/fluxo-caixa/jobs/${jobId}/download`,
+      {},
+      fallbackFilename,
     );
+  },
+
+  async exportFluxoCaixa(
+    filters: FluxoCaixaFilters,
+    onProgress?: (job: FluxoCaixaJob) => void,
+  ) {
+    const fallbackFilename = fluxoFallbackFilename(filters);
+    const created = await this.createFluxoCaixaJob(filters);
+    onProgress?.(created);
+
+    const startedAt = Date.now();
+    let current = created;
+
+    while (current.status === "queued" || current.status === "running") {
+      if (Date.now() - startedAt > JOB_TIMEOUT_MS) {
+        throw new Error("O relatório demorou demais. Tente novamente em instantes.");
+      }
+      await sleep(JOB_POLL_MS);
+      current = await this.getFluxoCaixaJob(created.id);
+      onProgress?.(current);
+    }
+
+    if (current.status === "failed") {
+      throw new Error(current.error || "Falha ao gerar o relatório.");
+    }
+    if (current.status === "expired") {
+      throw new Error("O arquivo expirou antes do download. Gere o relatório novamente.");
+    }
+    if (current.status !== "succeeded") {
+      throw new Error("Não foi possível concluir o relatório.");
+    }
+
+    await this.downloadFluxoCaixaJob(created.id, current.filename || fallbackFilename);
   },
 };
 
@@ -99,4 +174,23 @@ export function defaultFluxoFilters(): FluxoCaixaFilters {
     contaCorrente: "",
     saldoInicial: "",
   };
+}
+
+export function fluxoJobStatusLabel(job: FluxoCaixaJob | null): string {
+  if (!job) return "Preparando relatório...";
+  if (job.status === "queued") {
+    return job.position && job.position > 1
+      ? `Na fila (posição ${job.position})...`
+      : "Na fila, aguardando...";
+  }
+  if (job.status === "running") {
+    return job.progressMessage || "Gerando relatório...";
+  }
+  if (job.status === "succeeded") {
+    return "Baixando arquivo...";
+  }
+  if (job.status === "failed") {
+    return job.error || "Falha ao gerar relatório";
+  }
+  return "Processando...";
 }

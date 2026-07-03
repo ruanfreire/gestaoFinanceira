@@ -28,14 +28,6 @@ const DEFAULT_PREFS: PushCategories = {
   team: true,
 };
 
-const ALL_OFF: PushCategories = {
-  platform: false,
-  imports: false,
-  conciliation: false,
-  billing: false,
-  team: false,
-};
-
 const ASKED_KEY = "pushPermissionAsked";
 
 function shouldAutoPrompt() {
@@ -107,7 +99,10 @@ export function PushPermissionPrompt() {
   const activate = async () => {
     setLoading(true);
     try {
-      await platformApi.updatePushPreferences(prefs);
+      const prefsToSave =
+        Object.values(prefs).some(Boolean) ? prefs : DEFAULT_PREFS;
+      setPrefs(prefsToSave);
+      await platformApi.updatePushPreferences(prefsToSave);
       const result = await enablePushNotifications();
       if (result.ok) {
         toast("Notificações push ativadas neste dispositivo", "success");
@@ -119,6 +114,19 @@ export function PushPermissionPrompt() {
       setLoading(false);
     }
   };
+
+  // Re-sincroniza inscrição quando o usuário já concedeu permissão ao navegador.
+  useEffect(() => {
+    if (!user || permission !== "granted") return;
+    void (async () => {
+      const current = await platformApi.getPushPreferences().catch(() => DEFAULT_PREFS);
+      const merged = { ...DEFAULT_PREFS, ...current } as PushCategories;
+      if (!Object.values(merged).some(Boolean)) {
+        await platformApi.updatePushPreferences(DEFAULT_PREFS);
+      }
+      await enablePushNotifications();
+    })().catch(() => undefined);
+  }, [user, permission]);
 
   if (!isPushSupported()) return null;
 
@@ -146,15 +154,7 @@ export function PushPermissionPrompt() {
               type="button"
               variant="outline"
               disabled={loading}
-              onClick={async () => {
-                setLoading(true);
-                try {
-                  await platformApi.updatePushPreferences(ALL_OFF);
-                } finally {
-                  close(true);
-                  setLoading(false);
-                }
-              }}
+              onClick={() => close(true)}
             >
               Agora não
             </Button>

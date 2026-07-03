@@ -50,6 +50,7 @@ import {
   type HonestLoginOptions,
   type HonestSession,
 } from './honest-api.client';
+import { ResourceJobQueueService } from '../../common/jobs/resource-job-queue.service';
 
 export type HonestSyncTrigger = 'manual' | 'worker';
 
@@ -107,7 +108,16 @@ export class HonestIntegrationService {
     private readonly notasService: NotasService,
     private readonly planLimitsService: PlanLimitsService,
     private readonly config: ConfigService,
+    private readonly jobQueue: ResourceJobQueueService,
   ) {}
+
+  private runHonestHeavy<T>(
+    tenantId: string,
+    progressMessage: string,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    return this.jobQueue.runExclusive('honest', fn, { tenantId, progressMessage });
+  }
 
   async getConfig(tenantId: string): Promise<HonestIntegrationView> {
     const doc = await this.findOrCreateConfig(tenantId);
@@ -115,6 +125,12 @@ export class HonestIntegrationService {
   }
 
   async discoverHonestEmpresa(tenantId: string): Promise<HonestIntegrationView> {
+    return this.runHonestHeavy(tenantId, 'Vinculando empresa Honest', () =>
+      this.discoverHonestEmpresaImpl(tenantId),
+    );
+  }
+
+  private async discoverHonestEmpresaImpl(tenantId: string): Promise<HonestIntegrationView> {
     const doc = await this.findOrCreateConfig(tenantId);
     const org = await this.loadOrgProfile(tenantId);
     if (!org.cnpj?.trim()) {
@@ -154,6 +170,12 @@ export class HonestIntegrationService {
   }
 
   async selectHonestEmpresa(tenantId: string, empresaId: number): Promise<HonestIntegrationView> {
+    return this.runHonestHeavy(tenantId, 'Selecionando empresa Honest', () =>
+      this.selectHonestEmpresaImpl(tenantId, empresaId),
+    );
+  }
+
+  private async selectHonestEmpresaImpl(tenantId: string, empresaId: number): Promise<HonestIntegrationView> {
     const doc = await this.findOrCreateConfig(tenantId);
     const org = await this.loadOrgProfile(tenantId);
     const session = await this.ensureSession(tenantId, doc);
@@ -186,6 +208,10 @@ export class HonestIntegrationService {
   }
 
   async connect(tenantId: string, dto: HonestConnectDto): Promise<HonestIntegrationView> {
+    return this.runHonestHeavy(tenantId, 'Conectando na Honest', () => this.connectImpl(tenantId, dto));
+  }
+
+  private async connectImpl(tenantId: string, dto: HonestConnectDto): Promise<HonestIntegrationView> {
     const doc = await this.findOrCreateConfig(tenantId);
     const appBaseUrl = this.resolveAppBaseUrl(dto.api_base_url, doc.api_base_url);
     const timeoutMs = this.timeoutMs();
@@ -337,6 +363,14 @@ export class HonestIntegrationService {
   }
 
   async startDiscovery(tenantId: string): Promise<HonestIntegrationView & { discovery_token?: string; browse_path?: string }> {
+    return this.runHonestHeavy(tenantId, 'Iniciando exploração Honest', () =>
+      this.startDiscoveryImpl(tenantId),
+    );
+  }
+
+  private async startDiscoveryImpl(
+    tenantId: string,
+  ): Promise<HonestIntegrationView & { discovery_token?: string; browse_path?: string }> {
     const doc = await this.findOrCreateConfig(tenantId);
     if (!doc.api_login || !doc.api_password_enc) {
       throw new BadRequestException('Configure login e senha antes de explorar a Honest.');
@@ -410,6 +444,15 @@ export class HonestIntegrationService {
   }
 
   async scanEndpoints(tenantId: string, docInput?: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.runHonestHeavy(tenantId, 'Escaneando endpoints Honest', () =>
+      this.scanEndpointsImpl(tenantId, docInput),
+    );
+  }
+
+  private async scanEndpointsImpl(
+    tenantId: string,
+    docInput?: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
     const doc = docInput ?? (await this.findOrCreateConfig(tenantId));
     const session = await this.ensureSession(tenantId, doc);
     const timeoutMs = this.timeoutMs();
@@ -491,6 +534,12 @@ export class HonestIntegrationService {
   }
 
   async verifyGraphql(tenantId: string): Promise<HonestIntegrationView> {
+    return this.runHonestHeavy(tenantId, 'Verificando GraphQL Honest', () =>
+      this.verifyGraphqlImpl(tenantId),
+    );
+  }
+
+  private async verifyGraphqlImpl(tenantId: string): Promise<HonestIntegrationView> {
     const doc = await this.findOrCreateConfig(tenantId);
     const empresaId = this.readEmpresaId(doc);
     if (!empresaId) {
@@ -555,6 +604,16 @@ export class HonestIntegrationService {
   }
 
   async proxyBrowse(tenantId: string, path: string, discoveryToken?: string): Promise<{ contentType: string; body: string }> {
+    return this.runHonestHeavy(tenantId, 'Navegando na Honest', () =>
+      this.proxyBrowseImpl(tenantId, path, discoveryToken),
+    );
+  }
+
+  private async proxyBrowseImpl(
+    tenantId: string,
+    path: string,
+    discoveryToken?: string,
+  ): Promise<{ contentType: string; body: string }> {
     const doc = await this.findOrCreateConfig(tenantId);
     if (!doc.discovery_active) {
       throw new BadRequestException('Ative a exploração antes de navegar na Honest.');
@@ -637,6 +696,16 @@ export class HonestIntegrationService {
   }
 
   async sync(
+    tenantId: string,
+    userId: string | undefined,
+    trigger: HonestSyncTrigger,
+  ): Promise<HonestIntegrationView & { ok: boolean }> {
+    return this.runHonestHeavy(tenantId, 'Sincronizando notas Honest', () =>
+      this.syncImpl(tenantId, userId, trigger),
+    );
+  }
+
+  private async syncImpl(
     tenantId: string,
     userId: string | undefined,
     trigger: HonestSyncTrigger,
