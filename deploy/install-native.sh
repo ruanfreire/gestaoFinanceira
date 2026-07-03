@@ -39,6 +39,18 @@ ensure_swap() {
   grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 }
 
+disable_dnf_makecache() {
+  if ! command -v systemctl >/dev/null 2>&1; then
+    return 0
+  fi
+  if systemctl list-unit-files dnf-makecache.timer 2>/dev/null | grep -q dnf-makecache; then
+    echo "==> Desativando dnf-makecache (evita OOM em VM pequena)"
+    sudo systemctl disable --now dnf-makecache.timer 2>/dev/null || true
+    sudo systemctl disable --now dnf-makecache.service 2>/dev/null || true
+    sudo systemctl mask dnf-makecache.timer 2>/dev/null || true
+  fi
+}
+
 install_node_binary() {
   ARCH="linux-x64"
   TAR="node-v${NODE_VERSION}-${ARCH}.tar.xz"
@@ -221,6 +233,7 @@ sync_mongodb_config() {
 
 if [ "$FIRST_INSTALL" = true ]; then
   ensure_swap
+  disable_dnf_makecache
   install_node_binary
   install_nginx_rpm
   install_mongodb_binary
@@ -282,6 +295,7 @@ fi
 
 enter_maintenance_if_needed
 ensure_swap
+disable_dnf_makecache
 upgrade_node_if_needed
 sync_mongodb_config
 
