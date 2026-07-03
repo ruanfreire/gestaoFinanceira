@@ -1,10 +1,14 @@
-/** Mês de competência da fatura (YYYY-MM), derivado da data de emissão. */
+/** Mês de competência da fatura (YYYY-MM), derivado da data de emissão (UTC). */
 export function mesCompetenciaFromDate(date: Date | string | null | undefined): string | undefined {
   if (!date) return undefined;
+  if (typeof date === 'string') {
+    const isoDay = date.trim().match(/^(\d{4})-(\d{2})/);
+    if (isoDay) return `${isoDay[1]}-${isoDay[2]}`;
+  }
   const parsed = new Date(date);
   if (Number.isNaN(parsed.getTime())) return undefined;
-  const year = parsed.getFullYear();
-  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const year = parsed.getUTCFullYear();
+  const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
 }
 

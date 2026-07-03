@@ -30,6 +30,7 @@ import { resolveSaldoInicialAutomatico, persistImportSaldos } from '../../../com
 import { extractStatementBalances } from '../../../common/statement-balance.util';
 import { extractStatementFileMetadata } from '../../../common/statement-metadata.util';
 import { sumNetMovimentos } from '../../../common/fluxo-caixa-saldo.util';
+import { resolveLancamentoTipoMovimento } from '../../../common/movimento-bancario.util';
 import { normalizeName } from '../../../common/name-match.util';
 import { mapScoredCandidatas } from '../../../common/conciliacao-response.util';
 import { resolveCreditoMatch } from '../../conciliacao/credito-match.util';
@@ -56,7 +57,7 @@ import { GeminiUsageService } from './gemini-usage.service';
 import { ImportAiAnalysisService } from './import-ai-analysis.service';
 import { RagRetrievalService } from './rag-retrieval.service';
 import { parseCsvLine, parseDelimitedLine, sanitizeSampleValue } from '../utils/csv-parse.util';
-import { getImportPreset, listImportPresets, type ImportPreset } from '../import-presets';
+import { getImportPreset, listImportPresets, resolveImportProfileMapping, type ImportPreset } from '../import-presets';
 
 type ImportProfileLean = {
   _id: Types.ObjectId;
@@ -78,6 +79,8 @@ type BankLancamentoFluxoLean = {
   valor?: number;
   pagador_nome?: string;
   tipo_movimento?: 'entrada' | 'saida';
+  tipo_transacao?: string;
+  tipo_lancamento?: string;
   origem?: 'conta' | 'cartao';
   importacao_id?: unknown;
   json_original?: Record<string, unknown>;
@@ -177,7 +180,10 @@ export class ImportIntelligenceService implements OnModuleInit {
   async getProfile(id: string): Promise<ImportProfileLean> {
     const profile = asLeanOne<ImportProfileLean>(await this.profileModel.findById(id).lean());
     if (!profile) throw new NotFoundException('Perfil não encontrado');
-    return profile;
+    return {
+      ...profile,
+      mapping: resolveImportProfileMapping(profile),
+    };
   }
 
   async saveProfile(params: {
@@ -822,7 +828,7 @@ export class ImportIntelligenceService implements OnModuleInit {
     }
 
     const profile = await this.getProfile(params.profileId);
-    const mapping = params.mappingOverride || (profile.mapping as ImportProfileMapping);
+    const mapping = params.mappingOverride || resolveImportProfileMapping(profile);
     const validation = await this.previewFile(params.content, mapping, params.fileName, params.userId);
     if (!validation.valid && validation.rows_ok === 0) {
       throw new BadRequestException(
@@ -1099,6 +1105,39 @@ export class ImportIntelligenceService implements OnModuleInit {
     return imports.map((item) => item._id);
   }
 
+  private async findNotaIdsForMesCompetencia(mesCompetencia: string): Promise<Types.ObjectId[]> {
+    const parsed = mesCompetencia.match(/^(\d{4})-(\d{2})$/);
+    if (!parsed) return [];
+    const year = Number(parsed[1]);
+    const month = Number(parsed[2]);
+    const from = new Date(Date.UTC(year, month - 1, 1));
+    const to = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+
+    const notas = asLeanMany<{ _id: Types.ObjectId }>(
+      await this.notaModel
+        .find({
+          $or: [
+            { mes_competencia: mesCompetencia },
+            {
+              $and: [
+                {
+                  $or: [
+                    { mes_competencia: { $exists: false } },
+                    { mes_competencia: '' },
+                    { mes_competencia: null },
+                  ],
+                },
+                { data_emissao: { $gte: from, $lte: to } },
+              ],
+            },
+          ],
+        })
+        .select('_id')
+        .lean(),
+    );
+    return notas.map((nota) => nota._id);
+  }
+
   async prepareFluxoCaixaData(profileId: string, params: FluxoCaixaExportParams): Promise<FluxoCaixaPreparedData> {
     const profile = await this.getProfile(profileId);
     const { from, to } = resolveExportDateRange(params);
@@ -1106,6 +1145,10 @@ export class ImportIntelligenceService implements OnModuleInit {
     const mesCompetencia = resolveMesCompetenciaNf(params);
     const mesPagamento = params.mes_pagamento?.trim() || params.mes_competencia?.trim();
     const mappingOrigem = detectNubankOrigemFromMapping(profile.mapping);
+    const notaIdsCompetencia =
+      mesCompetencia && mappingOrigem !== 'cartao'
+        ? await this.findNotaIdsForMesCompetencia(mesCompetencia)
+        : [];
 
     const filter: Record<string, unknown> = { profile_id: profile._id };
     if (mappingOrigem === 'cartao' && mesPagamento && /^\d{4}-\d{2}$/.test(mesPagamento)) {
@@ -1113,10 +1156,18 @@ export class ImportIntelligenceService implements OnModuleInit {
       if (statementImportIds.length) {
         filter.importacao_id = { $in: statementImportIds };
       } else if (dataFilter) {
-        filter.data = dataFilter;
+        if (notaIdsCompetencia.length) {
+          filter.$or = [{ data: dataFilter }, { nota_id: { $in: notaIdsCompetencia } }];
+        } else {
+          filter.data = dataFilter;
+        }
       }
     } else if (dataFilter) {
-      filter.data = dataFilter;
+      if (notaIdsCompetencia.length) {
+        filter.$or = [{ data: dataFilter }, { nota_id: { $in: notaIdsCompetencia } }];
+      } else {
+        filter.data = dataFilter;
+      }
     }
 
     const lancamentos = asLeanMany<BankLancamentoFluxoLean>(
@@ -1132,7 +1183,6 @@ export class ImportIntelligenceService implements OnModuleInit {
             'categoria',
             'tipo_movimento',
             'tipo_transacao',
-            'tipo_lancamento',
             'importacao_id',
             'origem',
             'saldo',
@@ -1165,12 +1215,17 @@ export class ImportIntelligenceService implements OnModuleInit {
       importOrigemById,
     });
 
-    const notaIds = collectValidNotaIds(annotated);
+    const notaIds = [
+      ...new Set([
+        ...collectValidNotaIds(annotated),
+        ...notaIdsCompetencia.map((id) => String(id)),
+      ]),
+    ];
     const notas = notaIds.length
       ? asLeanMany(
           await this.notaModel
             .find({ _id: { $in: notaIds } })
-            .select('numero tomador codigo_servico mes_competencia empresa_nome empresa_cnpj')
+            .select('numero tomador codigo_servico mes_competencia data_emissao empresa_nome empresa_cnpj')
             .lean(),
         )
       : [];
@@ -1195,7 +1250,14 @@ export class ImportIntelligenceService implements OnModuleInit {
       notaById,
       (l) => l.descricao || '',
       undefined,
-      (l) => l.tipo_movimento || 'entrada',
+      (l) =>
+        resolveLancamentoTipoMovimento({
+          valor: l.valor,
+          descricao: l.descricao,
+          tipo_movimento: l.tipo_movimento,
+          tipo_transacao: l.tipo_transacao,
+          tipo_lancamento: l.tipo_lancamento,
+        }),
     );
 
     const { rows: cartaoRows } = cartaoLancamentos.length
@@ -1204,7 +1266,14 @@ export class ImportIntelligenceService implements OnModuleInit {
           notaById,
           (l) => l.descricao || '',
           undefined,
-          (l) => l.tipo_movimento || 'entrada',
+          (l) =>
+            resolveLancamentoTipoMovimento({
+              valor: l.valor,
+              descricao: l.descricao,
+              tipo_movimento: l.tipo_movimento,
+              tipo_transacao: l.tipo_transacao,
+              tipo_lancamento: l.tipo_lancamento,
+            }),
           (tipo, historico) => resolveFluxoCaixaCategoriaCartao(tipo, historico),
         )
       : { rows: [] };

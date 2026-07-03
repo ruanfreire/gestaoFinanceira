@@ -36,7 +36,7 @@ export class NotasController {
           : typeof query.mes_competencia === 'string'
             ? query.mes_competencia
             : undefined,
-      date_basis: query.date_basis === 'emissao' ? 'emissao' : 'pagamento',
+      date_basis: query.date_basis === 'emissao' ? 'emissao' : query.date_basis === 'competencia' ? 'competencia' : 'pagamento',
     });
   }
 

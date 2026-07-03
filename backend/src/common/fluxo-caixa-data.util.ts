@@ -2,7 +2,9 @@ import { Types } from 'mongoose';
 import type { FluxoCaixaRow } from './fluxo-caixa.export';
 import {
   fluxoCaixaTipoFromMovimento,
+  isCobrancaRecebidaLancamento,
   mesCompetenciaFromLancamentoData,
+  resolveLancamentoTipoMovimento,
   type TipoMovimento,
 } from './movimento-bancario.util';
 import { FLUXO_CAIXA_CATEGORIAS, resolveFluxoCaixaCategoria, resolveFluxoCaixaCategoriaCartao } from './fluxo-caixa-lista';
@@ -25,9 +27,18 @@ type NotaResumo = {
   tomador?: string;
   codigo_servico?: string;
   mes_competencia?: string;
+  data_emissao?: Date | string;
   empresa_nome?: string;
   empresa_cnpj?: string;
 };
+
+function notaMatchesMesCompetencia(nota: NotaResumo, mesCompetencia: string): boolean {
+  if (nota.mes_competencia === mesCompetencia) return true;
+  if (!nota.mes_competencia && nota.data_emissao) {
+    return mesCompetenciaFromLancamentoData(nota.data_emissao) === mesCompetencia;
+  }
+  return false;
+}
 
 /** IDs de nota válidos para consulta MongoDB (ignora null/undefined e strings inválidas). */
 export function collectValidNotaIds(lancamentos: { nota_id?: unknown }[]): string[] {
@@ -90,13 +101,18 @@ export function extractFaturaIdFromDescricao(descricao?: string): string | undef
  * Não inclui Pix, pagamentos de conta nem outros movimentos só por data do extrato.
  */
 export function filterLancamentosForFluxoCaixaExport<
-  T extends { nota_id?: unknown; data?: Date | string; descricao?: string },
+  T extends {
+    nota_id?: unknown;
+    data?: Date | string;
+    descricao?: string;
+    tipo_transacao?: string;
+  },
 >(lancamentos: T[], mesCompetencia: string | undefined, notaById: Map<string, NotaResumo>): T[] {
   if (!mesCompetencia) return lancamentos;
 
   const notaIdsDaCompetencia = new Set(
     [...notaById.entries()]
-      .filter(([, nota]) => nota.mes_competencia === mesCompetencia)
+      .filter(([, nota]) => notaMatchesMesCompetencia(nota, mesCompetencia))
       .map(([id]) => id),
   );
 
@@ -118,7 +134,13 @@ export function filterLancamentosForFluxoCaixaExport<
     return faturaId != null && cobrancaFaturaIds.has(faturaId);
   });
 
-  return [...principais, ...taxasRelacionadas];
+  const cobrancasSemVinculo = lancamentos.filter((lancamento) => {
+    if (lancamento.nota_id) return false;
+    if (!isCobrancaRecebidaLancamento(lancamento)) return false;
+    return mesCompetenciaFromLancamentoData(lancamento.data) === mesCompetencia;
+  });
+
+  return [...principais, ...taxasRelacionadas, ...cobrancasSemVinculo];
 }
 
 type LancamentoComOrigem = {
@@ -277,7 +299,15 @@ export function mapLancamentosToFluxoCaixaRows(
   for (const lancamento of lancamentos) {
     if (!lancamento.data) continue;
     const nota = lancamento.nota_id ? notaById.get(String(lancamento.nota_id)) : undefined;
-    const tipoMovimento = getTipoMovimento?.(lancamento) || lancamento.tipo_movimento || 'entrada';
+    const tipoMovimento =
+      getTipoMovimento?.(lancamento) ||
+      resolveLancamentoTipoMovimento({
+        valor: lancamento.valor,
+        descricao: lancamento.descricao,
+        tipo_movimento: lancamento.tipo_movimento,
+        tipo_transacao: lancamento.tipo_transacao,
+        tipo_lancamento: lancamento.tipo_lancamento,
+      });
     const tipo = fluxoCaixaTipoFromMovimento(tipoMovimento);
     const historico = getHistorico(lancamento);
     const rawCategoria =

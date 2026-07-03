@@ -27,7 +27,18 @@ const ASAAS_MAPPING: ImportProfileMapping = {
   },
   date_format: 'DD/MM/YYYY',
   decimal_format: 'br',
-  tipo_movimento_rule: { type: 'sign' },
+  tipo_movimento_rule: {
+    type: 'column',
+    column: 'Transação',
+    entrada_values: [
+      'Cobrança recebida',
+      'Transferência recebida',
+      'Pix recebido',
+      'Recebimento',
+      'Estorno',
+      'Crédito',
+    ],
+  },
   skip_row_patterns: ['saldo inicial', 'saldo final', 'período a partir', 'periodo a partir'],
 };
 
@@ -76,4 +87,25 @@ export function getImportPreset(key: string): ImportPreset | null {
 
 export function listImportPresets(): ImportPreset[] {
   return Object.values(IMPORT_PRESETS);
+}
+
+/** Garante regra Asaas por coluna mesmo em perfis antigos gravados com `sign`. */
+export function resolveImportProfileMapping(profile: {
+  system_key?: string;
+  mapping: ImportProfileMapping;
+}): ImportProfileMapping {
+  const preset = profile.system_key ? getImportPreset(profile.system_key) : null;
+  if (!preset) return profile.mapping;
+
+  return {
+    ...profile.mapping,
+    delimiter: profile.mapping.delimiter || preset.mapping.delimiter,
+    date_format: profile.mapping.date_format || preset.mapping.date_format,
+    decimal_format: profile.mapping.decimal_format || preset.mapping.decimal_format,
+    columns: { ...preset.mapping.columns, ...profile.mapping.columns },
+    tipo_movimento_rule: preset.mapping.tipo_movimento_rule,
+    skip_row_patterns: profile.mapping.skip_row_patterns?.length
+      ? profile.mapping.skip_row_patterns
+      : preset.mapping.skip_row_patterns,
+  };
 }

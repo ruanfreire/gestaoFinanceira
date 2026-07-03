@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isAsaasCobrancaRecebida,
+  resolveLancamentoTipoMovimento,
   resolveTipoMovimento,
   tipoMovimentoFromAsaas,
   tipoMovimentoFromNubank,
@@ -16,6 +17,7 @@ describe('movimento-bancario.util', () => {
     expect(isAsaasCobrancaRecebida('Cobrança recebida', 'Crédito')).toBe(true);
     expect(isAsaasCobrancaRecebida('Transferência', 'Crédito')).toBe(false);
     expect(isAsaasCobrancaRecebida('Cobrança recebida', 'Débito')).toBe(false);
+    expect(isAsaasCobrancaRecebida('Cobrança recebida')).toBe(true);
   });
 
   it('classifica Nubank crédito e débito', () => {
@@ -36,5 +38,43 @@ describe('movimento-bancario.util', () => {
         'Transferência recebida pelo Pix - MARTA JERUZA VASCONCELOS LEAL',
       ),
     ).toBe('entrada');
+  });
+
+  it('reclassifica taxa Asaas positiva como saída na exportação', () => {
+    expect(
+      resolveLancamentoTipoMovimento({
+        valor: 1.99,
+        descricao: 'Taxa de boleto - fatura nr. 682228893 Luana',
+        tipo_movimento: 'entrada',
+        tipo_transacao: 'Taxa de boleto',
+      }),
+    ).toBe('saida');
+  });
+
+  it('classifica transferência enviada e pagamento de conta como saída', () => {
+    expect(
+      resolveLancamentoTipoMovimento({
+        valor: 2400,
+        descricao: 'Transferência enviada pelo Pix - Ana',
+        tipo_movimento: 'entrada',
+      }),
+    ).toBe('saida');
+    expect(
+      resolveLancamentoTipoMovimento({
+        valor: 150,
+        descricao: 'Pagamento de conta - energia',
+        tipo_movimento: 'entrada',
+      }),
+    ).toBe('saida');
+  });
+
+  it('reclassifica entrada gravada errada quando inferência diverge', () => {
+    expect(
+      resolveLancamentoTipoMovimento({
+        valor: 500,
+        descricao: 'Mensageria - fatura nr. 123',
+        tipo_movimento: 'entrada',
+      }),
+    ).toBe('saida');
   });
 });

@@ -7,9 +7,10 @@ import {
 } from './competencia.util';
 
 describe('mesCompetenciaFromDate', () => {
-  it('deriva YYYY-MM da data de emissão', () => {
-    expect(mesCompetenciaFromDate(new Date(2026, 4, 8))).toBe('2026-05');
+  it('deriva YYYY-MM da data de emissão (UTC)', () => {
+    expect(mesCompetenciaFromDate('2026-05-08T12:00:00.000Z')).toBe('2026-05');
     expect(mesCompetenciaFromDate('2026-06-15')).toBe('2026-06');
+    expect(mesCompetenciaFromDate('2026-07-01T00:00:00.000Z')).toBe('2026-07');
   });
 
   it('retorna undefined para data inválida', () => {

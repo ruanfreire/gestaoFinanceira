@@ -52,6 +52,29 @@ describe('filterLancamentosForFluxoCaixaExport', () => {
     expect(result[1].descricao).toContain('Taxa de cartão');
   });
 
+  it('inclui cobrança recebida do mês mesmo sem vínculo com NF', () => {
+    const extras = [
+      {
+        nota_id: undefined,
+        data: '2026-06-08',
+        descricao: 'Cobrança recebida - fatura nr. 55555 Cliente Novo',
+      },
+      {
+        nota_id: undefined,
+        data: '2026-06-09',
+        descricao: 'fatura nr. 77777 Cliente Outro',
+        tipo_transacao: 'Cobrança recebida',
+      },
+    ];
+    const result = filterLancamentosForFluxoCaixaExport(
+      [...lancamentos, ...extras],
+      '2026-06',
+      notaById,
+    );
+    expect(result.some((item) => String(item.descricao).includes('55555'))).toBe(true);
+    expect(result.some((item) => String(item.descricao).includes('77777'))).toBe(true);
+  });
+
   it('exclui Pix e pagamentos sem vínculo com NF da competência', () => {
     const result = filterLancamentosForFluxoCaixaExport(lancamentos, '2026-06', notaById);
     expect(result.some((item) => String(item.descricao).includes('Pix'))).toBe(false);

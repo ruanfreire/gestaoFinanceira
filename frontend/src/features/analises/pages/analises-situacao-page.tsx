@@ -34,7 +34,7 @@ function FilterField({ label, children }: { label: string; children: React.React
 export default function AnalisesSituacaoPage() {
   const [filters, setFilters] = useState(defaultPeriodFilter);
   const [status, setStatus] = useState("all");
-  const [dateBasis, setDateBasis] = useState<"pagamento" | "emissao">("pagamento");
+  const [dateBasis, setDateBasis] = useState<"pagamento" | "emissao" | "competencia">("competencia");
   const [showAll, setShowAll] = useState(false);
   const [applied, setApplied] = useState<typeof filters | null>(null);
   const { toast } = useToast();
@@ -113,10 +113,11 @@ export default function AnalisesSituacaoPage() {
               <SegmentedTabs
                 variant="compact"
                 value={dateBasis}
-                onChange={(id) => setDateBasis(id as "pagamento" | "emissao")}
+                onChange={(id) => setDateBasis(id as "pagamento" | "emissao" | "competencia")}
                 options={[
-                  { id: "pagamento", label: "Pagamento" },
+                  { id: "competencia", label: "Competência" },
                   { id: "emissao", label: "Emissão" },
+                  { id: "pagamento", label: "Pagamento" },
                 ]}
               />
             </FilterField>

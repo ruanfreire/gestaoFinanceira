@@ -5,7 +5,7 @@ import { currentMesPagamento } from "@/lib/format";
 
 export type ExtracaoNotasFilters = PeriodFilterValue & {
   statusPagamento?: string;
-  dateBasis?: "pagamento" | "emissao";
+  dateBasis?: "pagamento" | "emissao" | "competencia";
 };
 
 export type FluxoCaixaFilters = PeriodFilterValue & {
