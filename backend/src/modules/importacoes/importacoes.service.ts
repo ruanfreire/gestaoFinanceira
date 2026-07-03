@@ -269,4 +269,59 @@ export class ImportacoesService {
 
     return { imported, updated, ignored, vinculadas, total_faturas: notaItems.length, processingTimeMs };
   }
+
+  async finalizeJsonImport(
+    importId: string,
+    json: unknown,
+    userId: unknown,
+    stats: { imported: number; updated: number; ignored: number; total_faturas: number },
+  ) {
+    const start = Date.now();
+    const payloadHash = hashJsonValue(json);
+    const existing = asLeanOne<{ tenantId?: unknown; source?: string; contentHash?: string }>(
+      await this.importModel.findById(importId).select('tenantId source contentHash').lean(),
+    );
+    const isHonest = existing?.source === 'honest_manual' || existing?.source === 'honest_worker';
+    const { vinculadas } = await this.conciliacaoService.rematchPendingLancamentos();
+
+    const processingTimeMs = Date.now() - start;
+    const update: Record<string, unknown> = {
+      processingTimeMs,
+      'stats.total_faturas': stats.total_faturas,
+      'stats.imported': stats.imported,
+      'stats.updated': stats.updated,
+      'stats.ignored': stats.ignored,
+      'stats.vinculadas': vinculadas,
+      status: 'finished',
+      finishedAt: new Date(),
+      originalJson: json,
+      errorMessage: null,
+    };
+    if (!isHonest) {
+      update.contentHash = payloadHash;
+    } else if (!existing?.contentHash) {
+      update.contentHash = `${payloadHash}:${Date.now()}`;
+    }
+
+    await this.importModel.findByIdAndUpdate(importId, { $set: update });
+
+    const tenantId = existing?.tenantId ? String(existing.tenantId) : undefined;
+    if (tenantId) {
+      await this.notificationsService.notifyJsonImportComplete({
+        userId: userId ? String(userId) : undefined,
+        tenantId,
+        source: isHonest ? 'honest' : 'upload',
+        stats: { imported: stats.imported, ignored: stats.ignored, total_faturas: stats.total_faturas, vinculadas },
+      });
+    }
+
+    return {
+      imported: stats.imported,
+      updated: stats.updated,
+      ignored: stats.ignored,
+      vinculadas,
+      total_faturas: stats.total_faturas,
+      processingTimeMs,
+    };
+  }
 }

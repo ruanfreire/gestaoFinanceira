@@ -4,7 +4,13 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { getCurrentTenantId } from '../../../common/tenant/tenant-storage';
 
-export type GeminiOperation = 'csv_analysis' | 'json_analysis' | 'pdf_analysis' | 'embedding' | 'pagador_extraction';
+export type GeminiOperation =
+  | 'csv_analysis'
+  | 'json_analysis'
+  | 'pdf_analysis'
+  | 'embedding'
+  | 'pagador_extraction'
+  | 'nf_json_analysis';
 
 @Injectable()
 export class GeminiUsageService {

@@ -98,6 +98,44 @@ export const RagDocumentSchema = new Schema(
 
 RagDocumentSchema.plugin(tenantPlugin, { optional: true });
 
+const nfMappingSchema = new Schema(
+  {
+    structure: { type: String, enum: ['honest_v1', 'custom'], default: 'custom' },
+    traversal: {
+      data_array: { type: String },
+      empresa_array: { type: String },
+      lista_array: { type: String },
+      items_array: { type: String },
+    },
+    item_fields: { type: Schema.Types.Mixed, default: {} },
+    empresa_fields: { type: Schema.Types.Mixed, default: {} },
+    skip_status_patterns: { type: [String], default: [] },
+  },
+  { _id: false },
+);
+
+export const NfImportProfileSchema = new Schema(
+  {
+    tenantId: { type: Schema.Types.ObjectId, ref: 'Organization', index: true },
+    name: { type: String, required: true },
+    description: { type: String },
+    source: { type: String, enum: ['user', 'system_template'], default: 'user' },
+    system_key: { type: String, index: true },
+    mapping: { type: nfMappingSchema, required: true },
+    status: { type: String, enum: ['draft', 'active', 'archived'], default: 'active', index: true },
+    confidence_score: { type: Number, default: 0 },
+    confirmed_by: { type: Schema.Types.ObjectId, ref: 'User' },
+    confirmed_at: { type: Date },
+    usage_count: { type: Number, default: 0 },
+    last_used_at: { type: Date },
+  },
+  { timestamps: true },
+);
+
+NfImportProfileSchema.plugin(tenantPlugin);
+NfImportProfileSchema.index({ tenantId: 1, name: 1 });
+NfImportProfileSchema.index({ tenantId: 1, system_key: 1 }, { sparse: true });
+
 export const BankImportacaoSchema = new Schema(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Organization', index: true },

@@ -1,10 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { ImportAnalysisResult, ImportProfileMapping } from '../types/import-profile.types';
+import type { NfImportAnalysisResult, NfImportProfileMapping } from '../types/nf-import-profile.types';
 import { buildExtratoCsvPrompt, PROMPT_VERSION } from '../prompts/extrato-csv.prompt';
 import { buildExtratoPagadorPrompt, PROMPT_PAGADOR_VERSION, type PagadorExtractionInput } from '../prompts/extrato-pagador.prompt';
 import { buildExtratoPdfPrompt, PROMPT_EXTRATO_PDF_VERSION } from '../prompts/extrato-pdf.prompt';
 import { buildNotaJsonPrompt, PROMPT_NOTA_JSON_VERSION } from '../prompts/nota-json.prompt';
+import { buildNfJsonMappingPrompt, PROMPT_NF_MAPPING_VERSION } from '../prompts/nf-json-mapping.prompt';
 import { GeminiAnalysisService } from './gemini-analysis.service';
 import { GeminiUsageService, type GeminiOperation } from './gemini-usage.service';
 import {
@@ -27,7 +29,17 @@ type PagadorExtractionResult = {
   items?: Array<{ id: string; pagador_nome?: string | null; confidence?: number }>;
 };
 
-type AiJsonOperation = Extract<GeminiOperation, 'csv_analysis' | 'json_analysis' | 'pdf_analysis' | 'pagador_extraction'>;
+type NfLlmParseResult = {
+  profile_name_suggested?: string;
+  mapping?: NfImportProfileMapping;
+  field_confidence?: NfImportAnalysisResult['field_confidence'];
+  gaps?: NfImportAnalysisResult['gaps'];
+};
+
+type AiJsonOperation = Extract<
+  GeminiOperation,
+  'csv_analysis' | 'json_analysis' | 'pdf_analysis' | 'pagador_extraction' | 'nf_json_analysis'
+>;
 
 @Injectable()
 export class ImportAiAnalysisService {
@@ -59,6 +71,7 @@ export class ImportAiAnalysisService {
         csv_mapping: enabled,
         pagador_extraction: enabled,
         json_mapping: enabled,
+        nf_json_mapping: enabled,
         pdf_analysis: enabled && provider === 'gemini',
         embeddings: this.supportsEmbeddings(),
       },
@@ -132,7 +145,7 @@ export class ImportAiAnalysisService {
   }
 
   private async generateJson(params: {
-    operation: Extract<AiJsonOperation, 'csv_analysis' | 'json_analysis' | 'pdf_analysis'>;
+    operation: Extract<AiJsonOperation, 'csv_analysis' | 'json_analysis' | 'pdf_analysis' | 'nf_json_analysis'>;
     prompt: string;
     promptVersion: string;
     userId?: string;
@@ -368,6 +381,45 @@ export class ImportAiAnalysisService {
       gaps: parsed.gaps,
       source: this.aiSource(),
       prompt_version: PROMPT_NOTA_JSON_VERSION,
+    };
+  }
+
+  async analyzeNfJsonMapping(params: {
+    heuristic: NfImportAnalysisResult;
+    sanitizedStructure: string;
+    ragContext: string;
+    userId?: string;
+  }): Promise<Partial<NfImportAnalysisResult> | null> {
+    if (!this.isEnabled()) return null;
+    if (params.heuristic.mapping.structure === 'honest_v1' && params.heuristic.overall_confidence >= 0.95) {
+      return null;
+    }
+
+    const prompt = buildNfJsonMappingPrompt({
+      sanitizedStructure: params.sanitizedStructure,
+      ragContext: params.ragContext,
+      heuristicJson: JSON.stringify({
+        mapping: params.heuristic.mapping,
+        field_confidence: params.heuristic.field_confidence,
+        gaps: params.heuristic.gaps,
+      }),
+    });
+
+    const parsed = (await this.generateJson({
+      operation: 'nf_json_analysis',
+      prompt,
+      promptVersion: PROMPT_NF_MAPPING_VERSION,
+      userId: params.userId,
+    })) as NfLlmParseResult | null;
+    if (!parsed?.mapping) return null;
+
+    return {
+      profile_name_suggested: parsed.profile_name_suggested,
+      mapping: { ...parsed.mapping, structure: 'custom' },
+      field_confidence: parsed.field_confidence,
+      gaps: parsed.gaps,
+      source: this.aiSource() as NfImportAnalysisResult['source'],
+      prompt_version: PROMPT_NF_MAPPING_VERSION,
     };
   }
 

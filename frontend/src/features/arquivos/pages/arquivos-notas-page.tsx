@@ -1,202 +1,279 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { arquivosApi } from "../api";
-import { parseJsonFilePreview } from "../utils";
+import { nfImportApi } from "../nf-import-api";
+import type { NfImportAnalysisResult, NfImportProfile, NfImportProfileMapping, NfImportResult } from "../nf-import-types";
 import { WizardTemplate } from "@/design-system/templates";
-import { UploadArea, TaskGuide, NextStepBanner, StepHint, ErrorState, Callout } from "@/design-system/molecules";
+import {
+  UploadArea,
+  TaskGuide,
+  NextStepBanner,
+  StepHint,
+  ErrorState,
+  Callout,
+  ChoiceCard,
+  ChoiceCardGrid,
+} from "@/design-system/molecules";
 import { Card, CardBody, DataTable } from "@/design-system/organisms";
 import type { DataTableColumn } from "@/design-system/organisms";
-import type { FaturaPreview } from "../types";
-import { Button, Typography } from "@/design-system/atoms";
+import { Button, Input, Label, Typography } from "@/design-system/atoms";
 import { formatMoney } from "@/lib/format";
 import { ROUTES } from "@/lib/constants";
 import { useToast } from "@/app/toast-provider";
 import { journeyNextSteps, screenTasks } from "@/lib/screen-tasks";
-import type { ImportacaoUploadResult } from "../types";
 
-type WizardStep = "file" | "preview" | "issues" | "upload" | "result";
+const STEPS = [
+  { id: "origin", label: "Modelo" },
+  { id: "file", label: "Arquivo" },
+  { id: "preview", label: "Prévia" },
+  { id: "confirm", label: "Confirmar" },
+  { id: "result", label: "Resultado" },
+];
 
-const previewColumns: DataTableColumn<FaturaPreview & { id: string }>[] = [
+const previewColumns: DataTableColumn<{ id: string; numero?: string; tomador?: string; valor?: number }>[] = [
   { id: "numero", header: "NF", cell: (f) => f.numero ?? "—" },
   { id: "tomador", header: "Tomador", cell: (f) => f.tomador ?? "—" },
   { id: "valor", header: "Valor", cell: (f) => formatMoney(f.valor) },
 ];
 
-const STEP_HINTS: Record<WizardStep, string> = {
-  file: "Exporte o JSON do seu sistema de notas e arraste o arquivo aqui.",
-  preview: "Confira se o número de notas está correto antes de continuar.",
-  issues: "Revise os avisos abaixo. Você pode enviar mesmo assim se estiver de acordo.",
-  upload: "Toque em Enviar — leva poucos segundos.",
-  result: "Importação concluída! Siga para o próximo passo.",
-};
-
-function buildWizardSteps(hasIssues: boolean) {
-  const steps = [
-    { id: "file", label: "Arquivo" },
-    { id: "preview", label: "Conferir" },
-  ];
-  if (hasIssues) steps.push({ id: "issues", label: "Inconsistências" });
-  steps.push({ id: "upload", label: "Enviar" }, { id: "result", label: "Resultado" });
-  return steps;
-}
-
 export default function ArquivosNotasPage() {
-  const [step, setStep] = useState<WizardStep>("file");
+  const [step, setStep] = useState(0);
+  const [mode, setMode] = useState<"new" | "profile">("new");
+  const [selectedProfile, setSelectedProfile] = useState<NfImportProfile | null>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<Awaited<ReturnType<typeof parseJsonFilePreview>> | null>(null);
-  const [result, setResult] = useState<ImportacaoUploadResult | null>(null);
-  const upload = useMutation({ mutationFn: (f: File) => arquivosApi.uploadNotas(f) });
+  const [analysis, setAnalysis] = useState<NfImportAnalysisResult | null>(null);
+  const [mapping, setMapping] = useState<NfImportProfileMapping | null>(null);
+  const [profileName, setProfileName] = useState("");
+  const [saveAsProfile, setSaveAsProfile] = useState(false);
+  const [result, setResult] = useState<NfImportResult | null>(null);
   const { toast } = useToast();
   const qc = useQueryClient();
   const task = screenTasks.arquivosNotas;
 
-  const steps = useMemo(() => buildWizardSteps(Boolean(preview?.inconsistencies.length)), [preview?.inconsistencies.length]);
-  const currentStepIndex = Math.max(0, steps.findIndex((s) => s.id === step));
+  const profilesQuery = useQuery({
+    queryKey: ["nf-import-profiles"],
+    queryFn: () => nfImportApi.listProfiles(),
+  });
+
+  const userProfiles = useMemo(() => profilesQuery.data ?? [], [profilesQuery.data]);
+
+  const analyzeMutation = useMutation({
+    mutationFn: (f: File) => nfImportApi.analyze(f),
+  });
+
+  const importMutation = useMutation({
+    mutationFn: () => {
+      if (!file || !mapping) throw new Error("Arquivo e mapeamento obrigatórios");
+      const profileId =
+        mode === "profile" && selectedProfile ? selectedProfile._id : "system:honest_v1";
+      return nfImportApi.import(file, profileId, {
+        mapping,
+        profileName: saveAsProfile ? profileName : undefined,
+        saveProfile: saveAsProfile && mode === "new",
+      });
+    },
+  });
 
   const onFile = async (f: File) => {
     setFile(f);
-    const parsed = await parseJsonFilePreview(f);
-    setPreview(parsed);
-    setStep("preview");
-  };
-
-  const continueFromPreview = () => {
-    if (!preview?.valid) return;
-    if (preview.inconsistencies.length > 0) setStep("issues");
-    else setStep("upload");
-  };
-
-  const onUpload = async () => {
-    if (!file || !preview?.valid) return;
+    setResult(null);
     try {
-      const res = await upload.mutateAsync(file);
+      const res = await analyzeMutation.mutateAsync(f);
+      setAnalysis(res);
+      setMapping(res.mapping);
+      setProfileName(res.profile_name_suggested || f.name.replace(/\.json$/i, ""));
+      if (mode === "profile" && selectedProfile) {
+        setMapping(selectedProfile.mapping);
+      }
+      setStep(2);
+    } catch (err) {
+      toast(nfImportApi.getError(err, "Falha ao analisar arquivo"), "error");
+    }
+  };
+
+  const onImport = async () => {
+    if (!file || !mapping) return;
+    try {
+      const preview = await nfImportApi.preview(file, mapping);
+      if (!preview.valid || preview.rows_ok === 0) {
+        toast(preview.errors[0] || "Nenhuma nota válida encontrada", "error");
+        return;
+      }
+      const res = await importMutation.mutateAsync();
       setResult(res);
-      setStep("result");
+      setStep(4);
       qc.invalidateQueries({ queryKey: ["arquivos"] });
       qc.invalidateQueries({ queryKey: ["notas"] });
       qc.invalidateQueries({ queryKey: ["home"] });
+      qc.invalidateQueries({ queryKey: ["nf-import-profiles"] });
       toast("Importação concluída", "success");
     } catch (err) {
-      toast(arquivosApi.getError(err, "Falha ao importar"), "error");
+      toast(nfImportApi.getError(err, "Falha ao importar"), "error");
     }
   };
 
   return (
     <WizardTemplate
       title="Enviar notas"
-      description="Envie o arquivo JSON com suas notas fiscais"
-      steps={steps}
-      currentStep={currentStepIndex}
-      taskGuide={
-        <TaskGuide goal={task.goal} steps={task.steps} minutes={task.minutes} currentStep={currentStepIndex} />
+      description="Importe JSON com modelos configuráveis — Honest, padrão ou formato personalizado com IA"
+      steps={STEPS}
+      currentStep={step}
+      taskGuide={<TaskGuide goal={task.goal} steps={task.steps} minutes={task.minutes} currentStep={step} />}
+      stepHint={
+        <StepHint>
+          {step === 0 && "Escolha um modelo salvo ou crie um novo a partir do seu JSON."}
+          {step === 1 && "Envie o arquivo JSON exportado do seu sistema."}
+          {step === 2 && "Confira a leitura e os avisos antes de importar."}
+          {step === 3 && "Confirme o nome do modelo e finalize."}
+          {step === 4 && "Pronto! Siga para o próximo passo do fluxo."}
+        </StepHint>
       }
-      stepHint={<StepHint>{STEP_HINTS[step]}</StepHint>}
     >
-      {step === "file" && (
+      {step === 0 && (
+        <div className="stack-gap">
+          <ChoiceCardGrid>
+            {userProfiles.map((profile) => (
+              <ChoiceCard
+                key={profile._id}
+                title={profile.name}
+                description={
+                  profile.description ||
+                  (profile.system_key === "honest_v1"
+                    ? "Sync Honest e exportações no formato padrão"
+                    : "Modelo personalizado")
+                }
+                onClick={() => {
+                  setMode("profile");
+                  setSelectedProfile(profile);
+                  setProfileName(profile.name);
+                  setStep(1);
+                }}
+              />
+            ))}
+            <ChoiceCard
+              title="Novo modelo"
+              description="Primeira vez com este JSON — a IA sugere o mapeamento"
+              onClick={() => {
+                setMode("new");
+                setSelectedProfile(userProfiles.find((p) => p.system_key === "honest_v1") ?? userProfiles[0] ?? null);
+                setProfileName("");
+                setStep(1);
+              }}
+            />
+          </ChoiceCardGrid>
+        </div>
+      )}
+
+      {step === 1 && (
         <UploadArea
           accept=".json,application/json"
           onFile={onFile}
-          label="Arraste o arquivo JSON ou toque para escolher"
-          hint="Estrutura: empresas com lista de notas"
+          disabled={analyzeMutation.isPending}
+          label={analyzeMutation.isPending ? "Analisando com IA…" : "Arraste o JSON ou toque para escolher"}
+          hint="Qualquer estrutura — o sistema detecta ou aprende o formato"
         />
       )}
 
-      {step === "preview" && preview && (
+      {step === 2 && analysis && mapping && (
         <Card>
           <CardBody className="stack-gap">
-            {!preview.valid ? (
-              <>
-                <ErrorState message={preview.error ?? "Estrutura não reconhecida"} />
-                <Typography variant="caption">
-                  Verifique se o arquivo é o JSON exportado do seu sistema de notas e tente novamente.
-                </Typography>
-                <Button variant="outline" onClick={() => setStep("file")}>
-                  Escolher outro arquivo
-                </Button>
-              </>
+            {analysis.total_notas === 0 ? (
+              <ErrorState message="Nenhuma nota encontrada com este modelo." />
             ) : (
               <>
                 <Typography variant="body">
-                  ✓ {preview.empresas} empresa(s) · {preview.totalFaturas} nota(s) encontrada(s)
+                  ✓ <strong>{analysis.total_notas}</strong> nota(s) identificada(s)
+                  {analysis.mapping.structure === "honest_v1" ? " · formato padrão/Honest" : " · formato personalizado"}
                 </Typography>
-                {preview.inconsistencies.length > 0 && (
-                  <Callout variant="warning" title="Avisos encontrados">
+                {analysis.ai_attempted && (
+                  <Callout
+                    variant={analysis.ai_applied ? "success" : "info"}
+                    title={analysis.ai_applied ? "IA aplicada na leitura" : "IA consultada"}
+                  >
                     <Typography variant="small">
-                      {preview.inconsistencies.length} inconsistência(s) serão detalhadas no próximo passo.
+                      {analysis.ai_applied
+                        ? `Mapeamento refinado com ${analysis.ai_provider ?? "IA"}.`
+                        : "A heurística já era suficiente; a IA confirmou a estrutura."}
                     </Typography>
+                  </Callout>
+                )}
+                {analysis.gaps.length > 0 && (
+                  <Callout variant="warning" title="Avisos">
+                    <ul className="stack-gap-sm">
+                      {analysis.gaps.slice(0, 5).map((g, i) => (
+                        <li key={i}>
+                          <Typography variant="small">• {g.message}</Typography>
+                        </li>
+                      ))}
+                    </ul>
                   </Callout>
                 )}
                 <DataTable
                   columns={previewColumns}
-                  data={preview.sample.map((f, i) => ({
-                    ...f,
+                  data={analysis.sample.map((f, i) => ({
                     id: f.nota_api_id ?? f.numero ?? String(i),
+                    numero: f.numero,
+                    tomador: f.tomador,
+                    valor: f.valor,
                   }))}
-                  emptyTitle="Nenhuma nota na amostra"
-                  emptyDescription="O arquivo não contém notas para pré-visualizar."
+                  emptyTitle="Sem amostra"
+                  emptyDescription="Não há notas na prévia."
                 />
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setStep("file")}>
-                    Voltar
-                  </Button>
-                  <Button onClick={continueFromPreview}>Continuar</Button>
-                </div>
               </>
             )}
-          </CardBody>
-        </Card>
-      )}
-
-      {step === "issues" && preview && (
-        <Card>
-          <CardBody className="stack-gap">
-            <Callout variant="warning" title={`${preview.inconsistencies.length} inconsistência(s) no arquivo`}>
-              <Typography variant="small">
-                O sistema ainda pode importar o arquivo. Confira se os avisos abaixo são aceitáveis para o seu caso.
-              </Typography>
-            </Callout>
-            <ul className="stack-gap rounded-lg border border-border p-4">
-              {preview.inconsistencies.slice(0, 20).map((issue, index) => (
-                <li key={`${issue.type}-${index}`}>
-                  <Typography variant="small">• {issue.message}</Typography>
-                </li>
-              ))}
-            </ul>
-            {preview.inconsistencies.length > 20 && (
-              <Typography variant="caption" tone="muted">
-                … e mais {preview.inconsistencies.length - 20} aviso(s).
-              </Typography>
-            )}
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep("preview")}>
+              <Button variant="outline" onClick={() => setStep(1)}>
                 Voltar
               </Button>
-              <Button onClick={() => setStep("upload")}>Continuar mesmo assim</Button>
+              <Button disabled={analysis.total_notas === 0} onClick={() => setStep(3)}>
+                Continuar
+              </Button>
             </div>
           </CardBody>
         </Card>
       )}
 
-      {step === "upload" && (
+      {step === 3 && (
         <Card>
           <CardBody className="stack-gap">
             <Typography variant="body">
-              Pronto para enviar <strong>{file?.name}</strong>
+              Importar <strong>{file?.name}</strong>
+              {selectedProfile ? ` com modelo “${selectedProfile.name}”` : ""}
             </Typography>
+            {mode === "new" && (
+              <div className="stack-gap-sm">
+                <div>
+                  <Label htmlFor="profile-name">Nome do modelo (opcional)</Label>
+                  <Input
+                    id="profile-name"
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    placeholder="Ex.: ERP Contábil XYZ"
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={saveAsProfile}
+                    onChange={(e) => setSaveAsProfile(e.target.checked)}
+                  />
+                  Salvar este mapeamento para próximas importações
+                </label>
+              </div>
+            )}
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep(preview?.inconsistencies.length ? "issues" : "preview")}>
+              <Button variant="outline" onClick={() => setStep(2)}>
                 Voltar
               </Button>
-              <Button onClick={onUpload} loading={upload.isPending}>
-                Enviar arquivo
+              <Button onClick={onImport} loading={importMutation.isPending}>
+                Importar notas
               </Button>
             </div>
           </CardBody>
         </Card>
       )}
 
-      {step === "result" && result && (
+      {step === 4 && result && (
         <Card>
           <CardBody className="stack-gap">
             <Typography variant="subtitle" className="text-success">
