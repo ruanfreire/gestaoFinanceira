@@ -3,6 +3,7 @@ import {
   FileText,
   Link2,
   LogOut,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 import { PrefetchLink } from "@/design-system/molecules";
@@ -34,7 +35,6 @@ export function buildSidebarNav(isOwner: boolean): {
         { to: ROUTES.arquivosNotas, label: "Enviar notas" },
         { to: ROUTES.arquivosExtratos, label: "Enviar extrato bancário" },
         { to: ROUTES.arquivosHistorico, label: "Histórico" },
-        ...(isOwner ? [{ to: ROUTES.integracoesHonest, label: "Integração Honest" }] : []),
       ],
     },
     {
@@ -46,27 +46,17 @@ export function buildSidebarNav(isOwner: boolean): {
     },
   ];
 
+  const primary: SidebarNavItem[] = [
+    { to: ROUTES.home, label: "Início", icon: Home },
+    { to: ROUTES.notas, label: "Minhas notas", icon: FileText },
+    { to: ROUTES.recebimentos, label: "Confirmar recebimentos", icon: Link2, badgeKey: "recebimentos" },
+  ];
+
   if (isOwner) {
-    sections.push({
-      label: "Configurações",
-      items: [
-        { to: ROUTES.configuracoes, label: "Visão geral" },
-        { to: ROUTES.perfil, label: "Perfil da organização" },
-        { to: ROUTES.plano, label: "Plano e assinatura" },
-        { to: ROUTES.equipe, label: "Equipe" },
-        { to: ROUTES.integracoes, label: "Integrações" },
-      ],
-    });
+    primary.push({ to: ROUTES.configuracoes, label: "Configurações", icon: Settings });
   }
 
-  return {
-    primary: [
-      { to: ROUTES.home, label: "Início", icon: Home },
-      { to: ROUTES.notas, label: "Minhas notas", icon: FileText },
-      { to: ROUTES.recebimentos, label: "Confirmar recebimentos", icon: Link2, badgeKey: "recebimentos" },
-    ],
-    sections,
-  };
+  return { primary, sections };
 }
 
 export function SidebarNav({
@@ -150,7 +140,10 @@ function SidebarLink({
   badge?: number;
 }) {
   const path = stripOrgSlug(pathname, orgSlug);
-  const active = path === to || (to !== ROUTES.home && path.startsWith(to));
+  const active =
+    path === to ||
+    (to === ROUTES.configuracoes && path.startsWith("/configuracoes")) ||
+    (to !== ROUTES.home && to !== ROUTES.configuracoes && path.startsWith(to));
 
   return (
     <li>
