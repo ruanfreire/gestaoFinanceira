@@ -18,6 +18,7 @@ Use antes de cada deploy em produção (`main` → GitHub Actions).
 
 ## Rollback
 
+
 1. `bash deploy/maintenance.sh on` na VM
 2. Restaurar tarball anterior em `/opt/gestao-financeira`
 3. `bash deploy/install-native.sh` + `bash deploy/maintenance.sh off`
@@ -44,3 +45,10 @@ HONEST_REQUEST_TIMEOUT_MS=45000
 ```
 
 Depois: `sudo systemctl restart gestao-financeira-backend`
+
+### Emissão de NF a partir de pagamento
+
+- [ ] Cadastrar tomadores em Configurações → Tomadores (ou importar das notas)
+- [ ] Fluxo local: Recebimentos → sem nota → **Registrar nota para este recebimento**
+- [ ] Emissão Honest (opt-in): Integrações → Honest → ativar **Permitir emissão de NF pelo sistema**
+- [ ] Ver `docs/HONEST-EMISSAO-API.md` se a mutation `NfEmitir` falhar na API Honest

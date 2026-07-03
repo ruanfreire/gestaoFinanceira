@@ -1509,6 +1509,7 @@ export class ImportIntelligenceService implements OnModuleInit {
     });
 
     const updated = asLeanOne<BankLancamentoLean>(await this.lancamentoModel.findById(lancamentoId).lean());
+    if (!updated) throw new NotFoundException('Lançamento não encontrado');
     const scored = await this.notasService.findOpenForConciliacao(
       trimmed,
       Number(lancamento.valor ?? 0),
@@ -1516,7 +1517,7 @@ export class ImportIntelligenceService implements OnModuleInit {
     );
 
     return this.enrichConciliacaoItem({
-      lancamento: updated!,
+      lancamento: updated,
       candidatas: mapScoredCandidatas(scored),
     });
   }

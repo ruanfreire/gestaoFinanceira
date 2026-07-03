@@ -30,6 +30,7 @@ const EquipePage = lazy(lazyRoutes.equipe);
 const PerfilPage = lazy(lazyRoutes.perfil);
 const IntegracoesPage = lazy(lazyRoutes.integracoes);
 const HonestIntegrationPage = lazy(lazyRoutes.integracoesHonest);
+const TomadoresPage = lazy(lazyRoutes.tomadores);
 const ConfiguracoesPage = lazy(lazyRoutes.configuracoes);
 const ConvitePage = lazy(lazyRoutes.convite);
 const NotFoundPage = lazy(lazyRoutes.notFound);
@@ -129,6 +130,7 @@ export function AppRouter() {
                 <Route path="configuracoes/importacao-ia" element={<ImportIntelligenceOpsPage />} />
                 <Route path="configuracoes/integracoes" element={<IntegracoesPage />} />
                 <Route path="configuracoes/integracoes/honest" element={<HonestIntegrationPage />} />
+                <Route path="configuracoes/tomadores" element={<TomadoresPage />} />
               </Route>
             </Route>
 
@@ -152,6 +154,7 @@ export function AppRouter() {
             <Route path={ROUTES.importIntelligenceOps} element={<LegacyRedirect to={ROUTES.importIntelligenceOps} />} />
             <Route path={ROUTES.integracoes} element={<LegacyRedirect to={ROUTES.integracoes} />} />
             <Route path={ROUTES.integracoesHonest} element={<LegacyRedirect to={ROUTES.integracoesHonest} />} />
+            <Route path={ROUTES.tomadores} element={<LegacyRedirect to={ROUTES.tomadores} />} />
 
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

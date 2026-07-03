@@ -37,6 +37,12 @@ export const NotaSchema = new Schema(
     pagamentos: [PagamentoVinculoSchema],
     json_original: { type: Object },
     importacao_fatura_id: { type: Schema.Types.ObjectId, ref: 'Importacao', index: true },
+    origem: {
+      type: String,
+      enum: ['importacao', 'manual', 'emissao_pagamento'],
+      default: 'importacao',
+    },
+    tomador_id: { type: Schema.Types.ObjectId, ref: 'Tomador', index: true, sparse: true },
   },
   { timestamps: true },
 );

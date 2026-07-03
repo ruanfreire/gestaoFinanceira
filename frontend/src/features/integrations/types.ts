@@ -32,6 +32,7 @@ export type HonestIntegration = {
   name: string;
   description: string;
   enabled: boolean;
+  emissao_nf_habilitada?: boolean;
   sync_ready?: boolean;
   auto_sync_enabled: boolean;
   api_login?: string;
@@ -72,6 +73,7 @@ export type HonestIntegration = {
 
 export type UpdateHonestIntegrationPayload = {
   enabled?: boolean;
+  emissao_nf_habilitada?: boolean;
   auto_sync_enabled?: boolean;
   api_login?: string;
   api_password?: string;

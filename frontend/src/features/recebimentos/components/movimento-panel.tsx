@@ -10,8 +10,20 @@ import { formatDate, formatMoney, bancoLabel } from "@/lib/format";
 import { useToast } from "@/app/toast-provider";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { cn } from "@/design-system/lib/cn";
+import { PrefetchLink } from "@/design-system/molecules";
+import { useAuth } from "@/features/auth/context";
+import { ROUTES } from "@/lib/constants";
+import { withOrgSlug } from "@/lib/org-path";
+import { EmissaoWizard } from "@/features/emissao/components/emissao-wizard";
 
-export function MovimentoPanel({ item }: { item: LancamentoConciliacaoItem }) {
+export function MovimentoPanel({
+  item,
+  onEmissaoSuccess,
+}: {
+  item: LancamentoConciliacaoItem;
+  onEmissaoSuccess?: () => void;
+}) {
+  const { user } = useAuth();
   const vincular = useVincularMutation();
   const { showSuccessWithUndo } = useConciliacaoUndo();
   const { toast } = useToast();
@@ -20,7 +32,9 @@ export function MovimentoPanel({ item }: { item: LancamentoConciliacaoItem }) {
   const [candidatas, setCandidatas] = useState<NotaCandidata[]>(item.candidatas);
   const [pagador, setPagador] = useState(item.lancamento.pagador_nome ?? "");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [emissaoOpen, setEmissaoOpen] = useState(false);
   const debouncedSearch = useDebouncedValue(search, 300);
+  const tomadoresPath = withOrgSlug(user?.organization?.slug, ROUTES.tomadores);
 
   const selected = candidatas.find((c) => c._id === notaId) ?? candidatas[0];
   const needsPagador = !item.lancamento.pagador_nome;
@@ -115,6 +129,17 @@ export function MovimentoPanel({ item }: { item: LancamentoConciliacaoItem }) {
         </Typography>
       </header>
 
+      {item.tomador_sugerido ? (
+        <Callout variant="info" title="Cliente provável">
+          <Typography variant="body">
+            {item.tomador_sugerido.nome} ({Math.round(item.tomador_sugerido.score * 100)}% de compatibilidade)
+          </Typography>
+          <PrefetchLink to={tomadoresPath} className="mt-2 inline-block text-sm font-medium underline">
+            Ver cadastro de tomadores
+          </PrefetchLink>
+        </Callout>
+      ) : null}
+
       {needsPagador && (
         <Callout variant="warning" title="Quem fez este pagamento?">
           <Typography variant="caption">Este Pix não tem nome. Informe o pagador para buscar notas.</Typography>
@@ -201,10 +226,28 @@ export function MovimentoPanel({ item }: { item: LancamentoConciliacaoItem }) {
         >
           Confirmar recebimento
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="mt-2 w-full"
+          onClick={() => setEmissaoOpen(true)}
+        >
+          Registrar nota para este recebimento
+        </Button>
         <Typography variant="caption" tone="muted" className="mt-2 block text-center">
           Enter para confirmar · desfazer disponível por alguns segundos após confirmar
         </Typography>
       </div>
+
+      <EmissaoWizard
+        open={emissaoOpen}
+        onOpenChange={setEmissaoOpen}
+        lancamentoId={item.lancamento._id}
+        valor={item.lancamento.valor}
+        tomadorSugerido={item.tomador_sugerido}
+        onSuccess={onEmissaoSuccess}
+      />
 
       <ConfirmDialog
         open={confirmOpen}

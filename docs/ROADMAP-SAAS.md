@@ -199,6 +199,21 @@ Evolução comercial SaaS:
 
 Detalhes: `docs/SAAS-FASE-2A.md`, `docs/SAAS-FASE-2B.md`, `docs/SAAS-FASE-2C.md`, `docs/SAAS-FASE-2D.md`
 
+### Emissão de NF a partir de pagamento (planejado)
+
+Fluxo **paralelo** ao de conciliação existente: tomadores → rascunho → emissão (opt-in Honest) → `applyPayment`.
+
+| Fase | Escopo | Status |
+|------|--------|--------|
+| **EP-0** | Documentação + feature flag | ✅ |
+| **EP-1** | Cadastro de tomadores | ✅ |
+| **EP-2** | Sugestão de tomador em recebimentos | ✅ |
+| **EP-3** | Rascunho local + vínculo (sem prefeitura) | ✅ |
+| **EP-4** | Emissão real via Honest | ✅ |
+| **EP-5** | Polish e rollout | ✅ |
+
+Plano completo: **`docs/FLUXO-EMISSAO-PAGAMENTO.md`**
+
 - Multi-tenant / isolamento por organização
 - Planos, billing e self-signup
 - Gestão de usuários e permissões por tenant

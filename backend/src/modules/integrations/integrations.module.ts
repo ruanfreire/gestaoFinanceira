@@ -6,6 +6,7 @@ import { BillingModule } from '../billing/billing.module';
 import { HonestIntegrationSchema } from './schemas/honest-integration.schema';
 import { OrganizationSchema } from '../platform/schemas/organization.schema';
 import { HonestIntegrationService } from './honest-integration.service';
+import { EmissaoNfConfigService } from './emissao-nf-config.service';
 import { IntegrationsWorkerService } from './integrations-worker.service';
 import { IntegrationsController } from './integrations.controller';
 
@@ -19,8 +20,8 @@ import { IntegrationsController } from './integrations.controller';
     NotasModule,
     BillingModule,
   ],
-  providers: [HonestIntegrationService, IntegrationsWorkerService],
+  providers: [HonestIntegrationService, EmissaoNfConfigService, IntegrationsWorkerService],
   controllers: [IntegrationsController],
-  exports: [HonestIntegrationService, IntegrationsWorkerService],
+  exports: [HonestIntegrationService, EmissaoNfConfigService, IntegrationsWorkerService],
 })
 export class IntegrationsModule {}

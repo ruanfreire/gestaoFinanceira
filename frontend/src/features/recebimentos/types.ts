@@ -23,6 +23,12 @@ export type NotaCandidata = {
   match?: MatchInfo;
 };
 
+export type TomadorSugerido = {
+  id: string;
+  nome: string;
+  score: number;
+};
+
 export type LancamentoConciliacao = {
   _id: string;
   data?: string;
@@ -37,6 +43,7 @@ export type LancamentoConciliacaoItem = {
   source: BancoSource;
   lancamento: LancamentoConciliacao;
   candidatas: NotaCandidata[];
+  tomador_sugerido?: TomadorSugerido;
 };
 
 export type ConciliacaoListResponse = {

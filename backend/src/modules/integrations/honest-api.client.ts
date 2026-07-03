@@ -489,7 +489,9 @@ export async function honestOAuthLogin(
 
     return {
       ok: false,
-      error: 'Keycloak auth code: credenciais inválidas ou fluxo de redirect inesperado',
+      error:
+        'Keycloak auth code: credenciais inválidas ou fluxo de redirect inesperado. ' +
+        'Confirme e-mail e senha do portal https://honest.com.br (não o login deste sistema).',
       attempts: ['Keycloak auth code: sem authorization code'],
     };
   } catch (error) {
@@ -695,11 +697,16 @@ export async function honestLogin(
 
     const summary = attemptLog.length ? ` Tentativas: ${attemptLog.join('; ')}.` : '';
     const browserOff = !isBrowserLoginEnabled(options);
-    const secretHint = options.oidc.clientSecret
-      ? ''
-      : browserOff
-        ? ' Login Honest em servidor exige HONEST_KEYCLOAK_CLIENT_SECRET (sem Chromium). Solicite o secret do client back-front à Honest.'
-        : ' Para login sem navegador, configure HONEST_KEYCLOAK_CLIENT_SECRET. Com HONEST_BROWSER_LOGIN=true é necessário Playwright + Chromium no servidor.';
+    const likelyBadCredentials =
+      attemptLog.some((item) => item.includes('HTTP 401') || item.includes('sem authorization code')) &&
+      !attemptLog.some((item) => item.includes('playwright ausente'));
+    const secretHint = likelyBadCredentials
+      ? ' Verifique e-mail e senha do portal de clientes Honest (https://honest.com.br).'
+      : options.oidc.clientSecret
+        ? ''
+        : browserOff
+          ? ' Login Honest em servidor exige HONEST_KEYCLOAK_CLIENT_SECRET (sem Chromium). Solicite o secret do client back-front à Honest.'
+          : ' Para login sem navegador, configure HONEST_KEYCLOAK_CLIENT_SECRET. Com HONEST_BROWSER_LOGIN=true é necessário Playwright + Chromium no servidor.';
     return {
       ok: false,
       error: `${lastError}.${summary}${secretHint}`,

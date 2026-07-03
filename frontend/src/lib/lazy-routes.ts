@@ -19,6 +19,7 @@ export const lazyRoutes = {
   perfil: () => import("@/features/org/pages/perfil-page"),
   integracoes: () => import("@/features/integrations/pages/integracoes-page"),
   integracoesHonest: () => import("@/features/integrations/pages/honest-integration-page"),
+  tomadores: () => import("@/features/tomadores/pages/tomadores-page"),
   configuracoes: () => import("@/features/org/pages/configuracoes-page"),
   convite: () => import("@/features/org/pages/convite-page"),
   notFound: () => import("@/features/errors/not-found-page"),

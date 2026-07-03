@@ -116,7 +116,7 @@ export default function RecebimentosPage({ variant }: { variant: "pendente" | "s
           <div className="hidden lg:block">
             <SplitView
               sidebar={<ConciliationQueue items={data} activeKey={activeKey} onSelect={selectIndex} />}
-              main={current ? <MovimentoPanel key={activeKey} item={current} /> : null}
+              main={current ? <MovimentoPanel key={activeKey} item={current} onEmissaoSuccess={() => refetch()} /> : null}
             />
           </div>
 
@@ -129,7 +129,7 @@ export default function RecebimentosPage({ variant }: { variant: "pendente" | "s
                 title={formatMovementTitle(current)}
                 description="Escolha a nota e confirme"
               >
-                <MovimentoPanel item={current} />
+                <MovimentoPanel item={current} onEmissaoSuccess={() => refetch()} />
               </Sheet>
             )}
             {!mobileSheetOpen && current && (

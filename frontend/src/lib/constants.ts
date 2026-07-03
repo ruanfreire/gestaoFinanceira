@@ -41,6 +41,7 @@ export const ROUTES = {
   perfil: "/configuracoes/perfil",
   integracoes: "/configuracoes/integracoes",
   integracoesHonest: "/configuracoes/integracoes/honest",
+  tomadores: "/configuracoes/tomadores",
   configuracoes: "/configuracoes",
   convite: "/convite",
 } as const;

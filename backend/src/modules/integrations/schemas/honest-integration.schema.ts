@@ -20,6 +20,9 @@ export const HonestIntegrationSchema = new Schema(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Organization', index: true },
     enabled: { type: Boolean, default: false },
+    emissao_nf_habilitada: { type: Boolean, default: false },
+    emissao_verified_at: { type: Date },
+    emissao_verify_error: { type: String },
     auto_sync_enabled: { type: Boolean, default: false },
     api_login: { type: String },
     api_password_enc: { type: String },

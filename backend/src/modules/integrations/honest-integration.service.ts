@@ -50,6 +50,13 @@ import {
   type HonestLoginOptions,
   type HonestSession,
 } from './honest-api.client';
+import {
+  buildHonestEmitNfRequest,
+  mapHonestEmitErrorMessage,
+  parseHonestEmitResponse,
+  type HonestEmitInput,
+  type HonestEmitResult,
+} from './honest-emissao.util';
 import { ResourceJobQueueService } from '../../common/jobs/resource-job-queue.service';
 
 export type HonestSyncTrigger = 'manual' | 'worker';
@@ -59,6 +66,7 @@ export type HonestIntegrationView = {
   name: string;
   description: string;
   enabled: boolean;
+  emissao_nf_habilitada: boolean;
   auto_sync_enabled: boolean;
   api_login?: string;
   api_base_url?: string;
@@ -669,6 +677,7 @@ export class HonestIntegrationService {
     const update: Record<string, unknown> = {};
 
     if (dto.enabled !== undefined) update.enabled = dto.enabled;
+    if (dto.emissao_nf_habilitada !== undefined) update.emissao_nf_habilitada = dto.emissao_nf_habilitada;
     if (dto.auto_sync_enabled !== undefined) update.auto_sync_enabled = dto.auto_sync_enabled;
     if (dto.sync_interval_minutes !== undefined) update.sync_interval_minutes = dto.sync_interval_minutes;
     if (dto.api_base_url !== undefined) update.api_base_url = dto.api_base_url.trim();
@@ -693,6 +702,34 @@ export class HonestIntegrationService {
       await this.honestModel.findByIdAndUpdate(doc._id, { $set: update }, { new: true }).lean(),
     );
     return this.toView(updated);
+  }
+
+  async emitirNf(tenantId: string, input: HonestEmitInput): Promise<HonestEmitResult> {
+    const doc = await this.findOrCreateConfig(tenantId);
+    const empresaId = this.readEmpresaId(doc);
+    if (!empresaId) {
+      return { ok: false, error: 'Empresa Honest não vinculada. Conecte a integração primeiro.' };
+    }
+
+    const session = await this.ensureSession(tenantId, doc);
+    const graphqlUrl = buildHonestGraphqlUrl(session.baseUrl);
+    const result = await honestAuthenticatedRequest(
+      session,
+      graphqlUrl,
+      'POST',
+      this.timeoutMs(),
+      buildHonestEmitNfRequest(empresaId, input),
+      this.buildGraphqlRequestHeaders(empresaId),
+    );
+
+    if (!result.ok || result.json == null) {
+      return {
+        ok: false,
+        error: mapHonestEmitErrorMessage(result.error ?? 'Falha ao chamar API Honest'),
+      };
+    }
+
+    return parseHonestEmitResponse(result.json);
   }
 
   async sync(
@@ -1219,6 +1256,7 @@ export class HonestIntegrationService {
       name: 'Honest',
       description: 'Importação de notas fiscais via API Honest com login e descoberta de endpoints',
       enabled: Boolean(doc.enabled),
+      emissao_nf_habilitada: Boolean(doc.emissao_nf_habilitada),
       auto_sync_enabled: Boolean(doc.auto_sync_enabled),
       api_login: doc.api_login ? String(doc.api_login) : undefined,
       api_base_url: doc.api_base_url ? String(doc.api_base_url) : this.defaultBaseUrl(),

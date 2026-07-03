@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ChevronRight, CreditCard, Building2, Plug, Sparkles, Users } from "lucide-react";
+import { ChevronRight, CreditCard, Building2, Plug, Sparkles, Users, UserRound } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { PageHeader } from "@/design-system/molecules";
 import { PrefetchLink } from "@/design-system/molecules";
@@ -26,6 +26,12 @@ const settingsLinks = [
     title: "Equipe",
     description: "Convide operadores e gerencie membros da organização",
     icon: Users,
+  },
+  {
+    to: ROUTES.tomadores,
+    title: "Tomadores",
+    description: "Clientes para emissão de NF e identificação de pagamentos",
+    icon: UserRound,
   },
   {
     to: ROUTES.integracoesHonest,

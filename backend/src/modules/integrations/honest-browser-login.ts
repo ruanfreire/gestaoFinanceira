@@ -112,10 +112,15 @@ export async function honestPlaywrightLogin(
 
     const authCheck = await context.request.get(`${appBase}/oauth2/auth`);
     if (authCheck.status() !== 200 && authCheck.status() !== 202) {
+      const status = authCheck.status();
+      const credentialHint =
+        status === 401
+          ? ' Credenciais inválidas ou conta sem acesso ao portal Honest — use o mesmo e-mail/senha de https://honest.com.br (não o login deste sistema).'
+          : '';
       return {
         ok: false,
-        error: `Honest /oauth2/auth após login no navegador: HTTP ${authCheck.status()}`,
-        attempts: [`browser login: /oauth2/auth HTTP ${authCheck.status()}`],
+        error: `Honest /oauth2/auth após login no navegador: HTTP ${status}.${credentialHint}`,
+        attempts: [`browser login: /oauth2/auth HTTP ${status}`],
       };
     }
 

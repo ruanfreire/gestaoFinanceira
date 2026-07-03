@@ -18,6 +18,10 @@ export class UpdateHonestIntegrationDto {
 
   @IsOptional()
   @IsBoolean()
+  emissao_nf_habilitada?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   auto_sync_enabled?: boolean;
 
   @IsOptional()

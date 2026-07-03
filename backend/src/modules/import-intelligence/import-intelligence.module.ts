@@ -20,6 +20,7 @@ import { RagRetrievalService } from './services/rag-retrieval.service';
 import { NotasModule } from '../notas/notas.module';
 import { BillingModule } from '../billing/billing.module';
 import { ImportacoesModule } from '../importacoes/importacoes.module';
+import { TomadoresModule } from '../tomadores/tomadores.module';
 import { ImportacaoSchema } from '../importacoes/schemas/importacao.schema';
 import { NotaSchema } from '../notas/schemas/nota.schema';
 
@@ -39,6 +40,7 @@ import { NotaSchema } from '../notas/schemas/nota.schema';
     NotasModule,
     BillingModule,
     ImportacoesModule,
+    TomadoresModule,
   ],
   controllers: [ImportIntelligenceController, NfImportController],
   providers: [

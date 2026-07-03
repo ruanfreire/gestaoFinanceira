@@ -101,6 +101,7 @@ export type DashboardKpis = {
   overdueNotas: number;
   pendentesConciliacao: number;
   semMatch: number;
+  pagamentosAguardandoEmissao: number;
   importsInPeriod: number;
   percentRecebido: number;
 };
@@ -236,6 +237,16 @@ function buildAlerts(kpis: DashboardKpis, recentImports: RecentImport[]): Dashbo
       linkLabel: "Ver agora",
     });
   }
+  if (kpis.pagamentosAguardandoEmissao > 0) {
+    alerts.push({
+      id: "aguardando-emissao",
+      type: "info",
+      title: "Pagamentos aguardam emissão de NF",
+      message: `${kpis.pagamentosAguardandoEmissao} recebimento(s) podem gerar nota fiscal.`,
+      link: "/recebimentos/sem-correspondencia",
+      linkLabel: "Emitir ou registrar",
+    });
+  }
   if (kpis.pendentesConciliacao > 0) {
     alerts.push({
       id: "pendentes",
@@ -282,9 +293,10 @@ export const homeApi = {
       }
     }
 
-    const [pendentesRes, semMatchRes, importacoes, extratos] = await Promise.all([
+    const [pendentesRes, semMatchRes, emissaoCountsRes, importacoes, extratos] = await Promise.all([
       api.get<ConciliacaoListResponse>("/import-intelligence/pendentes"),
       api.get<ConciliacaoListResponse>("/import-intelligence/sem-match"),
+      api.get<{ aguardando_emissao: number }>("/emissao/counts"),
       api.get<{ items: ImportacaoFatura[] }>("/importacoes", { params: { page: 1, limit: 20 } }),
       api.get<{ items: ImportacaoBancaria[] }>("/importacoes-bancarias", { params: { page: 1, limit: 20 } }),
     ]);
@@ -340,6 +352,7 @@ export const homeApi = {
       overdueNotas: overdue,
       pendentesConciliacao: pendentesTotal,
       semMatch: semMatchTotal,
+      pagamentosAguardandoEmissao: emissaoCountsRes.data.aguardando_emissao ?? 0,
       importsInPeriod,
       percentRecebido: valorNf > 0 ? (valorRecebido / valorNf) * 100 : 0,
     };
