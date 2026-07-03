@@ -25,7 +25,13 @@ const SKIP_ON_PROD = new Set([
   'OLLAMA_MODEL',
 ]);
 
-function parseEnv(text) {
+function quoteEnvValue(value) {
+  const trimmed = String(value ?? '');
+  if (/[\s#"'\\]/.test(trimmed)) {
+    return `"${trimmed.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+  }
+  return trimmed;
+}
   const map = new Map();
   const order = [];
   for (const line of text.split(/\r?\n/)) {
@@ -54,6 +60,7 @@ out.set('API_PUBLIC_URL', 'https://financeiro.seumovimento.com.br/api');
 out.set('COOKIE_SAME_SITE', out.get('COOKIE_SAME_SITE') || 'lax');
 out.set('INTEGRATIONS_WORKER_INTERVAL_MS', '300000');
 out.set('HONEST_REQUEST_TIMEOUT_MS', '45000');
+out.set('HONEST_BROWSER_LOGIN', 'true');
 
 for (const [key, value] of local.map) {
   if (SKIP_ON_PROD.has(key)) continue;
@@ -74,7 +81,7 @@ const lines = [
 ];
 for (const key of keys) {
   if (!out.has(key)) continue;
-  lines.push(`${key}=${out.get(key)}`);
+  lines.push(`${key}=${quoteEnvValue(out.get(key))}`);
 }
 lines.push('');
 

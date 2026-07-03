@@ -82,10 +82,12 @@ export default function AnalisesFluxoPage() {
       await analisesApi.exportFluxoCaixa(filters, setExportJob);
       toast("Arquivo salvo na pasta de downloads.", "success");
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Falha ao exportar", "error");
+      const message = err instanceof Error ? err.message : "Falha ao exportar";
+      setExportJob((prev) => (prev ? { ...prev, status: "failed", error: message } : prev));
+      toast(message, "error");
     } finally {
       setExporting(false);
-      setExportJob(null);
+      window.setTimeout(() => setExportJob(null), 4000);
     }
   };
 
@@ -245,7 +247,7 @@ export default function AnalisesFluxoPage() {
             O arquivo inclui movimentos conciliados do período selecionado.
           </Typography>
 
-          {exporting && (
+          {(exporting || exportJob) && (
             <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
               <Typography variant="subtitle">Preparando relatório</Typography>
               <Typography variant="caption" tone="muted" className="mt-1 block">

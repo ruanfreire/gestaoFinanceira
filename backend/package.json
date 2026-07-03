@@ -22,6 +22,7 @@
     "db:repair-notas": "node scripts/repair-notas-tenant.mjs",
     "db:export-tenant": "node scripts/sync-tenant-data.mjs export",
     "db:import-tenant": "node scripts/sync-tenant-data.mjs import",
+    "smoke:prod": "node scripts/prod-smoke-test.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:honest": "ts-node scripts/test-honest-login.ts"

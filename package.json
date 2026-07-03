@@ -19,7 +19,8 @@
     "test": "npm --workspace backend run test && npm --workspace frontend run test",
     "e2e": "npm run build && playwright test",
     "e2e:install": "playwright install chromium --with-deps",
-    "crawl:prod": "node scripts/prod-crawl.mjs"
+    "crawl:prod": "node scripts/prod-crawl.mjs",
+    "crawl:prod:fluxo": "node scripts/prod-fluxo-export.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
