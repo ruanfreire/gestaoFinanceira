@@ -83,16 +83,16 @@ Write-Host "==> Enviando para a VM..."
 if ($LASTEXITCODE -ne 0) { throw "Falha no scp" }
 
 Write-Host "==> Instalando na VM (pode levar alguns minutos)..."
-$remote = @"
+$remote = @'
 set -e
 STAGING=$(mktemp -d)
 trap 'rm -rf "$STAGING"' EXIT
 tar -xzf /tmp/gestao-financeira-native.tar.gz -C "$STAGING"
-sudo rsync -a "$STAGING/" "$RemoteDir/"
-sudo chown -R opc:opc $RemoteDir
-sudo chmod o+x $RemoteDir $RemoteDir/frontend $RemoteDir/frontend/dist 2>/dev/null || true
-sudo chmod -R o+rX $RemoteDir/frontend/dist 2>/dev/null || true
-cd $RemoteDir
+sudo rsync -a "$STAGING/" REMOTE_DIR_PLACEHOLDER/
+sudo chown -R opc:opc REMOTE_DIR_PLACEHOLDER
+sudo chmod o+x REMOTE_DIR_PLACEHOLDER REMOTE_DIR_PLACEHOLDER/frontend REMOTE_DIR_PLACEHOLDER/frontend/dist 2>/dev/null || true
+sudo chmod -R o+rX REMOTE_DIR_PLACEHOLDER/frontend/dist 2>/dev/null || true
+cd REMOTE_DIR_PLACEHOLDER
 chmod +x deploy/install-native.sh deploy/maintenance.sh deploy/ssl/*.sh 2>/dev/null || true
 DEPLOY_OK=1
 if ! bash deploy/install-native.sh; then DEPLOY_OK=0; fi
@@ -114,7 +114,7 @@ if [ "$ok" -ne 1 ]; then
   sudo systemctl status gestao-financeira-backend nginx mongod --no-pager || true
 fi
 if [ "$DEPLOY_OK" -eq 0 ]; then exit 1; fi
-"@
+'@ -replace 'REMOTE_DIR_PLACEHOLDER', $RemoteDir
 
 & ssh @ssh "${User}@${HostIP}" $remote
 if ($LASTEXITCODE -ne 0) { throw "Falha na instalação nativa" }
