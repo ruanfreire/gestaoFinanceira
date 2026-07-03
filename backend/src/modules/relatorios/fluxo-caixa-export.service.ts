@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Types } from 'mongoose';
 import { ImportIntelligenceService } from '../import-intelligence/services/import-intelligence.service';
 import {
   buildFluxoCaixaConsolidadoFilename,
@@ -11,6 +12,7 @@ import {
   ResourceJobQueueService,
   type ResourceJobPublicView,
 } from '../../common/jobs/resource-job-queue.service';
+import { runWithTenant } from '../../common/tenant/tenant-storage';
 
 @Injectable()
 export class FluxoCaixaExportService {
@@ -27,7 +29,7 @@ export class FluxoCaixaExportService {
   ): Promise<{ buffer: Buffer; filename: string }> {
     return this.jobQueue.runExclusive(
       'fluxo_caixa',
-      () => this.exportInternal(banco, params, profileId),
+      () => this.runInTenant(tenantId, () => this.exportInternal(banco, params, profileId)),
       { tenantId, progressMessage: 'Preparando relatório' },
     );
   }
@@ -44,7 +46,9 @@ export class FluxoCaixaExportService {
     }
 
     const jobId = this.jobQueue.createJob('fluxo_caixa', tenantId);
-    this.jobQueue.enqueueJob(jobId, () => this.exportInternal(banco, params, profileId));
+    this.jobQueue.enqueueJob(jobId, () =>
+      this.runInTenant(tenantId, () => this.exportInternal(banco, params, profileId)),
+    );
     const view = this.jobQueue.getJobView(jobId, tenantId);
     if (!view) {
       throw new BadRequestException('Não foi possível iniciar o relatório.');
@@ -124,5 +128,10 @@ export class FluxoCaixaExportService {
       buffer,
       filename: buildFluxoCaixaConsolidadoFilename(params),
     };
+  }
+
+  private runInTenant<T>(tenantId: string | undefined, fn: () => Promise<T>): Promise<T> {
+    if (!tenantId) return fn();
+    return runWithTenant(new Types.ObjectId(tenantId), () => fn());
   }
 }

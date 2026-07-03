@@ -1083,7 +1083,7 @@ export class ImportIntelligenceService implements OnModuleInit {
 
     const bestByKey = new Map<string, (typeof withCounts)[number]>();
     for (const profile of withCounts) {
-      const key = (profile.system_key || profile.banco_label).trim().toLowerCase();
+      const key = `${profile.system_key || ''}|${profile.banco_label}|${profile.name}`.trim().toLowerCase();
       const current = bestByKey.get(key);
       if (!current || profile.lancamentoCount > current.lancamentoCount) {
         bestByKey.set(key, profile);
