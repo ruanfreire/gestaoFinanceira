@@ -89,12 +89,32 @@ export function listImportPresets(): ImportPreset[] {
   return Object.values(IMPORT_PRESETS);
 }
 
+/** Infere preset a partir do rótulo do banco quando `system_key` não foi gravado. */
+export function inferImportPresetKey(profile: {
+  system_key?: string;
+  banco_label?: string;
+  name?: string;
+}): ImportPresetKey | undefined {
+  if (profile.system_key === 'asaas' || profile.system_key === 'nubank') {
+    return profile.system_key;
+  }
+  const labels = [profile.banco_label, profile.name]
+    .map((value) => value?.trim().toLowerCase())
+    .filter(Boolean);
+  if (labels.some((label) => label === 'asaas')) return 'asaas';
+  if (labels.some((label) => label === 'nubank' || label === 'nbk')) return 'nubank';
+  return undefined;
+}
+
 /** Garante regra Asaas por coluna mesmo em perfis antigos gravados com `sign`. */
 export function resolveImportProfileMapping(profile: {
   system_key?: string;
+  banco_label?: string;
+  name?: string;
   mapping: ImportProfileMapping;
 }): ImportProfileMapping {
-  const preset = profile.system_key ? getImportPreset(profile.system_key) : null;
+  const presetKey = inferImportPresetKey(profile);
+  const preset = presetKey ? getImportPreset(presetKey) : null;
   if (!preset) return profile.mapping;
 
   return {

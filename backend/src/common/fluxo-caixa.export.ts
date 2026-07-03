@@ -268,6 +268,12 @@ function acquireFluxoSheetFallback(
   return { sheet: workbook.addWorksheet(fallback), fromTemplate: false };
 }
 
+function isTemplateNameAlreadyAssigned(templateName: string, assignedNames: Set<string>): boolean {
+  if (assignedNames.has(templateName)) return true;
+  const key = normalizeSheetKey(templateName);
+  return [...assignedNames].some((name) => normalizeSheetKey(name) === key);
+}
+
 function acquireFluxoSheet(
   workbook: ExcelJS.Workbook,
   layout: FluxoCaixaLayout,
@@ -277,7 +283,6 @@ function acquireFluxoSheet(
   assignedNames: Set<string>,
 ): AcquiredFluxoSheet {
   const safeName = ensureUniqueSheetName(workbook, sheetName, assignedNames);
-  assignedNames.add(safeName);
 
   const requested = sheetName.slice(0, 31);
   const mayUseTemplate = preserveLayout && safeName === requested;
@@ -295,11 +300,13 @@ function acquireFluxoSheet(
             return acquireFluxoSheetFallback(workbook, sheetName, assignedNames, safeName);
           }
         }
+        assignedNames.add(safeName);
         return { sheet: templateSheet, fromTemplate: true };
       }
     }
     for (const templateName of Object.values(FLUXO_CAIXA_TEMPLATE_SHEETS)) {
       if (usedTemplateSheets.has(templateName)) continue;
+      if (isTemplateNameAlreadyAssigned(templateName, assignedNames)) continue;
       const templateSheet = workbook.getWorksheet(templateName);
       if (!templateSheet) continue;
       usedTemplateSheets.add(templateName);
@@ -310,6 +317,7 @@ function acquireFluxoSheet(
           return acquireFluxoSheetFallback(workbook, sheetName, assignedNames, safeName);
         }
       }
+      assignedNames.add(safeName);
       return { sheet: templateSheet, fromTemplate: true };
     }
   }

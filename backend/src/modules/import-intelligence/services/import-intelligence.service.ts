@@ -37,6 +37,7 @@ import { resolveCreditoMatch } from '../../conciliacao/credito-match.util';
 import { sanitizePagadorNome, extractPagadorFromDescricao, isDirtyPagadorNome } from '../../../common/pagador-from-descricao.util';
 import { NotasService } from '../../notas/notas.service';
 import { PlanLimitsService } from '../../billing/plan-limits.service';
+import { TomadoresService } from '../../tomadores/tomadores.service';
 import type {
   ImportAnalysisResult,
   ImportProfileMapping,
@@ -57,7 +58,7 @@ import { GeminiUsageService } from './gemini-usage.service';
 import { ImportAiAnalysisService } from './import-ai-analysis.service';
 import { RagRetrievalService } from './rag-retrieval.service';
 import { parseCsvLine, parseDelimitedLine, sanitizeSampleValue } from '../utils/csv-parse.util';
-import { getImportPreset, listImportPresets, resolveImportProfileMapping, type ImportPreset } from '../import-presets';
+import { getImportPreset, listImportPresets, resolveImportProfileMapping, inferImportPresetKey, type ImportPreset } from '../import-presets';
 
 type ImportProfileLean = {
   _id: Types.ObjectId;
@@ -120,6 +121,7 @@ export class ImportIntelligenceService implements OnModuleInit {
     private readonly rag: RagRetrievalService,
     private readonly notasService: NotasService,
     private readonly planLimitsService: PlanLimitsService,
+    private readonly tomadoresService: TomadoresService,
     private readonly config: ConfigService,
     private readonly geminiUsage: GeminiUsageService,
   ) {}
@@ -1094,7 +1096,8 @@ export class ImportIntelligenceService implements OnModuleInit {
   }
 
   private resolveFluxoLayout(profile: ImportProfileLean): FluxoCaixaLayout {
-    const preset = profile.system_key ? getImportPreset(profile.system_key) : null;
+    const presetKey = inferImportPresetKey(profile);
+    const preset = presetKey ? getImportPreset(presetKey) : null;
     return preset?.fluxo_layout ?? 'compact';
   }
 
@@ -1377,6 +1380,25 @@ export class ImportIntelligenceService implements OnModuleInit {
     return { ok: true };
   }
 
+  private async enrichConciliacaoItem<
+    T extends { lancamento: BankLancamentoLean; candidatas: unknown[] },
+  >(item: T) {
+    const pagador = item.lancamento.pagador_nome?.trim();
+    if (!pagador) return item;
+
+    const suggestion = await this.tomadoresService.suggestTomador(pagador);
+    if (!suggestion) return item;
+
+    return {
+      ...item,
+      tomador_sugerido: {
+        id: suggestion.id,
+        nome: suggestion.nome,
+        score: Number(suggestion.score.toFixed(4)),
+      },
+    };
+  }
+
   async listSemMatch() {
     const lancamentos = asLeanMany<BankLancamentoLean>(
       await this.lancamentoModel.find({ status_conciliacao: 'sem_match' }).sort({ data: -1 }).lean(),
@@ -1391,7 +1413,11 @@ export class ImportIntelligenceService implements OnModuleInit {
       );
       results.push({ lancamento, candidatas: mapScoredCandidatas(scored) });
     }
-    return results;
+    const enriched = [];
+    for (const item of results) {
+      enriched.push(await this.enrichConciliacaoItem(item));
+    }
+    return enriched;
   }
 
   async listPendentes() {
@@ -1408,7 +1434,11 @@ export class ImportIntelligenceService implements OnModuleInit {
       );
       results.push({ lancamento, candidatas: mapScoredCandidatas(scored) });
     }
-    return results;
+    const enriched = [];
+    for (const item of results) {
+      enriched.push(await this.enrichConciliacaoItem(item));
+    }
+    return enriched;
   }
 
   async listNotasParaLancamento(lancamentoId: string, q?: string) {
@@ -1485,7 +1515,10 @@ export class ImportIntelligenceService implements OnModuleInit {
       new Date(lancamento.data ?? Date.now()),
     );
 
-    return { lancamento: updated, candidatas: mapScoredCandidatas(scored) };
+    return this.enrichConciliacaoItem({
+      lancamento: updated!,
+      candidatas: mapScoredCandidatas(scored),
+    });
   }
 
   async getOpsDashboard() {

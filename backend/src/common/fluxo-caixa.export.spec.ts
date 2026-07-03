@@ -177,6 +177,58 @@ describe('fluxo-caixa.export', () => {
     expect(empresaB).toBeDefined();
   });
 
+  it('consolidado Asaas (compact) + Nubank não sobrescreve aba Asaas', async () => {
+    const row = {
+      data: new Date('2026-06-01'),
+      tipo: 'Entrada' as const,
+      categoria: 'Recebimento',
+      numeroDocumento: '1',
+      clienteFornecedor: 'Cliente',
+      historico: 'NF 1',
+      valor: 200,
+    };
+
+    const buffer = await buildFluxoCaixaConsolidadoWorkbook([
+      {
+        layout: 'compact',
+        sheetName: 'Fluxo de caixa_ASAAS',
+        header: {
+          empresaNome: 'EMPRESA ASAAS',
+          empresaCnpj: '00.000.000/0001-00',
+          banco: 'ASAAS',
+          contaCorrente: '',
+          saldoInicial: 100,
+        },
+        rows: [row],
+      },
+      {
+        layout: 'compact',
+        sheetName: 'Fluxo de caixa_Nbk',
+        header: {
+          empresaNome: 'EMPRESA NUBANK',
+          empresaCnpj: '00.000.000/0001-00',
+          banco: 'Nbk',
+          contaCorrente: '',
+          saldoInicial: 50,
+        },
+        rows: [row],
+      },
+    ]);
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const asaas = workbook.worksheets.find((sheet) =>
+      String(sheet.getCell('B3').value ?? '').includes('EMPRESA ASAAS'),
+    );
+    const nbk = workbook.worksheets.find((sheet) =>
+      String(sheet.getCell('B3').value ?? '').includes('EMPRESA NUBANK'),
+    );
+    expect(asaas).toBeDefined();
+    expect(nbk).toBeDefined();
+    expect(asaas?.name).toBe('Fluxo de caixa_ASAAS');
+    expect(nbk?.name).toBe('Fluxo de caixa_Nbk');
+  });
+
   it('consolidado com dois perfis Asaas não quebra (colisão de nome)', async () => {
     const row = {
       data: new Date('2026-06-01'),
