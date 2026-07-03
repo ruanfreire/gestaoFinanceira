@@ -106,7 +106,7 @@ for i in $(seq 1 30); do
     ok=1
     break
   fi
-  echo "==> Aguardando serviços ficarem ativos ($i/30)..."
+  echo "==> Aguardando serviços ficarem ativos ${i}/30..."
   sleep 2
 done
 if [ "$ok" -ne 1 ]; then
