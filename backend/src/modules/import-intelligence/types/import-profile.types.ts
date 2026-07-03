@@ -82,6 +82,11 @@ export type ImportAnalysisResult = {
   overall_confidence: number;
   gaps: AnalysisGap[];
   source: 'heuristic' | 'gemini' | 'hybrid' | 'rag_template';
+  /** IA foi chamada nesta análise (Groq/Gemini/Ollama). */
+  ai_attempted?: boolean;
+  /** IA alterou mapeamento ou metadados sugeridos. */
+  ai_applied?: boolean;
+  ai_provider?: string;
   prompt_version?: string;
   rag_document_ids?: string[];
   sample_normalized: NormalizedLancamentoSample[];

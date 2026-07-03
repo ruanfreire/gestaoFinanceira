@@ -414,12 +414,12 @@ export class ImportIntelligenceService implements OnModuleInit {
       (row) =>
         row.tipo_movimento === 'entrada' &&
         row.descricao?.trim() &&
-        (!row.pagador_nome || isDirtyPagadorNome(row.pagador_nome)),
+        (!row.pagador_nome?.trim() || isDirtyPagadorNome(row.pagador_nome)),
     );
     if (candidates.length === 0) return sanitized;
 
     const aiMap = await this.ai.extractPagadoresFromDescricoes(
-      candidates.slice(0, 60).map((row) => ({
+      candidates.slice(0, 120).map((row) => ({
         id: row.transacao_id,
         descricao: row.descricao,
       })),
@@ -573,13 +573,21 @@ export class ImportIntelligenceService implements OnModuleInit {
       userId,
     });
 
+    const aiAttempted = this.ai.isEnabled();
     let merged = mergeAnalysis(heuristic, geminiPartial);
+    const aiMappingApplied =
+      JSON.stringify(heuristic.mapping) !== JSON.stringify(merged.mapping);
     const { rows, errors } = this.parseWithFileFormat(content, fileName, merged.mapping);
     const enrichedRows = await this.enrichPagadorNames(rows, userId);
     const fileMetadata = this.attachFileMetadata(content, merged.mapping);
     const sampleRawRows = lines
       .slice(heuristic.mapping.header_row, heuristic.mapping.header_row + 3)
       .map((line) => parseDelimitedLine(line, merged.mapping.delimiter));
+    const pagadorEnrichedByAi = enrichedRows.some((row, index) => {
+      const before = rows[index]?.pagador_nome?.trim();
+      const after = row.pagador_nome?.trim();
+      return Boolean(after && after !== before);
+    });
     merged = {
       ...merged,
       sample_normalized: this.toSampleRows(enrichedRows),
@@ -590,6 +598,9 @@ export class ImportIntelligenceService implements OnModuleInit {
       detected_headers: headers,
       sample_raw_rows: sampleRawRows,
       file_metadata: fileMetadata,
+      ai_attempted: aiAttempted,
+      ai_applied: aiAttempted && (aiMappingApplied || pagadorEnrichedByAi || merged.source === 'hybrid'),
+      ai_provider: aiAttempted ? this.ai.provider() : undefined,
     };
 
     if (merged.overall_confidence < this.ai.minConfidence()) {
@@ -651,9 +662,17 @@ export class ImportIntelligenceService implements OnModuleInit {
       userId,
     });
 
+    const aiAttempted = this.ai.isEnabled();
     let merged = mergeAnalysis(heuristic, geminiPartial);
+    const aiMappingApplied =
+      JSON.stringify(heuristic.mapping) !== JSON.stringify(merged.mapping);
     const { rows, errors } = parseJsonWithMapping(content, merged.mapping);
     const enrichedRows = await this.enrichPagadorNames(rows, userId);
+    const pagadorEnrichedByAi = enrichedRows.some((row, index) => {
+      const before = rows[index]?.pagador_nome?.trim();
+      const after = row.pagador_nome?.trim();
+      return Boolean(after && after !== before);
+    });
     merged = {
       ...merged,
       file_kind: 'json',
@@ -664,6 +683,9 @@ export class ImportIntelligenceService implements OnModuleInit {
       overall_confidence: this.computeOverallConfidence(merged),
       detected_headers: heuristic.detected_headers,
       detected_json_kind: 'bank_transactions',
+      ai_attempted: aiAttempted,
+      ai_applied: aiAttempted && (aiMappingApplied || pagadorEnrichedByAi || merged.source === 'hybrid'),
+      ai_provider: aiAttempted ? this.ai.provider() : undefined,
     };
 
     await this.recordAnalysisSession({

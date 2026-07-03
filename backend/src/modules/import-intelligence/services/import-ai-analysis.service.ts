@@ -308,9 +308,7 @@ export class ImportAiAnalysisService {
     ragContext: string;
     userId?: string;
   }): Promise<Partial<ImportAnalysisResult> | null> {
-    const lowConfidence = params.heuristic.overall_confidence < this.minConfidence();
-    const missingPagadorColumn = !params.heuristic.mapping.columns.pagador_nome;
-    if (!lowConfidence && !missingPagadorColumn) return null;
+    if (!this.isEnabled()) return null;
 
     const prompt = buildExtratoCsvPrompt({
       sanitizedHeaders: params.sanitizedHeaders,
@@ -348,9 +346,7 @@ export class ImportAiAnalysisService {
     userId?: string;
   }): Promise<Partial<ImportAnalysisResult> | null> {
     if (params.heuristic.detected_json_kind !== 'bank_transactions') return null;
-    const lowConfidence = params.heuristic.overall_confidence < this.minConfidence();
-    const missingPagadorColumn = !params.heuristic.mapping.columns.pagador_nome;
-    if (!lowConfidence && !missingPagadorColumn) return null;
+    if (!this.isEnabled()) return null;
 
     const prompt = buildNotaJsonPrompt({
       sanitizedStructure: params.sanitizedStructure,

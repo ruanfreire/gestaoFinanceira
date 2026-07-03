@@ -281,6 +281,39 @@ function RawFilePreview({
   );
 }
 
+function AiEnhancementStatus({ analysis }: { analysis: ImportAnalysisResult }) {
+  if (!analysis.ai_attempted) {
+    return (
+      <Callout variant="info" title="IA desativada">
+        <Typography variant="body">
+          Esta análise usou apenas heurística. Ative <code className="text-small">IMPORT_AI_ENABLED</code> com Groq ou
+          Gemini no servidor para refinamento automático.
+        </Typography>
+      </Callout>
+    );
+  }
+
+  if (analysis.ai_applied) {
+    return (
+      <Callout variant="success" title="IA aplicada na leitura">
+        <Typography variant="body">
+          O extrato foi refinado com IA ({analysis.ai_provider ?? "provedor configurado"}) — mapeamento de colunas e/ou
+          nomes de pagadores extraídos das descrições.
+        </Typography>
+      </Callout>
+    );
+  }
+
+  return (
+    <Callout variant="info" title="IA consultada">
+      <Typography variant="body">
+        A IA analisou o arquivo ({analysis.ai_provider ?? "provedor configurado"}) e manteve a leitura heurística —
+        já estava consistente. Métricas em Configurações → Importação inteligente.
+      </Typography>
+    </Callout>
+  );
+}
+
 export function ImportReadingPreview({
   analysis,
   mapping,
@@ -297,6 +330,7 @@ export function ImportReadingPreview({
   return (
     <div className="stack-gap">
       <ReadingStatus analysis={analysis} mapping={mapping} />
+      <AiEnhancementStatus analysis={analysis} />
 
       {analysis.banco_label_suggested && (
         <Typography variant="body">

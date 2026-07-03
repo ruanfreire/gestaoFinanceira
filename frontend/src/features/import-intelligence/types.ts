@@ -37,6 +37,10 @@ export type ImportAnalysisResult = {
   overall_confidence: number;
   gaps: Array<{ field: string; severity: string; message: string }>;
   source: string;
+  ai_attempted?: boolean;
+  ai_applied?: boolean;
+  ai_provider?: string;
+  prompt_version?: string;
   sample_normalized: Array<{
     transacao_id: string;
     data: string;
