@@ -115,6 +115,7 @@ export class ImportacoesController {
       filename: file.originalname,
       originalName: file.originalname,
       uploadedBy: req.user?.sub,
+      ...(req.user?.tenantId ? { tenantId: req.user.tenantId } : {}),
       status: 'processing',
       contentHash,
     });

@@ -34,6 +34,16 @@ git push -u origin main
 | `DEPLOY_PATH` | `/opt/gestao-financeira` | Sim |
 | `SSH_PORT` | `22` | Não |
 | `SEED_ADMIN_PASSWORD` | Senha do admin inicial | Não |
+| `PRODUCTION_ENV` | Conteúdo completo do `.env` de produção (várias linhas) | Não |
+
+#### Sincronizar `.env` automaticamente no deploy
+
+1. Copie o `.env` de produção (base: `deploy/env.native.example`)
+2. GitHub → **New repository secret** → Name: `PRODUCTION_ENV`
+3. Cole **todo** o conteúdo do arquivo (incluindo `JWT_*`, `VAPID_*`, etc.)
+4. A cada push em `main`, o workflow atualiza `/opt/gestao-financeira/.env` antes do deploy
+
+**Alternativa local (sem GitHub):** `.\deploy\sync-production-env.ps1`
 
 #### Como cadastrar `SSH_PRIVATE_KEY`
 

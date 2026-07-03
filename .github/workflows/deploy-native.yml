@@ -63,6 +63,7 @@ jobs:
       SSH_PORT: ${{ secrets.SSH_PORT }}
       DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
       SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+      PRODUCTION_ENV: ${{ secrets.PRODUCTION_ENV }}
     steps:
       - uses: actions/checkout@v5
 
@@ -151,6 +152,18 @@ jobs:
               echo "Upload falhou; aguardando ${wait}s..."
               sleep "$wait"
               continue
+            fi
+            if [ -n "${PRODUCTION_ENV:-}" ]; then
+              echo "==> Aplicando PRODUCTION_ENV (secret GitHub)"
+              cat deploy/apply-production-env.sh | ssh "${SSH_M[@]}" "${SSH_USER}@${SSH_HOST}" \
+                "cat > /tmp/apply-production-env.sh && chmod +x /tmp/apply-production-env.sh"
+              if ! printf '%s' "$PRODUCTION_ENV" | ssh "${SSH_M[@]}" "${SSH_USER}@${SSH_HOST}" \
+                "export APP_DIR=$(printf '%q' "${DEPLOY_PATH:-/opt/gestao-financeira}"); bash /tmp/apply-production-env.sh"; then
+                cleanup
+                trap - EXIT
+                echo "::error::Falha ao aplicar PRODUCTION_ENV"
+                exit 1
+              fi
             fi
             if ssh "${SSH_M[@]}" "${SSH_USER}@${SSH_HOST}" \
               "export SEED_ADMIN_PASSWORD=$(printf '%q' "${SEED_ADMIN_PASSWORD:-}") APP_DIR=$(printf '%q' "${DEPLOY_PATH:-/opt/gestao-financeira}"); bash -s" \

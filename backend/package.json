@@ -16,6 +16,9 @@
     "purge-notas-nao-pagas": "ts-node -r tsconfig-paths/register src/common/purge-notas-nao-pagas.ts",
     "push:replay": "ts-node -r tsconfig-paths/register src/common/replay-push-notifications.ts",
     "push:replay:prod": "node dist/common/replay-push-notifications.js",
+    "db:diagnose": "node scripts/diagnose-db.mjs",
+    "db:diagnose:prod": "node scripts/diagnose-db.mjs",
+    "db:repair-notas": "node scripts/repair-notas-tenant.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:honest": "ts-node scripts/test-honest-login.ts"
