@@ -100,7 +100,7 @@ export const analisesApi = {
   },
 
   async createFluxoCaixaJob(filters: FluxoCaixaFilters) {
-    const res = await api.post<FluxoCaixaJob>("/relatorios/fluxo-caixa/jobs", null, {
+    const res = await api.post<FluxoCaixaJob>("/relatorios/fluxo-caixa/jobs", undefined, {
       params: fluxoCaixaParams(filters),
     });
     return res.data;

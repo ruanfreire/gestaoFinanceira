@@ -33,22 +33,21 @@ cp "$NEW_ENV" "$ENV_FILE"
 chmod 600 "$ENV_FILE"
 
 # Corrige valores críticos de produção (evita localhost/development após merge manual)
-if grep -q '^APP_DOMAIN=' "$ENV_FILE"; then
-  APP_DOMAIN_VAL=$(grep '^APP_DOMAIN=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
-  if [[ -n "$APP_DOMAIN_VAL" ]]; then
-    PROD_FRONTEND="https://${APP_DOMAIN_VAL}"
-    PROD_API="https://${APP_DOMAIN_VAL}/api"
-    for pair in "NODE_ENV=production" "FRONTEND_URL=${PROD_FRONTEND}" "API_PUBLIC_URL=${PROD_API}" "HONEST_BROWSER_LOGIN=true"; do
-      key="${pair%%=*}"
-      val="${pair#*=}"
-      if grep -q "^${key}=" "$ENV_FILE"; then
-        sed -i "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
-      else
-        echo "${key}=${val}" >> "$ENV_FILE"
-      fi
-    done
-  fi
+APP_DOMAIN_VAL=$(grep '^APP_DOMAIN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//' || true)
+if [[ -z "$APP_DOMAIN_VAL" ]]; then
+  APP_DOMAIN_VAL="financeiro.seumovimento.com.br"
 fi
+PROD_FRONTEND="https://${APP_DOMAIN_VAL}"
+PROD_API="https://${APP_DOMAIN_VAL}/api"
+for pair in "NODE_ENV=production" "FRONTEND_URL=${PROD_FRONTEND}" "API_PUBLIC_URL=${PROD_API}" "HONEST_BROWSER_LOGIN=true" "APP_DOMAIN=${APP_DOMAIN_VAL}"; do
+  key="${pair%%=*}"
+  val="${pair#*=}"
+  if grep -q "^${key}=" "$ENV_FILE"; then
+    sed -i "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
+  else
+    echo "${key}=${val}" >> "$ENV_FILE"
+  fi
+done
 
 # Garante FRONTEND_URL se só APP_DOMAIN estiver definido
 if ! grep -q '^FRONTEND_URL=' "$ENV_FILE" || grep -q '^FRONTEND_URL=$' "$ENV_FILE"; then
