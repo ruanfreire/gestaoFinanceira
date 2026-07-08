@@ -16,6 +16,7 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${PORT}`,
     trace: "on-first-retry",
     reducedMotion: "reduce",
+    serviceWorkers: "block",
     ...devices["Desktop Chrome"],
   },
   globalSetup: "./e2e/global-setup.ts",

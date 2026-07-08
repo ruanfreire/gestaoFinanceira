@@ -2,6 +2,11 @@ import { expect, type APIRequestContext } from "@playwright/test";
 
 const API_BASE = process.env.E2E_API_URL ?? "http://127.0.0.1:4001/api";
 
+export const E2E_SUPERADMIN = {
+  email: "admin@fecho.local",
+  password: "e2e-test-pass",
+} as const;
+
 export const E2E_TENANT_USERS = {
   demo: {
     email: "admin@finance.local",

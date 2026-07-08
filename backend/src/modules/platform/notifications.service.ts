@@ -267,7 +267,11 @@ export class NotificationsService {
       vinculadas: number;
     };
   }) {
-    const notasUrl = await this.tenantPath(params.tenantId, '/arquivos/notas');
+    if (params.stats.imported <= 0) {
+      return;
+    }
+
+    const notasUrl = await this.tenantPath(params.tenantId, '/financeiro/notas');
     const title =
       params.source === 'honest' ? 'Sincronização Honest concluída' : 'Importação de notas concluída';
     const parts = [

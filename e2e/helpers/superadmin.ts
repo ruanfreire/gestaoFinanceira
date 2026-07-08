@@ -1,18 +1,18 @@
 import { expect, type Page } from "@playwright/test";
+import { E2E_SUPERADMIN } from "./api";
 
-export const E2E_SUPERADMIN = {
-  email: process.env.E2E_SUPERADMIN_EMAIL ?? "admin@fecho.local",
-  password: process.env.E2E_SUPERADMIN_PASSWORD ?? "fechoadmin@2026",
-};
+export { E2E_SUPERADMIN };
 
 export async function clearAuthSession(page: Page) {
   await page.context().clearCookies();
-  await page.goto("/auth/entrar");
-  await page.evaluate(() => {
+  await page.goto("/auth/entrar", { waitUntil: "domcontentloaded" });
+  await page.evaluate(async () => {
+    const registrations = await navigator.serviceWorker?.getRegistrations?.();
+    await Promise.all((registrations ?? []).map((registration) => registration.unregister()));
     localStorage.clear();
     sessionStorage.clear();
   });
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
 }
 
 export async function loginAsSuperadmin(page: Page, credentials = E2E_SUPERADMIN) {

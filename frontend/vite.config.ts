@@ -12,9 +12,39 @@ const HTML_ENTRIES: Record<string, string> = {
 
 const SUPERADMIN_APP_HTML = path.resolve(__dirname, "superadmin-app.html");
 
+/** Evita que /superadmin vire superadmin.html (redirect legado) em vez do index da SPA. */
+function spaRouteFallbackPlugin() {
+  const useSpaIndex = (req: { url?: string }, _res: unknown, next: () => void) => {
+    const pathname = req.url?.split("?")[0] ?? "";
+    const hasFileExtension = /\.[a-zA-Z0-9]+$/.test(pathname);
+    if (
+      pathname &&
+      pathname !== "/" &&
+      !pathname.startsWith("/api") &&
+      !pathname.startsWith("/assets/") &&
+      !hasFileExtension
+    ) {
+      const query = req.url?.includes("?") ? `?${req.url.split("?")[1]}` : "";
+      req.url = `/index.html${query}`;
+    }
+    next();
+  };
+
+  return {
+    name: "spa-route-fallback",
+    configureServer(server: { middlewares: { use: (fn: typeof useSpaIndex) => void } }) {
+      server.middlewares.use(useSpaIndex);
+    },
+    configurePreviewServer(server: { middlewares: { use: (fn: typeof useSpaIndex) => void } }) {
+      server.middlewares.use(useSpaIndex);
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
+    spaRouteFallbackPlugin(),
     ...(mode === "client" || mode === "development" || mode === "production"
       ? [
           VitePWA({

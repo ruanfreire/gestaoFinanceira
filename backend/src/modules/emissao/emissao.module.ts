@@ -6,7 +6,6 @@ import { NotasModule } from '../notas/notas.module';
 import { TomadoresModule } from '../tomadores/tomadores.module';
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { AuditModule } from '../audit_logs/audit.module';
-import { PlatformModule } from '../platform/platform.module';
 import { EmissaoRascunhoSchema } from './schemas/emissao-rascunho.schema';
 import { EmissaoController } from './emissao.controller';
 import { EmissaoService } from './emissao.service';
@@ -25,7 +24,6 @@ import { SpNfseEmissaoProvider } from './providers/sp-nfse-emissao.provider';
     TomadoresModule,
     IntegrationsModule,
     AuditModule,
-    PlatformModule,
   ],
   providers: [EmissaoService, PrefeituraEmissaoService, SpNfseEmissaoProvider],
   controllers: [EmissaoController],

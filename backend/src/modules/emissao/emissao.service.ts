@@ -14,7 +14,6 @@ import { EmissaoNfConfigService } from '../integrations/emissao-nf-config.servic
 import { PrefeituraEmissaoService } from './prefeitura-emissao.service';
 import { SpNfseEmissaoProvider } from './providers/sp-nfse-emissao.provider';
 import { AuditService } from '../audit_logs/audit.service';
-import { NotificationsService } from '../platform/notifications.service';
 import { AtualizarEmissaoRascunhoDto, CriarEmissaoRascunhoDto } from './dto/emissao.dto';
 import { isValidDocumento } from '../tomadores/tomador-match.util';
 
@@ -61,7 +60,6 @@ export class EmissaoService {
     private readonly emissaoNfConfig: EmissaoNfConfigService,
     private readonly prefeituraEmissao: PrefeituraEmissaoService,
     private readonly auditService: AuditService,
-    private readonly notificationsService: NotificationsService,
   ) {}
 
   private toView(doc: EmissaoRascunhoLean, tomador?: Record<string, unknown>) {
@@ -375,19 +373,6 @@ export class EmissaoService {
       entityId: id,
       metadata: { nota_id: notaId, lancamento_id: String(lancamento._id), userId },
     });
-
-    if (tenantId && userId) {
-      const path = await this.notificationsService.tenantPath(
-        tenantId,
-        '/recebimentos/sem-correspondencia',
-      );
-      await this.notificationsService.notifyUser(userId, {
-        type: 'emissao_nf_confirmada',
-        title: 'Nota registrada',
-        message: `NF para ${tomador.nome} — R$ ${valor.toFixed(2)} vinculada ao pagamento.`,
-        url: path,
-      });
-    }
 
     return {
       ok: true,

@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
+import { E2E_TENANT_USERS } from "./helpers/api";
 import { login } from "./helpers/auth";
+
+const demo = E2E_TENANT_USERS.demo;
 
 test.describe("API", () => {
   test("health responde ok", async ({ request }) => {
@@ -17,14 +20,14 @@ test.describe("Smoke pós-login", () => {
   });
 
   test("navega para minhas notas", async ({ page }) => {
-    await page.goto("/financeiro/notas", { waitUntil: "networkidle" });
-    await expect(page).toHaveURL(/\/financeiro\/notas/);
+    await page.goto(`/${demo.slug}/financeiro/notas`, { waitUntil: "networkidle" });
+    await expect(page).toHaveURL(new RegExp(`/${demo.slug}/financeiro/notas`));
     await expect(page.getByRole("heading", { name: /minhas notas/i })).toBeVisible({ timeout: 15_000 });
   });
 
   test("navega para confirmar recebimentos", async ({ page }) => {
-    await page.goto("/financeiro/confirmar", { waitUntil: "networkidle" });
-    await expect(page).toHaveURL(/\/financeiro\/confirmar/);
+    await page.goto(`/${demo.slug}/financeiro/confirmar`, { waitUntil: "networkidle" });
+    await expect(page).toHaveURL(new RegExp(`/${demo.slug}/financeiro/confirmar`));
     await expect(page.getByRole("heading", { name: /confirmar recebimentos/i })).toBeVisible({
       timeout: 15_000,
     });
