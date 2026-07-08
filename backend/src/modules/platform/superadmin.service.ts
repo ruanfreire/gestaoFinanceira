@@ -11,6 +11,7 @@ import type { PlanId } from '../../common/billing/plans.config';
 import { buildAdminPlanOverride } from '../../common/billing/admin-plan-override.util';
 import { NotificationsService } from './notifications.service';
 import { EntitlementsService } from '../../common/entitlements/entitlements.service';
+import { MailService } from '../../common/mail/mail.service';
 import type { ModuleKey } from '../../common/entitlements/module-catalog';
 
 function sanitizeClient(user: object) {
@@ -54,6 +55,7 @@ export class SuperadminService {
     @InjectModel('UserActionLog') private actionLogModel: Model<any>,
     private readonly notificationsService: NotificationsService,
     private readonly entitlementsService: EntitlementsService,
+    private readonly mailService: MailService,
   ) {}
 
   async getDashboard() {
@@ -201,6 +203,18 @@ export class SuperadminService {
     };
 
     await this.notificationsService.createForUser(clientId, messages[status]);
+
+    const recipientEmail = String(user.email ?? '');
+    const recipientName = String(user.name ?? 'Olá');
+    if (recipientEmail) {
+      if (status === 'approved') {
+        void this.mailService.sendAccountApproved({ to: recipientEmail, name: recipientName });
+      } else if (status === 'rejected') {
+        void this.mailService.sendAccountRejected({ to: recipientEmail, name: recipientName });
+      } else if (status === 'suspended') {
+        void this.mailService.sendAccountSuspended({ to: recipientEmail, name: recipientName });
+      }
+    }
 
     return { ok: true, client: sanitizeClient(user.toObject()) };
   }

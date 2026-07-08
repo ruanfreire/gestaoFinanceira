@@ -4,6 +4,8 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
 import { AcceptInviteDto } from '../org/dto/invite.dto';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { SkipTenant } from '../../common/tenant/skip-tenant.decorator';
 import { LOGIN_STATUS_MESSAGES } from '../../common/constants/user-status';
@@ -57,6 +59,28 @@ export class AuthController {
       res.cookie('refreshToken', refreshToken, cookieOptions());
     }
     return result;
+  }
+
+  @Post('forgot-password')
+  @Public()
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async forgotPassword(@Body() body: RequestPasswordResetDto) {
+    return this.authService.requestPasswordReset(body);
+  }
+
+  @Get('reset-password/:token')
+  @Public()
+  previewPasswordReset(@Param('token') token: string) {
+    return this.authService.previewPasswordReset(token);
+  }
+
+  @Post('reset-password')
+  @Public()
+  @HttpCode(200)
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  async resetPassword(@Body() body: ResetPasswordDto) {
+    return this.authService.resetPassword(body);
   }
 
   @Post('login')

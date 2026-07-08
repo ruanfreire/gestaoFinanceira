@@ -56,6 +56,7 @@ export const orgApi = {
       email: string;
       tenantRole: TenantRole;
       expiresAt: string;
+      emailSent?: boolean;
     }>("/org/invites", payload);
     return data;
   },
@@ -66,7 +67,9 @@ export const orgApi = {
   },
 
   async regenerateInviteLink(id: string) {
-    const { data } = await api.post<{ ok: boolean; inviteUrl: string }>(`/org/invites/${id}/link`);
+    const { data } = await api.post<{ ok: boolean; inviteUrl: string; emailSent?: boolean }>(
+      `/org/invites/${id}/link`,
+    );
     return data;
   },
 

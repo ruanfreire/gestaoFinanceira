@@ -20,6 +20,7 @@ import { EmissaoModule } from './modules/emissao/emissao.module';
 import { DocumentCoreModule } from './modules/document-core/document-core.module';
 import { ResourceJobsModule } from './common/jobs/resource-jobs.module';
 import { EntitlementsModule } from './common/entitlements/entitlements.module';
+import { MailModule } from './common/mail/mail.module';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtGuard } from './modules/auth/jwt.guard';
 import { TenantGuard } from './common/tenant/tenant.guard';
@@ -56,6 +57,7 @@ import { TenantInterceptor } from './common/tenant/tenant.interceptor';
     DocumentCoreModule,
     ResourceJobsModule,
     EntitlementsModule,
+    MailModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtGuard },

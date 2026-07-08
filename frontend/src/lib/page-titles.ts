@@ -29,6 +29,8 @@ const TITLES: Array<{ match: (path: string) => boolean; title: string }> = [
   { match: (p) => p === ROUTES.integracoesHonest, title: "Conexão Honest" },
   { match: (p) => p === ROUTES.integracoes, title: configuracoesCopy.integracoes.title },
   { match: (p) => p === ROUTES.entrar, title: "Entrar" },
+  { match: (p) => p === ROUTES.esqueciSenha, title: "Esqueci minha senha" },
+  { match: (p) => p.startsWith(ROUTES.redefinirSenha), title: "Nova senha" },
 ];
 
 export function resolvePageTitle(pathname: string, orgSlug?: string): string {

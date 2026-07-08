@@ -1,6 +1,8 @@
 /** Loaders compartilhados — router lazy + prefetch no hover */
 export const lazyRoutes = {
   entrar: () => import("@/features/auth/pages/entrar-page"),
+  esqueciSenha: () => import("@/features/auth/pages/esqueci-senha-page"),
+  redefinirSenha: () => import("@/features/auth/pages/redefinir-senha-page"),
   home: () => import("@/features/home/pages/home-page"),
   notas: () => import("@/features/notas/pages/notas-page"),
   notaNova: () => import("@/features/notas/pages/nota-nova-page"),

@@ -21,6 +21,8 @@ export const queryKeys = {
 export const ROUTES = {
   entrar: "/auth/entrar",
   signup: "/auth/signup",
+  esqueciSenha: "/auth/esqueci-senha",
+  redefinirSenha: "/auth/redefinir-senha",
   home: "/",
   superadmin: "/superadmin",
   superadminClients: "/superadmin/clients",

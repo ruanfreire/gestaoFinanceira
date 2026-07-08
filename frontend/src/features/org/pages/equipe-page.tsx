@@ -76,22 +76,30 @@ export default function EquipePage() {
       const result = await createInvite.mutateAsync(data);
       setLastInviteUrl(result.inviteUrl);
       reset({ email: "", tenantRole: data.tenantRole });
-      toast("Convite criado", "success");
+      toast(
+        result.emailSent
+          ? "Convite criado e e-mail enviado"
+          : "Convite criado — copie o link se o e-mail não chegar",
+        "success",
+      );
     } catch (error: unknown) {
       setInviteError(getApiErrorMessage(error, "Não foi possível criar o convite"));
     }
   };
 
-  const copyInvite = async (url: string) => {
+  const copyInvite = async (url: string, options?: { emailSent?: boolean }) => {
     await navigator.clipboard.writeText(url);
-    toast("Link copiado", "success");
+    toast(
+      options?.emailSent ? "Link copiado e e-mail reenviado" : "Link copiado",
+      "success",
+    );
   };
 
   const copyPendingInvite = async (inviteId: string) => {
     setCopyingInviteId(inviteId);
     try {
       const result = await regenerateLink.mutateAsync(inviteId);
-      await copyInvite(result.inviteUrl);
+      await copyInvite(result.inviteUrl, { emailSent: result.emailSent });
     } catch (error: unknown) {
       toast(getApiErrorMessage(error, "Não foi possível gerar o link"), "error");
     } finally {

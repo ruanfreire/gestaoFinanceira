@@ -114,6 +114,11 @@ export default function EntrarPage() {
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
+          <Typography variant="caption" className="mt-1.5 block text-right">
+            <Link to={ROUTES.esqueciSenha} className="text-primary hover:underline">
+              Esqueci minha senha
+            </Link>
+          </Typography>
         </FormGroup>
         <div className="flex items-center gap-2">
           <Checkbox

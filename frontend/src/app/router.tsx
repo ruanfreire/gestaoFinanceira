@@ -14,6 +14,8 @@ import { withOrgSlug } from "@/lib/org-path";
 import { RequireModule } from "@/features/org/require-module";
 
 const EntrarPage = lazy(lazyRoutes.entrar);
+const EsqueciSenhaPage = lazy(lazyRoutes.esqueciSenha);
+const RedefinirSenhaPage = lazy(lazyRoutes.redefinirSenha);
 const HomePage = lazy(lazyRoutes.home);
 const NotasPage = lazy(lazyRoutes.notas);
 const NotaNovaPage = lazy(lazyRoutes.notaNova);
@@ -86,6 +88,8 @@ export function AppRouter() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/auth/entrar" element={<EntrarPage />} />
+            <Route path="/auth/esqueci-senha" element={<EsqueciSenhaPage />} />
+            <Route path="/auth/redefinir-senha/:token" element={<RedefinirSenhaPage />} />
             <Route path="/auth/signup" element={<SignupPage />} />
             <Route path="/auth/signin" element={<Navigate to={ROUTES.entrar} replace />} />
             <Route path="/convite/:token" element={<ConvitePage />} />

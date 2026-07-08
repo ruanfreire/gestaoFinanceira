@@ -12,6 +12,7 @@ import type { TenantRole } from '../../common/constants/tenant-role';
 import type { CreateInviteDto } from './dto/invite.dto';
 import { resolveFrontendUrl } from '../../common/frontend-url.util';
 import { EntitlementsService } from '../../common/entitlements/entitlements.service';
+import { MailService } from '../../common/mail/mail.service';
 
 const INVITE_TTL_DAYS = 7;
 
@@ -26,6 +27,7 @@ export class OrgService {
     @InjectModel('OrganizationInvite') private inviteModel: Model<any>,
     @InjectModel('User') private userModel: Model<any>,
     private readonly entitlementsService: EntitlementsService,
+    private readonly mailService: MailService,
   ) {}
 
   async resolveBySlug(slug: string) {
@@ -92,13 +94,32 @@ export class OrgService {
     });
 
     const frontendUrl = resolveFrontendUrl();
+    const inviteUrl = `${frontendUrl}/convite/${token}`;
+
+    const org = asLeanOne<{ name: string }>(
+      await this.organizationModel.findById(tenantId).select('name').lean(),
+    );
+    const inviter = asLeanOne<{ name: string }>(
+      await this.userModel.findById(invitedBy).select('name').lean(),
+    );
+
+    const emailSent = await this.mailService.sendTeamInvite({
+      to: email,
+      organizationName: org?.name ?? 'sua organização',
+      inviterName: inviter?.name ?? 'Um administrador',
+      tenantRole,
+      inviteUrl,
+      expiresAt,
+    });
+
     return {
       ok: true,
       inviteId: String(invite._id),
       email,
       tenantRole,
       expiresAt,
-      inviteUrl: `${frontendUrl}/convite/${token}`,
+      inviteUrl,
+      emailSent,
     };
   }
 
@@ -128,7 +149,25 @@ export class OrgService {
     await invite.save();
 
     const frontendUrl = resolveFrontendUrl();
-    return { ok: true, inviteUrl: `${frontendUrl}/convite/${token}` };
+    const inviteUrl = `${frontendUrl}/convite/${token}`;
+
+    const org = asLeanOne<{ name: string }>(
+      await this.organizationModel.findById(tenantId).select('name').lean(),
+    );
+    const inviter = asLeanOne<{ name: string }>(
+      await this.userModel.findById(invite.invitedBy).select('name').lean(),
+    );
+
+    const emailSent = await this.mailService.sendTeamInvite({
+      to: invite.email,
+      organizationName: org?.name ?? 'sua organização',
+      inviterName: inviter?.name ?? 'Um administrador',
+      tenantRole: invite.tenantRole,
+      inviteUrl,
+      expiresAt: invite.expiresAt,
+    });
+
+    return { ok: true, inviteUrl, emailSent };
   }
 
   async removeMember(tenantId: string, actorUserId: string, memberId: string) {

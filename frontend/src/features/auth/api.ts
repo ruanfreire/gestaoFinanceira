@@ -104,6 +104,26 @@ export const authApi = {
     return res.data;
   },
 
+  async requestPasswordReset(email: string): Promise<{ ok: boolean; message: string }> {
+    const res = await api.post<{ ok: boolean; message: string }>("/auth/forgot-password", { email });
+    return res.data;
+  },
+
+  async previewPasswordReset(token: string): Promise<{ ok: boolean; email: string; expiresAt: string }> {
+    const res = await api.get<{ ok: boolean; email: string; expiresAt: string }>(
+      `/auth/reset-password/${token}`,
+    );
+    return res.data;
+  },
+
+  async resetPassword(payload: {
+    token: string;
+    password: string;
+  }): Promise<{ ok: boolean; message: string }> {
+    const res = await api.post<{ ok: boolean; message: string }>("/auth/reset-password", payload);
+    return res.data;
+  },
+
   async logout(): Promise<void> {
     try {
       await api.post("/auth/logout");
