@@ -7,6 +7,7 @@ export const platformKeys = {
   dashboard: ["platform", "dashboard"] as const,
   clients: (status?: UserStatus) => ["platform", "clients", status] as const,
   client: (id: string) => ["platform", "client", id] as const,
+  clientModules: (id: string) => ["platform", "client", id, "modules"] as const,
   notifications: ["platform", "notifications"] as const,
   unread: ["platform", "notifications", "unread"] as const,
 };
@@ -30,6 +31,14 @@ export function useSuperadminClient(id: string) {
   });
 }
 
+export function useSuperadminClientModules(id: string) {
+  return useQuery({
+    queryKey: platformKeys.clientModules(id),
+    queryFn: () => platformApi.getClientModules(id),
+    enabled: Boolean(id),
+  });
+}
+
 export function useClientAction() {
   const qc = useQueryClient();
   const invalidate = () => {
@@ -42,6 +51,14 @@ export function useClientAction() {
     setPlan: useMutation({
       mutationFn: ({ id, plan }: { id: string; plan: PlanId }) => platformApi.setClientPlan(id, plan),
       onSuccess: invalidate,
+    }),
+    toggleModule: useMutation({
+      mutationFn: ({ id, key, enabled }: { id: string; key: string; enabled: boolean }) =>
+        platformApi.toggleClientModule(id, key, enabled),
+      onSuccess: (_data, variables) => {
+        invalidate();
+        qc.invalidateQueries({ queryKey: platformKeys.clientModules(variables.id) });
+      },
     }),
   };
 }

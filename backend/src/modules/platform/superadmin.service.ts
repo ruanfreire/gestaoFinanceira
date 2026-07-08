@@ -10,6 +10,8 @@ import type { UserStatus } from '../../common/constants/user-status';
 import type { PlanId } from '../../common/billing/plans.config';
 import { buildAdminPlanOverride } from '../../common/billing/admin-plan-override.util';
 import { NotificationsService } from './notifications.service';
+import { EntitlementsService } from '../../common/entitlements/entitlements.service';
+import type { ModuleKey } from '../../common/entitlements/module-catalog';
 
 function sanitizeClient(user: object) {
   const record = user as Record<string, unknown>;
@@ -30,6 +32,7 @@ function mapOrganization(tenantId: unknown) {
     plan: org.plan as PlanId | undefined,
     billingStatus: org.billingStatus as string | undefined,
     trialEndsAt: org.trialEndsAt as Date | string | undefined,
+    enabled_modules: org.enabled_modules as string[] | undefined,
   };
 }
 
@@ -50,6 +53,7 @@ export class SuperadminService {
     @InjectModel('Organization') private organizationModel: Model<any>,
     @InjectModel('UserActionLog') private actionLogModel: Model<any>,
     private readonly notificationsService: NotificationsService,
+    private readonly entitlementsService: EntitlementsService,
   ) {}
 
   async getDashboard() {
@@ -113,7 +117,16 @@ export class SuperadminService {
         .lean(),
     );
 
-    return { client: withOrganization(user as Record<string, unknown>), history };
+    const client = withOrganization(user as Record<string, unknown>);
+    const orgId = (client.organization as { _id?: string } | undefined)?._id;
+    if (orgId) {
+      const modules = await this.entitlementsService.getOrganizationModules(orgId);
+      if (modules && client.organization) {
+        (client.organization as Record<string, unknown>).enabled_modules = modules.enabled_modules;
+      }
+    }
+
+    return { client, history };
   }
 
   private async logAction(
@@ -243,5 +256,73 @@ export class SuperadminService {
     );
 
     return { ok: true, client: withOrganization(updated as Record<string, unknown>) };
+  }
+
+  private async resolveClientOrganizationId(clientId: string) {
+    const user = asLeanOne<{ tenantId?: unknown }>(
+      await this.userModel.findOne({ _id: clientId, roles: { $in: ['client'] } }).select('tenantId').lean(),
+    );
+    if (!user) throw new NotFoundException('Cliente não encontrado');
+    if (!user.tenantId) throw new BadRequestException('Cliente sem organização vinculada');
+    return String(user.tenantId);
+  }
+
+  async getClientModules(clientId: string) {
+    const tenantId = await this.resolveClientOrganizationId(clientId);
+    const modules = await this.entitlementsService.getOrganizationModules(tenantId);
+    if (!modules) throw new NotFoundException('Organização não encontrada');
+    return modules;
+  }
+
+  async updateClientModules(
+    clientId: string,
+    enabledModules: string[],
+    performedBy: string,
+    ip?: string,
+  ) {
+    const tenantId = await this.resolveClientOrganizationId(clientId);
+    const updated = await this.entitlementsService.updateOrganizationModules(
+      tenantId,
+      enabledModules,
+      performedBy,
+    );
+    if (!updated) throw new NotFoundException('Organização não encontrada');
+
+    await this.logAction(
+      clientId,
+      'modules_updated',
+      performedBy,
+      updated.enabled_modules.join(','),
+      ip,
+    );
+
+    return updated;
+  }
+
+  async toggleClientModule(
+    clientId: string,
+    moduleKey: ModuleKey,
+    enabled: boolean,
+    performedBy: string,
+    ip?: string,
+  ) {
+    const tenantId = await this.resolveClientOrganizationId(clientId);
+    const updated = await this.entitlementsService.toggleOrganizationModule(
+      tenantId,
+      moduleKey,
+      enabled,
+      performedBy,
+    );
+    if (!updated) throw new NotFoundException('Organização não encontrada');
+
+    await this.logAction(
+      clientId,
+      enabled ? `module_enabled_${moduleKey}` : `module_disabled_${moduleKey}`,
+      performedBy,
+      moduleKey,
+      ip,
+    );
+
+    return updated;
   }
 }

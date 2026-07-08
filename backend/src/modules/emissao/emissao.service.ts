@@ -11,8 +11,8 @@ import { mesCompetenciaFromDate } from '../notas/competencia.util';
 import { NotasService } from '../notas/notas.service';
 import { TomadoresService } from '../tomadores/tomadores.service';
 import { EmissaoNfConfigService } from '../integrations/emissao-nf-config.service';
-import { HonestIntegrationService } from '../integrations/honest-integration.service';
-import { mapHonestEmitErrorMessage } from '../integrations/honest-emissao.util';
+import { PrefeituraEmissaoService } from './prefeitura-emissao.service';
+import { SpNfseEmissaoProvider } from './providers/sp-nfse-emissao.provider';
 import { AuditService } from '../audit_logs/audit.service';
 import { NotificationsService } from '../platform/notifications.service';
 import { AtualizarEmissaoRascunhoDto, CriarEmissaoRascunhoDto } from './dto/emissao.dto';
@@ -59,7 +59,7 @@ export class EmissaoService {
     private readonly tomadoresService: TomadoresService,
     private readonly notasService: NotasService,
     private readonly emissaoNfConfig: EmissaoNfConfigService,
-    private readonly honestIntegration: HonestIntegrationService,
+    private readonly prefeituraEmissao: PrefeituraEmissaoService,
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
   ) {}
@@ -275,7 +275,7 @@ export class EmissaoService {
       | undefined;
 
     if (emissaoHabilitada && tenantId) {
-      const honestResult = await this.honestIntegration.emitirNf(String(tenantId), {
+      const prefeituraResult = await this.prefeituraEmissao.emit(String(tenantId), {
         tomador_nome: tomador.nome,
         tomador_documento: tomador.documento,
         tomador_email: tomador.email,
@@ -286,8 +286,8 @@ export class EmissaoService {
         data_competencia: dataCompetencia.toISOString().slice(0, 10),
       });
 
-      if (!honestResult.ok) {
-        const message = mapHonestEmitErrorMessage(honestResult.error);
+      if (!prefeituraResult.ok) {
+        const message = prefeituraResult.error ?? 'Falha na emissão na prefeitura';
         await this.rascunhoModel.findByIdAndUpdate(id, {
           $set: { status: 'erro', erro_mensagem: message },
         });
@@ -295,16 +295,16 @@ export class EmissaoService {
           action: 'emissao_nf_erro',
           entity: 'emissao_rascunho',
           entityId: id,
-          metadata: { error: message },
+          metadata: { error: message, canal: 'prefeitura' },
         });
         throw new BadRequestException(message);
       }
 
       emitResult = {
-        numero: honestResult.numero!,
-        nota_api_id: honestResult.nota_api_id,
-        link_prefeitura: honestResult.link_prefeitura,
-        status_emissao: honestResult.status_emissao ?? 'NORMAL',
+        numero: prefeituraResult.numero!,
+        nota_api_id: prefeituraResult.nota_api_id,
+        link_prefeitura: prefeituraResult.link_prefeitura,
+        status_emissao: prefeituraResult.status_emissao ?? 'NORMAL',
       };
     } else {
       emitResult = {
@@ -395,7 +395,7 @@ export class EmissaoService {
       nota_id: notaId,
       numero: emitResult.numero,
       status_emissao: emitResult.status_emissao,
-      emissao_honest: emissaoHabilitada,
+      emissao_prefeitura: emissaoHabilitada,
     };
   }
 }

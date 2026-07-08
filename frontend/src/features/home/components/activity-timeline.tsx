@@ -4,7 +4,7 @@ import { Badge, Typography } from "@/design-system/atoms";
 import { Card, CardBody, CardHeader } from "@/design-system/organisms";
 import { EmptyState } from "@/design-system/molecules";
 import { formatDateTime } from "@/lib/format";
-import { IMPORT_STATUS_LABELS } from "@/lib/constants";
+import { IMPORT_STATUS_LABELS, ROUTES } from "@/lib/constants";
 import type { RecentImport } from "../api";
 
 function statusVariant(status?: string): "success" | "danger" | "warning" | "neutral" {
@@ -28,7 +28,7 @@ export function RecentImportsList({ items }: { items: RecentImport[] }) {
         title="Últimas importações"
         description="Lotes recentes de notas e extratos"
         actions={
-          <PrefetchLink to="/arquivos/historico" className="text-small font-medium text-primary hover:underline">
+          <PrefetchLink to={ROUTES.financeiroHistorico} className="text-small font-medium text-primary hover:underline">
             Histórico
           </PrefetchLink>
         }

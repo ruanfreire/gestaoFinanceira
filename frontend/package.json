@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:superadmin": "vite build --mode superadmin",
+    "build:developer": "vite build --mode developer",
+    "build:all": "npm run build && npm run build:superadmin && npm run build:developer",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

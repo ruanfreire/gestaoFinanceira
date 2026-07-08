@@ -14,6 +14,8 @@ export default async function globalSetup() {
       ...process.env,
       MONGO_URI,
       SEED_ADMIN_PASSWORD: "e2e-test-pass",
+      SEED_SUPERADMIN_EMAIL: "admin@fecho.local",
+      SEED_SUPERADMIN_PASSWORD: "e2e-test-pass",
     },
   });
 }

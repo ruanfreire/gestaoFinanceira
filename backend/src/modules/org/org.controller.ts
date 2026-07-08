@@ -6,6 +6,7 @@ import { SkipTenant } from '../../common/tenant/skip-tenant.decorator';
 import { OrgService } from './org.service';
 import { CreateInviteDto } from './dto/invite.dto';
 import { UpdateOrgProfileDto } from './dto/update-org-profile.dto';
+import { UpdateOrgEmissaoDto } from './dto/update-org-emissao.dto';
 
 @Controller('orgs')
 @SkipTenant()
@@ -36,10 +37,30 @@ export class OrgController {
     return this.orgService.updateProfile(req.user.tenantId!, body);
   }
 
+  @Get('emissao')
+  @TenantRoles('owner')
+  getEmissaoConfig(@Req() req: { user: { tenantId?: string } }) {
+    return this.orgService.getEmissaoConfig(req.user.tenantId!);
+  }
+
+  @Patch('emissao')
+  @TenantRoles('owner')
+  updateEmissaoConfig(
+    @Req() req: { user: { tenantId?: string } },
+    @Body() body: UpdateOrgEmissaoDto,
+  ) {
+    return this.orgService.updateEmissaoConfig(req.user.tenantId!, body);
+  }
+
   @Get('members')
   @TenantRoles('owner')
   listMembers(@Req() req: { user: { tenantId?: string } }) {
     return this.orgService.listMembers(req.user.tenantId!);
+  }
+
+  @Get('modules')
+  getModules(@Req() req: { user: { tenantId?: string } }) {
+    return this.orgService.getModules(req.user.tenantId!);
   }
 
   @Get('invites')

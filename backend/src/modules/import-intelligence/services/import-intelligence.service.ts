@@ -33,6 +33,8 @@ import { sumNetMovimentos } from '../../../common/fluxo-caixa-saldo.util';
 import { resolveLancamentoTipoMovimento } from '../../../common/movimento-bancario.util';
 import { normalizeName } from '../../../common/name-match.util';
 import { mapScoredCandidatas } from '../../../common/conciliacao-response.util';
+import { FreteConciliacaoService } from '../../document-core/services/frete-conciliacao.service';
+import { EntitlementsService } from '../../../common/entitlements/entitlements.service';
 import { resolveCreditoMatch } from '../../conciliacao/credito-match.util';
 import { sanitizePagadorNome, extractPagadorFromDescricao, isDirtyPagadorNome } from '../../../common/pagador-from-descricao.util';
 import { NotasService } from '../../notas/notas.service';
@@ -124,6 +126,8 @@ export class ImportIntelligenceService implements OnModuleInit {
     private readonly tomadoresService: TomadoresService,
     private readonly config: ConfigService,
     private readonly geminiUsage: GeminiUsageService,
+    private readonly freteConciliacao: FreteConciliacaoService,
+    private readonly entitlementsService: EntitlementsService,
   ) {}
 
   async onModuleInit() {
@@ -941,13 +945,37 @@ export class ImportIntelligenceService implements OnModuleInit {
 
       let status_conciliacao: string = row.tipo_movimento === 'entrada' ? 'sem_match' : 'extrato';
       let nota_id: string | undefined;
+      let frete_titulo_id: string | undefined;
+      let vinculo_tipo: 'nota' | 'frete' | undefined;
       let candidatas: string[] = [];
+      let candidatas_frete: string[] = [];
 
       if (row.tipo_movimento === 'entrada') {
-        const match = await resolveCreditoMatch(this.notasService, row.pagador_nome || '', row.valor, row.data);
+        const logisticsEnabled = await this.entitlementsService.hasModuleForCurrentTenant('logistics_frete');
+        const match = logisticsEnabled
+          ? await this.freteConciliacao.resolveEntradaMatch(
+              row.pagador_nome || '',
+              row.valor,
+              row.data,
+            )
+          : {
+              ...(await resolveCreditoMatch(this.notasService, row.pagador_nome || '', row.valor, row.data)),
+              vinculo_tipo: 'nota' as const,
+            };
         status_conciliacao = match.status_conciliacao;
-        nota_id = match.status_conciliacao === 'conciliado_auto' ? match.nota_id : undefined;
-        candidatas = match.candidatas_nota_ids;
+        vinculo_tipo = match.vinculo_tipo;
+
+        if (match.vinculo_tipo === 'nota') {
+          nota_id = match.status_conciliacao === 'conciliado_auto' ? match.nota_id : undefined;
+          candidatas = match.candidatas_nota_ids ?? [];
+        } else if (match.vinculo_tipo === 'frete') {
+          frete_titulo_id =
+            match.status_conciliacao === 'conciliado_auto' ? match.frete_titulo_id : undefined;
+          candidatas_frete = match.candidatas_frete_titulo_ids ?? [];
+        } else {
+          candidatas = 'candidatas_nota_ids' in match ? match.candidatas_nota_ids : [];
+        }
+
         if (status_conciliacao === 'conciliado_auto') stats.conciliado_auto += 1;
         else if (status_conciliacao === 'pendente_vinculo') stats.pendente_vinculo += 1;
         else stats.sem_match += 1;
@@ -967,8 +995,11 @@ export class ImportIntelligenceService implements OnModuleInit {
         tipo_movimento: row.tipo_movimento,
         origem: importOrigem,
         status_conciliacao,
+        vinculo_tipo,
         nota_id,
+        frete_titulo_id,
         candidatas_nota_ids: candidatas,
+        candidatas_frete_titulo_ids: candidatas_frete,
         tipo_transacao: row.tipo_transacao,
         saldo_pos: row.saldo_pos,
         documento_ref: row.documento_ref,
@@ -988,6 +1019,15 @@ export class ImportIntelligenceService implements OnModuleInit {
             descricao: row.descricao,
             pagador_nome: row.pagador_nome,
           },
+        );
+      }
+
+      if (status_conciliacao === 'conciliado_auto' && frete_titulo_id) {
+        await this.freteConciliacao.confirmFretePayment(
+          String(created._id),
+          frete_titulo_id,
+          row.valor,
+          row.data,
         );
       }
     }
@@ -1401,7 +1441,13 @@ export class ImportIntelligenceService implements OnModuleInit {
 
   async listSemMatch() {
     const lancamentos = asLeanMany<BankLancamentoLean>(
-      await this.lancamentoModel.find({ status_conciliacao: 'sem_match' }).sort({ data: -1 }).lean(),
+      await this.lancamentoModel
+        .find({
+          status_conciliacao: 'sem_match',
+          $or: [{ vinculo_tipo: { $exists: false } }, { vinculo_tipo: 'nota' }],
+        })
+        .sort({ data: -1 })
+        .lean(),
     );
 
     const results = [];
@@ -1422,7 +1468,13 @@ export class ImportIntelligenceService implements OnModuleInit {
 
   async listPendentes() {
     const lancamentos = asLeanMany<BankLancamentoLean>(
-      await this.lancamentoModel.find({ status_conciliacao: 'pendente_vinculo' }).sort({ data: -1 }).lean(),
+      await this.lancamentoModel
+        .find({
+          status_conciliacao: 'pendente_vinculo',
+          $or: [{ vinculo_tipo: { $exists: false } }, { vinculo_tipo: 'nota' }],
+        })
+        .sort({ data: -1 })
+        .lean(),
     );
 
     const results = [];

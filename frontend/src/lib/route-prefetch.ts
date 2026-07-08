@@ -20,18 +20,26 @@ const routeLoaders: Record<string, Loader> = {
   [ROUTES.perfil]: lazyRoutes.perfil,
   [ROUTES.integracoes]: lazyRoutes.integracoes,
   [ROUTES.integracoesHonest]: lazyRoutes.integracoesHonest,
+  [ROUTES.documentos]: lazyRoutes.documentos,
+  [ROUTES.operacoesConfirmar]: lazyRoutes.freteRecebimentos,
 };
 
 const prefetched = new Set<string>();
 
 export function resolvePrefetchPath(pathname: string): string | undefined {
   if (routeLoaders[pathname]) return pathname;
-  if (pathname.startsWith("/notas")) return ROUTES.notas;
-  if (pathname.startsWith("/recebimentos")) return ROUTES.recebimentos;
-  if (pathname.startsWith("/arquivos/historico/notas/")) return ROUTES.arquivosHistorico;
-  if (pathname.startsWith("/arquivos/historico/extratos/")) return ROUTES.arquivosHistorico;
-  if (pathname.startsWith("/arquivos")) return ROUTES.arquivosHistorico;
-  if (pathname.startsWith("/analises")) return ROUTES.analisesSituacao;
+  if (pathname.startsWith("/financeiro/notas")) return ROUTES.financeiroNotas;
+  if (pathname.startsWith("/financeiro/confirmar")) return ROUTES.financeiroConfirmar;
+  if (pathname.startsWith("/financeiro/historico")) return ROUTES.financeiroHistorico;
+  if (pathname.startsWith("/financeiro")) return ROUTES.financeiroNotas;
+  if (pathname.startsWith("/documentos")) return ROUTES.documentos;
+  if (pathname.startsWith("/operacoes")) return ROUTES.operacoesConfirmar;
+  if (pathname.startsWith("/relatorios")) return ROUTES.relatoriosSituacao;
+  if (pathname.startsWith("/notas")) return ROUTES.financeiroNotas;
+  if (pathname.startsWith("/recebimentos")) return ROUTES.financeiroConfirmar;
+  if (pathname.startsWith("/arquivos/historico")) return ROUTES.financeiroHistorico;
+  if (pathname.startsWith("/arquivos")) return ROUTES.financeiroHistorico;
+  if (pathname.startsWith("/analises")) return ROUTES.relatoriosSituacao;
   if (pathname.startsWith("/configuracoes")) return ROUTES.configuracoes;
   return undefined;
 }

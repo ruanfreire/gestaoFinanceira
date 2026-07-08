@@ -67,7 +67,7 @@ export default function ArquivosHistoricoPage() {
       <div className="stack-gap">
         {tab === "notas" &&
           notasQuery.data?.items.map((item) => (
-            <PrefetchLink key={item._id} to={`/arquivos/historico/notas/${item._id}`}>
+            <PrefetchLink key={item._id} to={`${ROUTES.financeiroHistorico}/notas/${item._id}`}>
               <Card hover>
                 <CardBody className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -88,7 +88,7 @@ export default function ArquivosHistoricoPage() {
           extratosQuery.data?.items.map((item) => (
             <PrefetchLink
               key={`${item.banco}-${item._id}`}
-              to={`/arquivos/historico/extratos/${item.banco}/${item._id}`}
+              to={`${ROUTES.financeiroHistorico}/extratos/${item.banco}/${item._id}`}
             >
               <Card hover>
                 <CardBody className="flex items-center justify-between gap-3">

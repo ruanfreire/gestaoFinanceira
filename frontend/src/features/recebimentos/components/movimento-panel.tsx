@@ -5,7 +5,7 @@ import { recebimentosApi, matchExplanation } from "../api";
 import type { LancamentoConciliacaoItem, NotaCandidata } from "../types";
 import { ConfirmDialog } from "@/design-system/organisms";
 import { Button, Input, Typography, Badge } from "@/design-system/atoms";
-import { Callout, MatchScore } from "@/design-system/molecules";
+import { Callout, MatchScore, AssistedActionCard } from "@/design-system/molecules";
 import { formatDate, formatMoney, bancoLabel } from "@/lib/format";
 import { useToast } from "@/app/toast-provider";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -128,6 +128,22 @@ export function MovimentoPanel({
           {item.lancamento.pagador_nome || item.lancamento.descricao || "—"}
         </Typography>
       </header>
+
+      {selected && selected.match && selected.match.totalScore >= 0.7 && !needsPagador && (
+        <AssistedActionCard
+          title={`Este pagamento parece ser da NF ${selected.numero}`}
+          description={`${formatMoney(item.lancamento.valor)} de ${selected.tomador} · ${matchExplanation(selected.match)}`}
+          primaryLabel="Sim, confirmar"
+          secondaryLabel="Não é essa"
+          tertiaryLabel="Decidir depois"
+          onPrimary={() => setConfirmOpen(true)}
+          onSecondary={() => {
+            const next = candidatas.find((c) => c._id !== selected._id);
+            if (next) setNotaId(next._id);
+          }}
+          loading={vincular.isPending}
+        />
+      )}
 
       {item.tomador_sugerido ? (
         <Callout variant="info" title="Cliente provável">

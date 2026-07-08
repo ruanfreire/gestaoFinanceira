@@ -6,6 +6,7 @@ import { OrganizationSchema } from '../modules/platform/schemas/organization.sch
 import { UserSchema } from '../modules/auth/schemas/user.schema';
 import { slugifyOrganization, uniqueOrganizationSlug } from './tenant/organization-slug.util';
 import { asLeanOne } from './mongoose-lean.util';
+import { DEFAULT_ENABLED_MODULES } from './entitlements/module-catalog';
 
 type OrgSeed = {
   key: string;
@@ -70,13 +71,6 @@ const ORG_SEEDS: OrgSeed[] = [
 ];
 
 const USER_SEEDS: UserSeed[] = [
-  {
-    name: 'Super Administrador',
-    email: 'superadmin@finance.local',
-    roles: ['superadmin'],
-    status: 'approved',
-    company: 'Gestão Financeira',
-  },
   {
     name: 'Administrador',
     email: 'admin@finance.local',
@@ -183,12 +177,19 @@ async function upsertOrganization(Organization: Model<any>, seed: OrgSeed) {
     status: seed.status,
     plan: seed.plan,
     billingStatus: seed.billingStatus,
+    enabled_modules: [...DEFAULT_ENABLED_MODULES],
     ...(trialEnds ? { trialEndsAt: trialEnds } : {}),
   };
 
-  const existing = asLeanOne<{ _id: Types.ObjectId }>(await Organization.findOne({ slug }).lean());
+  const existing = asLeanOne<{ _id: Types.ObjectId; enabled_modules?: string[] }>(
+    await Organization.findOne({ slug }).lean(),
+  );
   if (existing) {
-    await Organization.updateOne({ _id: existing._id }, { $set: payload });
+    const update = { ...payload };
+    if (existing.enabled_modules?.length) {
+      delete (update as { enabled_modules?: string[] }).enabled_modules;
+    }
+    await Organization.updateOne({ _id: existing._id }, { $set: update });
     console.log(`Organization updated: ${seed.name} (${seed.key})`);
     return { key: seed.key, id: new Types.ObjectId(String(existing._id)) };
   }
@@ -273,17 +274,29 @@ async function repairOrphanedTenantLinks(Organization: Model<any>, User: Model<a
   }
 }
 
-function printSummary(password: string) {
+function getSuperadminSeed(): UserSeed {
+  const email = (process.env.SEED_SUPERADMIN_EMAIL || 'admin@fecho.local').trim().toLowerCase();
+  return {
+    name: 'Super Administrador',
+    email,
+    roles: ['superadmin'],
+    status: 'approved',
+    company: 'Fecho',
+  };
+}
+
+function printSummary(superadminEmail: string, superadminPassword: string, devPassword: string) {
   const lines = [
     '',
     '══════════════════════════════════════════════════════════════',
-    '  Contas de desenvolvimento (senha única para todas)',
+    '  Contas de desenvolvimento',
     '══════════════════════════════════════════════════════════════',
-    `  Senha: ${password}`,
+    `  SuperAdmin senha: ${superadminPassword}`,
+    `  Demais contas:    ${devPassword}`,
     '',
     '  Papel          E-mail                      Acesso',
     '  ─────────────────────────────────────────────────────────',
-    '  SuperAdmin     superadmin@finance.local    /superadmin',
+    `  SuperAdmin     ${superadminEmail.padEnd(27)} /superadmin`,
     '  Admin          admin@finance.local         app (Empresa Demo)',
     '  Client         client@finance.local        app (Empresa Demo)',
     '  User           user@finance.local          app (Empresa Demo)',
@@ -307,8 +320,11 @@ async function runSeeder() {
   const Organization: Model<any> = model('Organization', OrganizationSchema);
   const User: Model<any> = model('User', UserSchema);
 
-  const password = process.env.SEED_ADMIN_PASSWORD || '123456';
-  const hashed = await argon2.hash(password);
+  const devPassword = process.env.SEED_ADMIN_PASSWORD || '123456';
+  const superadminPassword = process.env.SEED_SUPERADMIN_PASSWORD || 'fechoadmin@2026';
+  const superadminSeed = getSuperadminSeed();
+  const devHashed = await argon2.hash(devPassword);
+  const superadminHashed = await argon2.hash(superadminPassword);
   const resetPassword = process.env.SEED_RESET_PASSWORD === 'true';
 
   const orgIds = new Map<string, Types.ObjectId>();
@@ -318,8 +334,17 @@ async function runSeeder() {
   }
 
   const userIds = new Map<string, Types.ObjectId>();
+  const superadminId = await upsertUser(
+    User,
+    superadminSeed,
+    superadminHashed,
+    orgIds,
+    resetPassword,
+  );
+  if (superadminId) userIds.set(superadminSeed.email, new Types.ObjectId(String(superadminId)));
+
   for (const userSeed of USER_SEEDS) {
-    const id = await upsertUser(User, userSeed, hashed, orgIds, resetPassword);
+    const id = await upsertUser(User, userSeed, devHashed, orgIds, resetPassword);
     if (id) userIds.set(userSeed.email, new Types.ObjectId(String(id)));
   }
 
@@ -347,9 +372,14 @@ async function runSeeder() {
     await Organization.findByIdAndUpdate(trialOrgId, { $set: { ownerUserId: trialUserId } });
   }
 
+  await Organization.updateMany(
+    { $or: [{ enabled_modules: { $exists: false } }, { enabled_modules: { $size: 0 } }] },
+    { $set: { enabled_modules: [...DEFAULT_ENABLED_MODULES] } },
+  );
+
   await repairOrphanedTenantLinks(Organization, User);
 
-  printSummary(password);
+  printSummary(superadminSeed.email, superadminPassword, devPassword);
   await connection.close();
 }
 

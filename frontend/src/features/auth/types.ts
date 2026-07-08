@@ -14,6 +14,7 @@ export type OrganizationSummary = {
   currentPeriodEnd?: string;
   hasSubscription?: boolean;
   ownerUserId?: string;
+  enabled_modules?: string[];
 };
 
 export type AuthUser = {

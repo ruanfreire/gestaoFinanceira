@@ -42,6 +42,8 @@ start("backend", "node", ["backend/dist/main.js"], {
     MONGO_URI: mongoUri,
     NODE_ENV: "test",
     SEED_ADMIN_PASSWORD: "e2e-test-pass",
+    SEED_SUPERADMIN_EMAIL: "admin@fecho.local",
+    SEED_SUPERADMIN_PASSWORD: "e2e-test-pass",
     JWT_ACCESS_SECRET: "e2e-access-secret",
     JWT_REFRESH_SECRET: "e2e-refresh-secret",
   },

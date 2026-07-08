@@ -177,7 +177,7 @@ export default function HonestIntegrationPage() {
                   >
                     Área do Cliente Honest
                   </a>
-                  .
+                  . Não use o login com que você entra neste sistema (Fecho).
                 </Typography>
               </div>
 
@@ -271,34 +271,14 @@ export default function HonestIntegrationPage() {
             </Callout>
           )}
 
-          <Card>
-            <CardBody className="space-y-4">
-              <div>
-                <Typography variant="subtitle">Emissão de NF pelo sistema</Typography>
-                <Typography variant="caption" tone="muted" className="mt-1 block">
-                  Quando ativo, notas registradas a partir de pagamentos são enviadas à Honest. Desligado mantém
-                  registro local com status pendente de emissão.
-                </Typography>
-              </div>
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-border"
-                  checked={Boolean(config?.emissao_nf_habilitada)}
-                  disabled={busy || !config?.has_credentials}
-                  onChange={async (event) => {
-                    try {
-                      await updateMutation.mutateAsync({ emissao_nf_habilitada: event.target.checked });
-                      toast(event.target.checked ? "Emissão via Honest ativada" : "Emissão via Honest desativada", "success");
-                    } catch (error) {
-                      toast(getApiErrorMessage(error, "Não foi possível atualizar a emissão"), "error");
-                    }
-                  }}
-                />
-                <span className="text-sm">Permitir emissão de NF pelo sistema</span>
-              </label>
-            </CardBody>
-          </Card>
+          <Callout variant="info" title="Importação apenas">
+            A Honest é usada para <strong>importar notas já emitidas</strong>. A emissão de novas NFS-e é feita pelas
+            APIs oficiais das prefeituras — configure em{" "}
+            <PrefetchLink to={ROUTES.emissaoNf} className="font-medium underline">
+              Emissão NFS-e
+            </PrefetchLink>
+            .
+          </Callout>
         </>
       )}
     </motion.div>

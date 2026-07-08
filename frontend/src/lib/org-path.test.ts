@@ -20,9 +20,15 @@ describe("org-path", () => {
 
   it("infere slug no pathname", () => {
     expect(inferOrgSlugFromPath("/empresa-demo")).toBe("empresa-demo");
-    expect(inferOrgSlugFromPath("/empresa-demo/notas")).toBe("empresa-demo");
+    expect(inferOrgSlugFromPath("/empresa-demo/financeiro/notas")).toBe("empresa-demo");
+    expect(inferOrgSlugFromPath("/financeiro/notas")).toBeUndefined();
     expect(inferOrgSlugFromPath("/notas")).toBeUndefined();
     expect(inferOrgSlugFromPath("/auth/entrar")).toBeUndefined();
+  });
+
+  it("strips org slug from new product routes", () => {
+    expect(stripOrgSlug("/empresa-demo/financeiro/notas", "empresa-demo")).toBe("/financeiro/notas");
+    expect(stripOrgSlug("/financeiro/notas")).toBe("/financeiro/notas");
   });
 
   it("keeps legacy routes without org slug", () => {

@@ -72,3 +72,22 @@ export function useUpdateOrgProfile() {
     },
   });
 }
+
+export function useOrgEmissaoConfig(enabled = true) {
+  return useQuery({
+    queryKey: ["org", "emissao"],
+    queryFn: () => orgApi.getEmissaoConfig(),
+    enabled,
+  });
+}
+
+export function useUpdateOrgEmissaoConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { emissao_nf_habilitada?: boolean; prefeitura_codigo?: string | null }) =>
+      orgApi.updateEmissaoConfig(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["org", "emissao"] });
+    },
+  });
+}

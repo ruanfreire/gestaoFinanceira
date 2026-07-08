@@ -10,6 +10,8 @@ import { PlatformModule } from '../platform/platform.module';
 import { EmissaoRascunhoSchema } from './schemas/emissao-rascunho.schema';
 import { EmissaoController } from './emissao.controller';
 import { EmissaoService } from './emissao.service';
+import { PrefeituraEmissaoService } from './prefeitura-emissao.service';
+import { SpNfseEmissaoProvider } from './providers/sp-nfse-emissao.provider';
 
 @Module({
   imports: [
@@ -25,7 +27,7 @@ import { EmissaoService } from './emissao.service';
     AuditModule,
     PlatformModule,
   ],
-  providers: [EmissaoService],
+  providers: [EmissaoService, PrefeituraEmissaoService, SpNfseEmissaoProvider],
   controllers: [EmissaoController],
   exports: [EmissaoService],
 })

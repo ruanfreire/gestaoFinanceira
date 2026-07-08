@@ -1,63 +1,18 @@
-import {
-  Home,
-  FileText,
-  Link2,
-  LogOut,
-  Settings,
-  type LucideIcon,
-} from "lucide-react";
 import { PrefetchLink } from "@/design-system/molecules";
 import { Button, Typography, Avatar, Badge } from "@/design-system/atoms";
 import { cn } from "@/design-system/lib/cn";
 import { ROUTES } from "@/lib/constants";
 import { stripOrgSlug } from "@/lib/org-path";
+import type { ClientNav } from "@/apps/client/nav/build-client-nav";
+import type { ProductNavItem } from "@/apps/client/nav/product-nav.config";
+import type { LucideIcon } from "lucide-react";
+import { LogOut } from "lucide-react";
 
-export type SidebarNavItem = {
-  to: string;
-  label: string;
-  icon: LucideIcon;
-  badgeKey?: "recebimentos";
-};
+export type { ClientNav };
+export { buildClientNav } from "@/apps/client/nav/build-client-nav";
 
-export type SidebarNavSection = {
-  label: string;
-  items: Array<{ to: string; label: string }>;
-};
-
-export function buildSidebarNav(isOwner: boolean): {
-  primary: SidebarNavItem[];
-  sections: SidebarNavSection[];
-} {
-  const sections: SidebarNavSection[] = [
-    {
-      label: "Trazer dados",
-      items: [
-        { to: ROUTES.arquivosNotas, label: "Enviar notas" },
-        { to: ROUTES.arquivosExtratos, label: "Enviar extrato bancário" },
-        { to: ROUTES.arquivosHistorico, label: "Histórico" },
-      ],
-    },
-    {
-      label: "Análises",
-      items: [
-        { to: ROUTES.analisesSituacao, label: "Situação das notas" },
-        { to: ROUTES.analisesFluxo, label: "Fluxo de caixa" },
-      ],
-    },
-  ];
-
-  const primary: SidebarNavItem[] = [
-    { to: ROUTES.home, label: "Início", icon: Home },
-    { to: ROUTES.notas, label: "Minhas notas", icon: FileText },
-    { to: ROUTES.recebimentos, label: "Confirmar recebimentos", icon: Link2, badgeKey: "recebimentos" },
-  ];
-
-  if (isOwner) {
-    primary.push({ to: ROUTES.configuracoes, label: "Configurações", icon: Settings });
-  }
-
-  return { primary, sections };
-}
+/** @deprecated Use buildClientNav */
+export { buildClientNav as buildSidebarNav } from "@/apps/client/nav/build-client-nav";
 
 export function SidebarNav({
   pathname,
@@ -68,34 +23,36 @@ export function SidebarNav({
   pathname: string;
   orgSlug?: string;
   pendingRecebimentos: number;
-  nav: ReturnType<typeof buildSidebarNav>;
+  nav: ClientNav;
 }) {
   return (
     <nav className="sidebar-scroll flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="Menu lateral">
       <ul className="space-y-0.5" role="list">
         {nav.primary.map((item) => (
           <SidebarLink
-            key={item.to}
+            key={item.id}
             to={item.to}
             label={item.label}
             icon={item.icon}
             pathname={pathname}
             orgSlug={orgSlug}
             badge={item.badgeKey === "recebimentos" ? pendingRecebimentos : undefined}
+            matchPrefix={item.to === ROUTES.home ? "exact-home" : "default"}
           />
         ))}
       </ul>
 
       {nav.sections.map((section) => (
-        <SidebarSection key={section.label} label={section.label}>
+        <SidebarSection key={section.id} label={section.label}>
           {section.items.map((item) => (
             <SidebarLink
-              key={item.to}
+              key={item.id}
               to={item.to}
               label={item.label}
               pathname={pathname}
               orgSlug={orgSlug}
               nested
+              badge={item.badgeKey === "recebimentos" ? pendingRecebimentos : undefined}
             />
           ))}
         </SidebarSection>
@@ -122,6 +79,22 @@ function SidebarSection({ label, children }: { label: string; children: React.Re
   );
 }
 
+function isNavActive(path: string, to: string, matchPrefix: "exact-home" | "default") {
+  if (matchPrefix === "exact-home") {
+    return path === ROUTES.home;
+  }
+  if (to === ROUTES.configuracoes) {
+    return path.startsWith("/configuracoes");
+  }
+  if (to === ROUTES.documentos) {
+    return path.startsWith("/documentos");
+  }
+  if (to === ROUTES.operacoesConfirmar) {
+    return path.startsWith("/operacoes");
+  }
+  return path === to || path.startsWith(`${to}/`);
+}
+
 function SidebarLink({
   to,
   label,
@@ -130,6 +103,7 @@ function SidebarLink({
   orgSlug,
   nested,
   badge,
+  matchPrefix = "default",
 }: {
   to: string;
   label: string;
@@ -138,12 +112,10 @@ function SidebarLink({
   orgSlug?: string;
   nested?: boolean;
   badge?: number;
+  matchPrefix?: "exact-home" | "default";
 }) {
   const path = stripOrgSlug(pathname, orgSlug);
-  const active =
-    path === to ||
-    (to === ROUTES.configuracoes && path.startsWith("/configuracoes")) ||
-    (to !== ROUTES.home && to !== ROUTES.configuracoes && path.startsWith(to));
+  const active = isNavActive(path, to, matchPrefix);
 
   return (
     <li>

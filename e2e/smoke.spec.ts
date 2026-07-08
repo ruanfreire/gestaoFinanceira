@@ -17,14 +17,14 @@ test.describe("Smoke pós-login", () => {
   });
 
   test("navega para minhas notas", async ({ page }) => {
-    await page.goto("/notas", { waitUntil: "networkidle" });
-    await expect(page).toHaveURL(/\/notas/);
+    await page.goto("/financeiro/notas", { waitUntil: "networkidle" });
+    await expect(page).toHaveURL(/\/financeiro\/notas/);
     await expect(page.getByRole("heading", { name: /minhas notas/i })).toBeVisible({ timeout: 15_000 });
   });
 
   test("navega para confirmar recebimentos", async ({ page }) => {
-    await page.goto("/recebimentos", { waitUntil: "networkidle" });
-    await expect(page).toHaveURL(/\/recebimentos/);
+    await page.goto("/financeiro/confirmar", { waitUntil: "networkidle" });
+    await expect(page).toHaveURL(/\/financeiro\/confirmar/);
     await expect(page.getByRole("heading", { name: /confirmar recebimentos/i })).toBeVisible({
       timeout: 15_000,
     });

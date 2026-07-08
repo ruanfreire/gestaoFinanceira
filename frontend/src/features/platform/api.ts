@@ -11,6 +11,26 @@ export type PlatformOrganization = {
   plan?: PlanId;
   billingStatus?: BillingStatus;
   trialEndsAt?: string;
+  enabled_modules?: string[];
+};
+
+export type ModuleCatalogItem = {
+  key: string;
+  name: string;
+  description: string;
+  defaultEnabled: boolean;
+  status: "production" | "beta" | "disabled";
+  requires?: string[];
+  enabled: boolean;
+  killSwitchActive: boolean;
+};
+
+export type OrganizationModulesResponse = {
+  organization_id: string;
+  organization_name?: string;
+  enabled_modules: string[];
+  catalog: ModuleCatalogItem[];
+  module_meta?: Record<string, unknown>;
 };
 
 export type PlatformClient = {
@@ -87,6 +107,22 @@ export const platformApi = {
 
   async setClientPlan(id: string, plan: PlanId) {
     const res = await api.patch<{ ok: boolean; client: PlatformClient }>(`/superadmin/clients/${id}/plan`, { plan });
+    return res.data;
+  },
+
+  async getClientModules(id: string) {
+    const res = await api.get<OrganizationModulesResponse>(`/superadmin/clients/${id}/modules`);
+    return res.data;
+  },
+
+  async updateClientModules(id: string, enabled_modules: string[]) {
+    const res = await api.patch<OrganizationModulesResponse>(`/superadmin/clients/${id}/modules`, { enabled_modules });
+    return res.data;
+  },
+
+  async toggleClientModule(id: string, key: string, enabled: boolean) {
+    const action = enabled ? "enable" : "disable";
+    const res = await api.post<OrganizationModulesResponse>(`/superadmin/clients/${id}/modules/${key}/${action}`);
     return res.data;
   },
 

@@ -11,6 +11,7 @@ import { asLeanMany, asLeanOne } from '../../common/mongoose-lean.util';
 import type { TenantRole } from '../../common/constants/tenant-role';
 import type { CreateInviteDto } from './dto/invite.dto';
 import { resolveFrontendUrl } from '../../common/frontend-url.util';
+import { EntitlementsService } from '../../common/entitlements/entitlements.service';
 
 const INVITE_TTL_DAYS = 7;
 
@@ -24,6 +25,7 @@ export class OrgService {
     @InjectModel('Organization') private organizationModel: Model<any>,
     @InjectModel('OrganizationInvite') private inviteModel: Model<any>,
     @InjectModel('User') private userModel: Model<any>,
+    private readonly entitlementsService: EntitlementsService,
   ) {}
 
   async resolveBySlug(slug: string) {
@@ -220,6 +222,74 @@ export class OrgService {
       cnpj: org.cnpj ?? '',
       phone: org.phone ?? '',
       slug: org.slug,
+    };
+  }
+
+  async getModules(tenantId: string) {
+    const modules = await this.entitlementsService.getOrganizationModules(tenantId);
+    if (!modules) throw new NotFoundException('Organização não encontrada');
+    return modules;
+  }
+
+  async getEmissaoConfig(tenantId: string) {
+    const org = asLeanOne<{
+      emissao_nf_habilitada?: boolean;
+      prefeitura_codigo?: string;
+      cnpj?: string;
+    }>(
+      await this.organizationModel
+        .findById(tenantId)
+        .select('emissao_nf_habilitada prefeitura_codigo cnpj')
+        .lean(),
+    );
+    if (!org) throw new NotFoundException('Organização não encontrada');
+    return {
+      emissao_nf_habilitada: Boolean(org.emissao_nf_habilitada),
+      prefeitura_codigo: org.prefeitura_codigo ?? null,
+      org_profile_ready: Boolean(org.cnpj?.trim()),
+    };
+  }
+
+  async updateEmissaoConfig(
+    tenantId: string,
+    dto: { emissao_nf_habilitada?: boolean; prefeitura_codigo?: string },
+  ) {
+    const update: Record<string, unknown> = {};
+    if (dto.emissao_nf_habilitada !== undefined) {
+      update.emissao_nf_habilitada = dto.emissao_nf_habilitada;
+    }
+    if (dto.prefeitura_codigo !== undefined) {
+      update.prefeitura_codigo = dto.prefeitura_codigo;
+    }
+
+    const org = asLeanOne<{
+      emissao_nf_habilitada?: boolean;
+      prefeitura_codigo?: string;
+      cnpj?: string;
+    }>(
+      await this.organizationModel
+        .findByIdAndUpdate(tenantId, { $set: update }, { new: true })
+        .select('emissao_nf_habilitada prefeitura_codigo cnpj')
+        .lean(),
+    );
+    if (!org) throw new NotFoundException('Organização não encontrada');
+
+    if (org.emissao_nf_habilitada && !org.prefeitura_codigo) {
+      throw new BadRequestException('Selecione a prefeitura antes de ativar a emissão automática.');
+    }
+
+    if (dto.emissao_nf_habilitada !== undefined) {
+      const current = await this.entitlementsService.getEnabledModules(tenantId);
+      const next = dto.emissao_nf_habilitada
+        ? [...new Set([...current, 'fiscal_emissao' as const])]
+        : current.filter((key) => key !== 'fiscal_emissao');
+      await this.entitlementsService.updateOrganizationModules(tenantId, next, 'owner');
+    }
+
+    return {
+      emissao_nf_habilitada: Boolean(org.emissao_nf_habilitada),
+      prefeitura_codigo: org.prefeitura_codigo ?? null,
+      org_profile_ready: Boolean(org.cnpj?.trim()),
     };
   }
 }

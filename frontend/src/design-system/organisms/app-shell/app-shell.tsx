@@ -6,8 +6,9 @@ import { ROUTES } from "@/lib/constants";
 import { useAuth } from "@/features/auth/context";
 import { isTenantOwner } from "@/features/auth/types";
 import { useOrgSlug } from "@/features/org/org-slug-context";
+import { useOrgModules } from "@/features/org/use-org-modules";
 import { MobileNav } from "./mobile-nav";
-import { buildSidebarNav, SidebarNav, SidebarUserFooter } from "./sidebar-nav";
+import { buildClientNav, SidebarNav, SidebarUserFooter } from "./sidebar-nav";
 
 export function AppShell({
   children,
@@ -21,7 +22,8 @@ export function AppShell({
   const { pathname } = useLocation();
   const { user, logout } = useAuth();
   const orgSlug = useOrgSlug();
-  const sidebarNav = buildSidebarNav(isTenantOwner(user));
+  const { enabledModules } = useOrgModules();
+  const sidebarNav = buildClientNav(isTenantOwner(user), enabledModules);
 
   return (
     <div className="min-h-screen bg-background">

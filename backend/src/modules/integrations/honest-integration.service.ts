@@ -704,6 +704,9 @@ export class HonestIntegrationService {
     return this.toView(updated);
   }
 
+  /**
+   * @deprecated Emissão fiscal usa APIs oficiais das prefeituras — ver PrefeituraEmissaoService.
+   */
   async emitirNf(tenantId: string, input: HonestEmitInput): Promise<HonestEmitResult> {
     const doc = await this.findOrCreateConfig(tenantId);
     const empresaId = this.readEmpresaId(doc);

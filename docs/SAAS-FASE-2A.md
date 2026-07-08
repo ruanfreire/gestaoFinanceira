@@ -45,7 +45,7 @@ npm --workspace backend run migrate:tenant # backfill tenantId em dados existent
 - [x] JWT com tenantId
 - [x] Plugin de isolamento em queries
 - [x] Migração de dados legados
-- [ ] Testes E2E com dois tenants (Fase 2A.1)
+- [x] Testes E2E com dois tenants (Fase 2A.1) — `e2e/tenant-isolation.spec.ts`
 - [x] Billing / planos (Fase 2B — ver `docs/SAAS-FASE-2B.md`)
 
 ## Próximas fases

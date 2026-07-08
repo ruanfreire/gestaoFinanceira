@@ -15,6 +15,7 @@ import { PendingTasksList } from "../components/pending-tasks-list";
 import { RecentImportsList } from "../components/activity-timeline";
 import { DashboardSkeleton } from "../components/dashboard-skeleton";
 import { MobileQuickActionsBar } from "../components/mobile-quick-actions-bar";
+import { HomeDropzoneSection } from "../components/home-dropzone-section";
 import type { DashboardKpis } from "../api";
 
 function buildKpiItems(kpis: DashboardKpis, previous?: DashboardKpis) {
@@ -56,7 +57,7 @@ function buildKpiItems(kpis: DashboardKpis, previous?: DashboardKpis) {
       trend: trend(kpis.pendentesConciliacao, "pendentesConciliacao", true),
     },
     {
-      label: "Importações",
+      label: "Documentos recebidos",
       value: String(kpis.importsInPeriod),
       trend: trend(kpis.importsInPeriod, "importsInPeriod"),
     },
@@ -134,6 +135,10 @@ export default function HomePage() {
       />
 
       <QuickActionsStrip />
+
+      <Widget>
+        <HomeDropzoneSection />
+      </Widget>
 
       {data.alerts.length > 0 && (
         <div aria-live="polite">

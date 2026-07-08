@@ -7,6 +7,10 @@ const APP_ROUTE_ROOTS = new Set([
   "arquivos",
   "analises",
   "configuracoes",
+  "financeiro",
+  "documentos",
+  "operacoes",
+  "relatorios",
 ]);
 
 export function isPublicAppPath(path: string): boolean {

@@ -19,9 +19,10 @@ describe("route-prefetch", () => {
   });
 
   it("resolve prefixos de rota", () => {
-    expect(resolvePrefetchPath("/notas/nova")).toBe(ROUTES.notas);
-    expect(resolvePrefetchPath("/recebimentos/sem-correspondencia")).toBe(ROUTES.recebimentosSem);
-    expect(resolvePrefetchPath("/analises/fluxo-caixa")).toBe(ROUTES.analisesSituacao);
+    expect(resolvePrefetchPath("/notas/nova")).toBe(ROUTES.financeiroNotas);
+    expect(resolvePrefetchPath("/recebimentos/sem-correspondencia")).toBe(ROUTES.financeiroConfirmar);
+    expect(resolvePrefetchPath("/analises/fluxo-caixa")).toBe(ROUTES.relatoriosSituacao);
+    expect(resolvePrefetchPath("/financeiro/confirmar")).toBe(ROUTES.financeiroConfirmar);
   });
 
   it("prefetch só dispara uma vez por rota", async () => {

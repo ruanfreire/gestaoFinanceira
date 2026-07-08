@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cteProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/cte">
+  <CTe xmlns="http://www.portalfiscal.inf.br/cte">
+    <infCte versao="4.00" Id="CTe35260312345678000199570010000012341123456780">
+      <ide>
+        <cUF>35</cUF>
+        <cCT>12345678</cCT>
+        <CFOP>5353</CFOP>
+        <natOp>PRESTACAO DE SERVICO DE TRANSPORTE</natOp>
+        <mod>57</mod>
+        <serie>1</serie>
+        <nCT>1234</nCT>
+        <dhEmi>2026-03-15T10:30:00-03:00</dhEmi>
+        <tpImp>1</tpImp>
+        <tpEmis>1</tpEmis>
+        <cDV>0</cDV>
+        <tpAmb>2</tpAmb>
+        <tpCTe>0</tpCTe>
+        <procEmi>0</procEmi>
+        <verProc>FECHO-TEST-1.0</verProc>
+        <cMunIni>3550308</cMunIni>
+        <xMunIni>SAO PAULO</xMunIni>
+        <UFIni>SP</UFIni>
+        <cMunFim>3304557</cMunFim>
+        <xMunFim>RIO DE JANEIRO</xMunFim>
+        <UFFim>RJ</UFFim>
+        <toma3>
+          <toma>0</toma>
+        </toma3>
+      </ide>
+      <emit>
+        <CNPJ>12345678000199</CNPJ>
+        <IE>123456789012</IE>
+        <xNome>TRANSPORTADORA TESTE LTDA</xNome>
+        <enderEmit>
+          <xLgr>RUA TESTE</xLgr>
+          <nro>100</nro>
+          <xBairro>CENTRO</xBairro>
+          <cMun>3550308</cMun>
+          <xMun>SAO PAULO</xMun>
+          <CEP>01000000</CEP>
+          <UF>SP</UF>
+        </enderEmit>
+      </emit>
+      <rem>
+        <CNPJ>98765432000188</CNPJ>
+        <xNome>REMETENTE TESTE SA</xNome>
+        <enderReme>
+          <xLgr>AV BRASIL</xLgr>
+          <nro>500</nro>
+          <xBairro>INDUSTRIAL</xBairro>
+          <cMun>3550308</cMun>
+          <xMun>SAO PAULO</xMun>
+          <CEP>02000000</CEP>
+          <UF>SP</UF>
+        </enderReme>
+      </rem>
+      <dest>
+        <CNPJ>11122233000144</CNPJ>
+        <xNome>DESTINATARIO TESTE LTDA</xNome>
+        <enderDest>
+          <xLgr>RUA DO PORTO</xLgr>
+          <nro>20</nro>
+          <xBairro>PORTO</xBairro>
+          <cMun>3304557</cMun>
+          <xMun>RIO DE JANEIRO</xMun>
+          <CEP>20000000</CEP>
+          <UF>RJ</UF>
+        </enderDest>
+      </dest>
+      <vPrest>
+        <vTPrest>1500.00</vTPrest>
+        <vRec>1250.33</vRec>
+      </vPrest>
+      <imp>
+        <ICMS>
+          <ICMS00>
+            <CST>00</CST>
+            <vBC>1250.33</vBC>
+            <pICMS>12.00</pICMS>
+            <vICMS>150.04</vICMS>
+          </ICMS00>
+        </ICMS>
+      </imp>
+      <infCTeNorm>
+        <infDoc>
+          <infNFe>
+            <chave>35260398765432000188550010000056781234567890</chave>
+          </infNFe>
+        </infDoc>
+      </infCTeNorm>
+    </infCte>
+  </CTe>
+  <protCTe versao="4.00">
+    <infProt>
+      <tpAmb>2</tpAmb>
+      <verAplic>1.0</verAplic>
+      <chCTe>35260312345678000199570010000012341123456780</chCTe>
+      <dhRecbto>2026-03-15T10:31:00-03:00</dhRecbto>
+      <nProt>135260000000001</nProt>
+      <digVal>TESTDIGVAL</digVal>
+      <cStat>100</cStat>
+      <xMotivo>Autorizado o uso do CT-e</xMotivo>
+    </infProt>
+  </protCTe>
+</cteProc>

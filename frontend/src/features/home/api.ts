@@ -1,4 +1,5 @@
 import api from "@/lib/api-client";
+import { ROUTES } from "@/lib/constants";
 import { paymentDateApiParams } from "@/design-system/molecules";
 import { formatCompetencia, formatDate } from "@/lib/format";
 import { isDateInFilterPeriod, isToday } from "@/lib/period-utils";
@@ -192,7 +193,7 @@ function mergeRecentImports(faturas: ImportacaoFatura[], extratos: ImportacaoBan
     subtitle: `${item.stats?.imported ?? 0} nota(s) importada(s)`,
     status: item.status,
     createdAt: item.createdAt,
-    link: `/arquivos/historico/notas/${item._id}`,
+    link: `${ROUTES.financeiroHistorico}/notas/${item._id}`,
   }));
   const extratoItems: RecentImport[] = extratos.map((item) => {
     const bancoNome = item.banco_label?.trim() || "Banco";
@@ -207,7 +208,7 @@ function mergeRecentImports(faturas: ImportacaoFatura[], extratos: ImportacaoBan
       subtitle: `${movimentos} movimento(s) · ${bancoNome}`,
       status: item.status,
       createdAt: item.createdAt,
-      link: `/arquivos/historico/extratos/bank/${item._id}`,
+      link: `${ROUTES.financeiroHistorico}/extratos/bank/${item._id}`,
     };
   });
   return [...faturaItems, ...extratoItems]
@@ -223,7 +224,7 @@ function buildAlerts(kpis: DashboardKpis, recentImports: RecentImport[]): Dashbo
       type: "warning",
       title: "Notas em aberto há mais de 30 dias",
       message: `${kpis.overdueNotas} nota(s) aguardam recebimento há mais de um mês.`,
-      link: "/analises/situacao",
+      link: ROUTES.relatoriosSituacao,
       linkLabel: "Ver situação",
     });
   }
@@ -233,7 +234,7 @@ function buildAlerts(kpis: DashboardKpis, recentImports: RecentImport[]): Dashbo
       type: "warning",
       title: "Pagamentos sem nota",
       message: `${kpis.semMatch} movimento(s) precisam da sua análise.`,
-      link: "/recebimentos/sem-correspondencia",
+      link: ROUTES.financeiroConfirmarSem,
       linkLabel: "Ver agora",
     });
   }
@@ -243,7 +244,7 @@ function buildAlerts(kpis: DashboardKpis, recentImports: RecentImport[]): Dashbo
       type: "info",
       title: "Pagamentos aguardam emissão de NF",
       message: `${kpis.pagamentosAguardandoEmissao} recebimento(s) podem gerar nota fiscal.`,
-      link: "/recebimentos/sem-correspondencia",
+      link: ROUTES.financeiroConfirmarSem,
       linkLabel: "Emitir ou registrar",
     });
   }
@@ -253,7 +254,7 @@ function buildAlerts(kpis: DashboardKpis, recentImports: RecentImport[]): Dashbo
       type: "info",
       title: "Pagamentos aguardando confirmação",
       message: `${kpis.pendentesConciliacao} movimento(s) com sugestões para você confirmar.`,
-      link: "/recebimentos",
+      link: ROUTES.financeiroConfirmar,
       linkLabel: "Confirmar recebimentos",
     });
   }
@@ -263,7 +264,7 @@ function buildAlerts(kpis: DashboardKpis, recentImports: RecentImport[]): Dashbo
       type: "info",
       title: "Valores em aberto",
       message: "Há notas com recebimento pendente no período.",
-      link: "/analises/situacao",
+      link: ROUTES.relatoriosSituacao,
       linkLabel: "Ver situação",
     });
   }

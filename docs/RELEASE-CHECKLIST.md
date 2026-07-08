@@ -15,6 +15,9 @@ Use antes de cada deploy em produção (`main` → GitHub Actions).
 - [ ] Login com usuário admin funciona
 - [ ] `sudo systemctl status gestao-financeira-backend nginx mongod` → active
 - [x] Cron de backup Mongo — `deploy/setup-backup-cron.sh` (automático no `install-native.sh`)
+- [ ] **Módulos novos:** default desligado; piloto só via superadmin (`docs/SUPERADMIN-MODULOS.md`)
+- [ ] Smoke **sem** módulo opcional: notas + extrato + recebimentos
+- [ ] Se liberou módulo piloto: smoke Document Core / frete na org específica
 
 ## Rollback
 
@@ -50,5 +53,14 @@ Depois: `sudo systemctl restart gestao-financeira-backend`
 
 - [ ] Cadastrar tomadores em Configurações → Tomadores (ou importar das notas)
 - [ ] Fluxo local: Recebimentos → sem nota → **Registrar nota para este recebimento**
-- [ ] Emissão Honest (opt-in): Integrações → Honest → ativar **Permitir emissão de NF pelo sistema**
-- [ ] Ver `docs/HONEST-EMISSAO-API.md` se a mutation `NfEmitir` falhar na API Honest
+- [ ] Emissão NFS-e: Configurações → **Emissão NFS-e** (API da prefeitura, não Honest)
+- [ ] Honest (importação): credenciais do portal `https://honest.com.br` (não login do app)
+- [ ] Dev: `cd backend && npm run test:honest` antes de conectar Honest em produção
+- [ ] Ver `docs/OPERACIONAL-EMISSAO.md` e `docs/PREFEITURA-EMISSAO.md`
+
+### Honest — variáveis por ambiente
+
+| Ambiente | `HONEST_BROWSER_LOGIN` | `HONEST_KEYCLOAK_CLIENT_SECRET` |
+|----------|------------------------|----------------------------------|
+| Dev local (Windows/Mac) | `true` | opcional |
+| VM / Docker | `false` | **obrigatório** |

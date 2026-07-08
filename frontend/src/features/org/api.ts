@@ -27,6 +27,12 @@ export type OrgProfile = {
   slug?: string;
 };
 
+export type OrgEmissaoConfig = {
+  emissao_nf_habilitada: boolean;
+  prefeitura_codigo: string | null;
+  org_profile_ready: boolean;
+};
+
 export const orgApi = {
   async resolveSlug(slug: string) {
     const { data } = await api.get<{ name: string; slug: string; status: string }>(`/orgs/resolve/${slug}`);
@@ -76,6 +82,19 @@ export const orgApi = {
 
   async updateProfile(payload: { name?: string; cnpj?: string; phone?: string }) {
     const { data } = await api.patch<OrgProfile>("/org/profile", payload);
+    return data;
+  },
+
+  async getEmissaoConfig() {
+    const { data } = await api.get<OrgEmissaoConfig>("/org/emissao");
+    return data;
+  },
+
+  async updateEmissaoConfig(payload: {
+    emissao_nf_habilitada?: boolean;
+    prefeitura_codigo?: string | null;
+  }) {
+    const { data } = await api.patch<OrgEmissaoConfig>("/org/emissao", payload);
     return data;
   },
 };

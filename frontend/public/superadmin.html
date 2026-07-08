@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecionando…</title>
+    <script>
+      (function () {
+        var hash = (location.hash || "").replace(/^#\/?/, "");
+        var path = hash && hash.indexOf("superadmin") === 0 ? "/" + hash : "/superadmin";
+        location.replace(path + location.search);
+      })();
+    </script>
+  </head>
+  <body>
+    <p>Redirecionando para <a href="/superadmin">/superadmin</a>…</p>
+  </body>
+</html>

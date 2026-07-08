@@ -1,21 +1,50 @@
 import { useLocation } from "react-router-dom";
-import { Home, FileText, Link2, FolderOpen, BarChart3, Settings } from "lucide-react";
+import { Home, Wallet, Link2, FolderOpen, BarChart3, Settings, FileStack } from "lucide-react";
 import { PrefetchLink } from "@/design-system/molecules";
 import { cn } from "@/design-system/lib/cn";
 import { ROUTES } from "@/lib/constants";
+import { navCopy } from "@/shared/copy/pt-BR";
+import { useOrgModules } from "@/features/org/use-org-modules";
+import { hasModule } from "@/lib/modules";
 
 const mainNav = [
-  { to: ROUTES.home, label: "Início", icon: Home, match: (p: string) => p === ROUTES.home },
-  { to: ROUTES.notas, label: "Notas", icon: FileText, match: (p: string) => p.startsWith("/notas") },
+  { to: ROUTES.home, label: navCopy.inicio, icon: Home, match: (p: string) => p === ROUTES.home },
   {
-    to: ROUTES.recebimentos,
+    to: ROUTES.documentos,
+    label: navCopy.documentos,
+    icon: FileStack,
+    match: (p: string) => p.startsWith("/documentos"),
+    module: "document_core" as const,
+  },
+  {
+    to: ROUTES.financeiroNotas,
+    label: "Notas",
+    icon: Wallet,
+    match: (p: string) => p.startsWith("/financeiro"),
+    module: "finance" as const,
+  },
+  {
+    to: ROUTES.financeiroConfirmar,
     label: "Receb.",
     icon: Link2,
-    match: (p: string) => p.startsWith("/recebimentos"),
+    match: (p: string) => p.startsWith("/financeiro/confirmar"),
     badgeKey: "recebimentos" as const,
+    module: "finance" as const,
   },
-  { to: ROUTES.arquivosHistorico, label: "Arquivos", icon: FolderOpen, match: (p: string) => p.startsWith("/arquivos") },
-  { to: ROUTES.analisesSituacao, label: "Mais", icon: BarChart3, match: (p: string) => p.startsWith("/analises") },
+  {
+    to: ROUTES.financeiroHistorico,
+    label: "Arquivos",
+    icon: FolderOpen,
+    match: (p: string) => p.startsWith("/financeiro/historico") || p.startsWith("/financeiro/enviar"),
+    module: "finance" as const,
+  },
+  {
+    to: ROUTES.relatoriosSituacao,
+    label: "Mais",
+    icon: BarChart3,
+    match: (p: string) => p.startsWith("/relatorios"),
+    module: "finance" as const,
+  },
 ];
 
 const ownerNavItem = {
@@ -33,9 +62,12 @@ export function MobileNav({
   isOwner?: boolean;
 }) {
   const { pathname } = useLocation();
+  const { enabledModules } = useOrgModules();
+
+  const filtered = mainNav.filter((item) => !item.module || hasModule(enabledModules, item.module));
   const items = isOwner
-    ? [...mainNav.slice(0, -1), ownerNavItem]
-    : mainNav;
+    ? [...filtered.slice(0, -1), ownerNavItem]
+    : filtered;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface safe-bottom lg:hidden" aria-label="Navegação principal">

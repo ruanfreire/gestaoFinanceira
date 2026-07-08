@@ -1,15 +1,16 @@
 import { Link } from "react-router-dom";
 import { Upload, FileSpreadsheet, Link2, FileText, BarChart3, Download } from "lucide-react";
 import { ROUTES } from "@/lib/constants";
+import { navCopy } from "@/shared/copy/pt-BR";
 import { cn } from "@/design-system/lib/cn";
 
 const ACTIONS = [
-  { to: ROUTES.arquivosNotas, label: "Importar notas", icon: Upload, primary: true },
-  { to: ROUTES.arquivosExtratos, label: "Importar extrato", icon: FileSpreadsheet, primary: true },
-  { to: ROUTES.recebimentos, label: "Conciliar", icon: Link2, primary: true },
-  { to: ROUTES.notaNova, label: "Nova nota", icon: FileText },
-  { to: ROUTES.analisesSituacao, label: "Extração", icon: BarChart3 },
-  { to: ROUTES.analisesFluxo, label: "Fluxo de caixa", icon: Download },
+  { to: ROUTES.financeiroEnviarNotas, label: "Enviar notas", icon: Upload, primary: true },
+  { to: ROUTES.financeiroEnviarExtrato, label: "Enviar extrato", icon: FileSpreadsheet, primary: true },
+  { to: ROUTES.financeiroConfirmar, label: "Confirmar recebimentos", icon: Link2, primary: true },
+  { to: ROUTES.financeiroNotaNova, label: "Registrar nota", icon: FileText },
+  { to: ROUTES.relatoriosSituacao, label: navCopy.relatoriosSituacao, icon: BarChart3 },
+  { to: ROUTES.relatoriosFluxo, label: navCopy.relatoriosFluxo, icon: Download },
 ] as const;
 
 export function QuickActionsStrip() {

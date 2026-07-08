@@ -8,6 +8,8 @@ import { openPushPermissionPrompt } from "@/lib/push-prompt-events";
 import { cn } from "@/design-system/lib/cn";
 import { useAuth } from "@/features/auth/context";
 import { isTenantOwner } from "@/features/auth/types";
+import { useOrgModules } from "@/features/org/use-org-modules";
+import { hasModule } from "@/lib/modules";
 import { useOrgPath } from "@/features/org/org-slug-context";
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -17,10 +19,16 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   const listRef = useRef<HTMLUListElement>(null);
   const { user } = useAuth();
   const orgPath = useOrgPath();
+  const { enabledModules } = useOrgModules();
 
   const availableRoutes = useMemo(
-    () => COMMAND_ROUTES.filter((item) => !item.ownerOnly || isTenantOwner(user)),
-    [user],
+    () =>
+      COMMAND_ROUTES.filter((item) => {
+        if (item.ownerOnly && !isTenantOwner(user)) return false;
+        if (item.module && !hasModule(enabledModules, item.module)) return false;
+        return true;
+      }),
+    [user, enabledModules],
   );
 
   const results = useMemo(() => {

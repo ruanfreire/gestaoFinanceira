@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button, Label, Typography } from "@/design-system/atoms";
+import { SegmentedTabs } from "@/design-system/molecules";
 import { Card, CardBody, CardHeader } from "@/design-system/organisms";
 import { ROUTES } from "@/lib/constants";
 import { useClientAction, useSuperadminClient } from "../hooks";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { ClientStatusBadge } from "../components/client-status-badge";
 import { PlanBadge, PLAN_LABELS } from "../components/plan-badge";
+import { OrgModulesCard } from "../components/org-modules-card";
 import { useToast } from "@/app/toast-provider";
 import { getApiErrorMessage } from "@/lib/api-client";
 import type { PlanId } from "@/features/billing/api";
@@ -28,6 +30,7 @@ export default function SuperadminClientDetailPage() {
   const actions = useClientAction();
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState<PlanId>("trial");
+  const [tab, setTab] = useState("resumo");
 
   const organization = data?.client.organization;
   const currentPlan = organization?.plan ?? "trial";
@@ -79,6 +82,19 @@ export default function SuperadminClientDetailPage() {
         <PlanBadge plan={currentPlan} />
       </div>
 
+      <SegmentedTabs
+        value={tab}
+        onChange={setTab}
+        options={[
+          { id: "resumo", label: "Resumo" },
+          { id: "modulos", label: "Módulos" },
+          { id: "plano", label: "Plano" },
+          { id: "auditoria", label: "Auditoria" },
+        ]}
+      />
+
+      {tab === "resumo" && (
+        <>
       <Card>
         <CardHeader title="Dados do cliente" />
         <CardBody className="space-y-2 text-body">
@@ -93,6 +109,21 @@ export default function SuperadminClientDetailPage() {
         </CardBody>
       </Card>
 
+      <div className="flex flex-wrap gap-2">
+        {client.status === "pending" && <Button onClick={() => run("approve")}>Aprovar</Button>}
+        {client.status !== "rejected" && (
+          <Button variant="outline" onClick={() => run("reject")}>Rejeitar</Button>
+        )}
+        {client.status === "approved" && (
+          <Button variant="outline" onClick={() => run("suspend")}>Suspender</Button>
+        )}
+      </div>
+        </>
+      )}
+
+      {tab === "modulos" && organization && <OrgModulesCard clientId={client._id} />}
+
+      {tab === "plano" && (
       <Card>
         <CardHeader title="Plano da organização" />
         <CardBody className="space-y-4">
@@ -150,17 +181,9 @@ export default function SuperadminClientDetailPage() {
           )}
         </CardBody>
       </Card>
+      )}
 
-      <div className="flex flex-wrap gap-2">
-        {client.status === "pending" && <Button onClick={() => run("approve")}>Aprovar</Button>}
-        {client.status !== "rejected" && (
-          <Button variant="outline" onClick={() => run("reject")}>Rejeitar</Button>
-        )}
-        {client.status === "approved" && (
-          <Button variant="outline" onClick={() => run("suspend")}>Suspender</Button>
-        )}
-      </div>
-
+      {tab === "auditoria" && (
       <Card>
         <CardHeader title="Histórico de ações" />
         <CardBody>
@@ -184,6 +207,7 @@ export default function SuperadminClientDetailPage() {
           )}
         </CardBody>
       </Card>
+      )}
     </div>
   );
 }

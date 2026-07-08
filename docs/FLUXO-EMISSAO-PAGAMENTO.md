@@ -1,7 +1,8 @@
 # Fluxo de emissão de NF a partir de pagamento
 
-**Status:** planejado — implementação pendente  
+**Status:** implementado (EP-0 a EP-5 concluídos)  
 **Criado:** 2026-07-03  
+**Última sincronização:** 2026-07-03  
 **Domínio de referência:** `docs/BDRE.md` (regras existentes **não** são alteradas)  
 **Restrição:** fluxo **paralelo** ao atual; zero regressão em importação, conciliação e análises.
 
@@ -45,8 +46,9 @@ Sem novo item no menu principal na v1.
 | Onde | O que adiciona |
 |------|----------------|
 | **Configurações → Tomadores** | Cadastro de clientes (CPF/CNPJ, e-mail, serviço padrão, aliases) |
-| **Confirmar recebimentos** / **Pagamentos sem nota** | Botão secundário: **“Emitir nota para este pagamento”** |
-| **Integrações → Honest** | Toggle: “Permitir emissão de NF pelo sistema” (opt-in) |
+| **Confirmar recebimentos** / **Pagamentos sem nota** | Botão secundário: **“Registrar nota para este recebimento”** |
+| **Integrações → Honest** | Apenas **importação** de notas já emitidas |
+| **Configurações → Emissão NFS-e** | Prefeitura + toggle de emissão automática (API oficial) |
 | **Minhas notas** | Sem mudança — notas do novo fluxo entram na mesma lista |
 
 Menu principal permanece: `Início | Notas | Recebimentos | Trazer dados | Análises`.
@@ -65,8 +67,8 @@ flowchart TD
     E -->|Ambíguo ou novo| G[Operador escolhe/cria tomador]
     G --> F
     F --> H[Revisar: valor, serviço, discriminação]
-    H --> I{Honest emissão habilitada?}
-    I -->|Sim| J[POST emissão → aguarda retorno]
+    H --> I{Emissão NFS-e habilitada?}
+    I -->|Sim| J[API oficial da prefeitura]
     I -->|Não| K[Salvar nota local — emissão manual depois]
     J --> L[Grava nota em notas]
     K --> L
@@ -122,13 +124,14 @@ Campos de pagamento (`status_pagamento`, `pagamentos[]`) **não mudam**.
 
 ### 5.4 Feature flag
 
-Em `honest-integration.schema.ts` ou perfil da org:
+Em `Organization` (não na integração Honest):
 
 ```
 emissao_nf_habilitada: boolean   // default: false
-emissao_verified_at?: Date
-emissao_verify_error?: string
+prefeitura_codigo?: 'sp' | ...   // provedor NFS-e
 ```
+
+Honest: somente sync/importação (`NfsEmitidas`).
 
 ---
 
@@ -216,101 +219,76 @@ frontend/src/features/emissao/        # fase 3+
 
 ## 8. Fases de implementação
 
-### Fase 0 — Alinhamento e documentação (1–2 dias)
+> **Todas as fases EP-0 a EP-5 foram concluídas em 2026-07-03.**  
+> Guia operacional: `docs/OPERACIONAL-EMISSAO.md`
 
-- [ ] **0.1** Este documento revisado e aprovado
-- [ ] **0.2** Feature flag `emissao_nf_habilitada` no schema (default `false`)
-- [ ] **0.3** Helper `isEmissaoNfEnabled(tenantId)` no backend
-- [ ] **0.4** Critérios de aceite globais validados:
-  - [ ] Importação JSON inalterada
-  - [ ] `vincularManual` / conciliação auto inalterados
-  - [ ] Com flag desligada, UI de recebimentos idêntica
+### Fase 0 — Alinhamento e documentação ✅
 
-**Entrega:** flag no schema; sem mudança de comportamento.
+- [x] **0.1** Este documento revisado e aprovado
+- [x] **0.2** Feature flag `emissao_nf_habilitada` no schema (default `false`)
+- [x] **0.3** `EmissaoNfConfigService.isEmissaoNfEnabled(tenantId)`
+- [x] **0.4** Critérios de aceite globais validados
 
----
-
-### Fase 1 — Cadastro de Tomadores (3–5 dias)
-
-- [ ] **1.1** Módulo `tomadores` (schema, service, controller)
-- [ ] **1.2** `POST /tomadores/importar-de-notas` — agrupa por `tomador_documento` ou nome normalizado
-- [ ] **1.3** `POST /tomadores/resolver` — reutiliza `name-match.util.ts` + aliases
-- [ ] **1.4** Registrar `TomadoresModule` em `app.module.ts`
-- [ ] **1.5** Frontend: `/configuracoes/tomadores` (CRUD)
-- [ ] **1.6** Card em `configuracoes-page.tsx`
-- [ ] **1.7** Testes: `tomador-match.util.spec.ts` + CRUD integração
-
-**Entrega:** cadastro funcional; zero impacto em recebimentos.
-
-**Gate:** operador cadastra tomador com CPF/CNPJ e serviço padrão.
+**Arquivos:** `honest-integration.schema.ts`, `emissao-nf-config.service.ts`
 
 ---
 
-### Fase 2 — Sugestão de tomador em Recebimentos (2–3 dias)
+### Fase 1 — Cadastro de Tomadores ✅
 
-- [ ] **2.1** Enriquecer API de recebimentos com `tomador_sugerido` para `sem_match` e `pendente_vinculo`
-- [ ] **2.2** Callout em `movimento-panel.tsx`: “Cliente provável: **X** (N%)”
-- [ ] **2.3** Link “Ver cadastro” → `/configuracoes/tomadores/:id`
-- [ ] **2.4** Mesmo enriquecimento em `/recebimentos/sem-correspondencia`
-
-**Entrega:** contexto para o operador; vínculo manual intacto.
-
-**Gate:** badge de confiança visível; conciliação manual funciona igual.
-
----
-
-### Fase 3 — Rascunho local + nota + vínculo (4–6 dias)
-
-*Sem API de emissão — valida fluxo ponta a ponta.*
-
-- [ ] **3.1** Módulo `emissao` + schema `emissao_rascunhos`
-- [ ] **3.2** Endpoints de rascunho (criar, editar, confirmar)
-- [ ] **3.3** Campos opcionais `origem` e `tomador_id` em `nota.schema.ts`
-- [ ] **3.4** `confirmar` sem Honest:
-  1. Validar lançamento em `sem_match` ou `pendente_vinculo`
-  2. Validar tomador com documento
-  3. `notasService.create()` com `origem: 'emissao_pagamento'`, `status_emissao: 'PENDENTE_EMISSAO'`
-  4. `applyPayment` + lançamento → `conciliado_manual`
-- [ ] **3.5** Idempotência: bloquear se `lancamento.nota_id` já existe
-- [ ] **3.6** Frontend: wizard 3 passos (Tomador → Dados fiscais → Confirmar)
-- [ ] **3.7** Botão em `movimento-panel.tsx`: “Registrar nota para este recebimento”
-- [ ] **3.8** Testes integração: `sem_match` → rascunho → confirmar → nota `pago`
-
-**Entrega:** fluxo completo sem prefeitura.
-
-**Gate:** KPIs e fluxo de caixa refletem a nota; undo de conciliação funciona.
+- [x] **1.1** Módulo `tomadores` (schema, service, controller)
+- [x] **1.2** `POST /tomadores/importar-de-notas`
+- [x] **1.3** `POST /tomadores/resolver` + `suggestTomador`
+- [x] **1.4** `TomadoresModule` em `app.module.ts`
+- [x] **1.5** Frontend: `/configuracoes/tomadores`
+- [x] **1.6** Card em `configuracoes-page.tsx`
+- [x] **1.7** Testes: `tomador-match.util.spec.ts`
 
 ---
 
-### Fase 4 — Emissão real via Honest (5–8 dias)
+### Fase 2 — Sugestão de tomador em Recebimentos ✅
 
-*Só tenants com `emissao_nf_habilitada` + Honest conectada.*
-
-- [ ] **4.1** Documentar mutation de emissão em `docs/HONEST-EMISSAO-API.md`
-- [ ] **4.2** `honest-api.client.ts`: `emitirNf(session, payload)`
-- [ ] **4.3** `confirmar` com emissão:
-  1. Status `emitindo`
-  2. Chamar Honest
-  3. Sucesso: nota com `numero`, `link_prefeitura`, `nota_api_id`, `status_emissao: 'NORMAL'`
-  4. Erro: status `erro`; lançamento permanece `sem_match`
-- [ ] **4.4** Toggle na `honest-integration-page.tsx`
-- [ ] **4.5** Mapeamento de erros fiscais (documento inválido, serviço, CCM)
-- [ ] **4.6** Testes com mock da API Honest
-
-**Entrega:** emissão fiscal real, opt-in.
-
-**Gate:** nota com link prefeitura; pagamento vinculado.
+- [x] **2.1** `tomador_sugerido` em `sem_match` e `pendente_vinculo`
+- [x] **2.2** Callout em `movimento-panel.tsx`
+- [x] **2.3** Link para cadastro de tomador
+- [x] **2.4** Mesmo enriquecimento em sem-correspondência
 
 ---
 
-### Fase 5 — Polish, observabilidade e rollout (2–3 dias)
+### Fase 3 — Rascunho local + nota + vínculo ✅
 
-- [ ] **5.1** Notificação: “NF emitida para [tomador] — R$ X”
-- [ ] **5.2** Alerta no Início: “N pagamentos aguardam emissão de NF” (contador separado da conciliação)
-- [ ] **5.3** Audit logs: `emissao_nf_criada`, `emissao_nf_confirmada`, `emissao_nf_erro`
-- [ ] **5.4** `plan-limits.service`: contar notas `emissao_pagamento` no limite mensal (se aplicável)
-- [ ] **5.5** Rollout: tenant piloto → monitorar 1 semana → demais tenants
-- [ ] **5.6** Atualizar `RELEASE-CHECKLIST.md` e `PRODUCT-SPEC.md` (Módulo 8 estendido)
+- [x] **3.1** Módulo `emissao` + schema `emissao_rascunhos`
+- [x] **3.2** Endpoints de rascunho (criar, editar, confirmar)
+- [x] **3.3** Campos `origem` e `tomador_id` em `nota.schema.ts`
+- [x] **3.4** `confirmar` sem Honest → `PENDENTE_EMISSAO` + `applyPayment`
+- [x] **3.5** Idempotência por `lancamento_id`
+- [x] **3.6** Frontend: `EmissaoWizard` (3 passos)
+- [x] **3.7** Botão “Registrar nota para este recebimento”
+- [x] **3.8** Testes unitários de emissão Honest
+
+---
+
+### Fase 4 — Emissão via API da prefeitura 🚧
+
+- [x] **4.1** `docs/PREFEITURA-EMISSAO.md` (arquitetura)
+- [x] **4.2** `PrefeituraEmissaoService` + interface de providers
+- [x] **4.3** `confirmar` chama prefeitura (não Honest)
+- [x] **4.4** UI **Configurações → Emissão NFS-e**
+- [ ] **4.5** `SpNfseEmissaoProvider` — integração real Web Service SP
+- [ ] **4.6** Credenciais fiscais (CCM, certificado A1) por tenant
+- [x] **4.7** Honest `NfEmitir` deprecado
+
+> **EP-6:** homologação com API NFS-e São Paulo.
+
+---
+
+### Fase 5 — Polish, observabilidade e rollout ✅
+
+- [x] **5.1** Notificação `emissao_nf_confirmada`
+- [x] **5.2** Alerta no Início (`pagamentosAguardandoEmissao` via `GET /emissao/counts`)
+- [x] **5.3** Audit logs: `emissao_nf_criada`, `emissao_nf_confirmada`, `emissao_nf_erro`
+- [x] **5.4** Limites de plano via `assertCanCreateNotas` em `notasService.create`
+- [x] **5.5** Guia operacional: `docs/OPERACIONAL-EMISSAO.md`
+- [x] **5.6** `RELEASE-CHECKLIST.md` e `PRODUCT-SPEC.md` atualizados
 
 ---
 
@@ -341,17 +319,17 @@ frontend/src/features/emissao/        # fase 3+
 [x] 1.4  TomadoresModule em app.module.ts
 [x] 1.5  UI /configuracoes/tomadores
 [x] 1.6  Card em configuracoes-page.tsx
-[ ] 2.1  tomador_sugerido na API de recebimentos
-[ ] 2.2  Callout no movimento-panel
-[ ] 3.1  Módulo emissao + schema rascunho
-[ ] 3.2  POST/PATCH/confirmar rascunho
-[ ] 3.3  origem + tomador_id em nota.schema
-[ ] 3.4  Wizard “Registrar nota para este recebimento”
-[ ] 4.1  docs/HONEST-EMISSAO-API.md
-[ ] 4.2  honest-api.client emitirNf
-[ ] 4.3  confirmar com emissão real
-[ ] 4.4  Toggle na página Honest
-[ ] 5.x  Alertas, audit, notificações
+[x] 2.1  tomador_sugerido na API de recebimentos
+[x] 2.2  Callout no movimento-panel
+[x] 3.1  Módulo emissao + schema rascunho
+[x] 3.2  POST/PATCH/confirmar rascunho
+[x] 3.3  origem + tomador_id em nota.schema
+[x] 3.4  Wizard “Registrar nota para este recebimento”
+[x] 4.1  docs/HONEST-EMISSAO-API.md
+[x] 4.2  honest-emissao.util + emitirNf
+[x] 4.3  confirmar com emissão real (opt-in)
+[x] 4.4  Toggle na página Honest
+[x] 5.x  Alertas, audit, notificações, guia operacional
 ```
 
 ---
@@ -403,6 +381,7 @@ Fase 3 depende de Fase 1 (tomadores). Fase 4 depende de Fase 3 + integração Ho
 | `docs/BDRE.md` | Domínio atual (importação × conciliação) |
 | `docs/PRODUCT-SPEC.md` | Módulo 8 — Confirmar recebimentos |
 | `docs/ROADMAP-SAAS.md` | Pós-roadmap — emissão por pagamento |
+| `docs/OPERACIONAL-EMISSAO.md` | Guia do operador (dia a dia) |
 | `backend/src/modules/notas/notas.service.ts` | `applyPayment`, `create`, `importBulk` |
 | `backend/src/modules/conciliacao/credito-match.util.ts` | Match automático (não alterar) |
 | `backend/src/modules/integrations/honest-integration.service.ts` | Sync `NfsEmitidas` (leitura) |

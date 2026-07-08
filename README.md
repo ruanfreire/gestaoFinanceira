@@ -32,11 +32,17 @@ npm run dev
 
 ## Credenciais padrão (após `npm --workspace backend run seed`)
 
-Senha de todas as contas: `123456` (ou `SEED_ADMIN_PASSWORD` no `.env` do backend).
+Configure em `backend/.env`:
+
+| Variável | Padrão |
+|----------|--------|
+| `SEED_SUPERADMIN_EMAIL` | `admin@fecho.local` |
+| `SEED_SUPERADMIN_PASSWORD` | `fechoadmin@2026` |
+| `SEED_ADMIN_PASSWORD` | `123456` (demais contas de dev) |
 
 | Papel | E-mail | Destino |
 |-------|--------|---------|
-| SuperAdmin | `superadmin@finance.local` | `/superadmin` |
+| SuperAdmin | `admin@fecho.local` | `/superadmin` |
 | Admin | `admin@finance.local` | App — Empresa Demo |
 | Client | `client@finance.local` | App — Empresa Demo |
 | User | `user@finance.local` | App — Empresa Demo |

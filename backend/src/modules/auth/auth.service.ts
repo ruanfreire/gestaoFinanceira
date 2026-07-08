@@ -14,6 +14,8 @@ import type { PlanId, BillingStatus } from '../../common/billing/plans.config';
 import { uniqueOrganizationSlug } from '../../common/tenant/organization-slug.util';
 import { NotificationsService } from '../platform/notifications.service';
 import { OrgService } from '../org/org.service';
+import { EntitlementsService } from '../../common/entitlements/entitlements.service';
+import { DEFAULT_ENABLED_MODULES } from '../../common/entitlements/module-catalog';
 import type { AcceptInviteDto } from '../org/dto/invite.dto';
 import type { SignupDto } from './dto/signup.dto';
 import type { TenantRole } from '../../common/constants/tenant-role';
@@ -28,6 +30,7 @@ export class AuthService {
     @InjectModel('Organization') private organizationModel: Model<any>,
     private readonly notificationsService: NotificationsService,
     private readonly orgService: OrgService,
+    private readonly entitlementsService: EntitlementsService,
   ) {}
 
   sanitizeUser(user: Record<string, unknown> | object) {
@@ -173,7 +176,7 @@ export class AuthService {
         .select('name email roles tenantRole status company cnpj phone tenantId createdAt lastLogin')
         .populate(
           'tenantId',
-          'name slug status cnpj trialEndsAt plan billingStatus currentPeriodEnd stripeSubscriptionId ownerUserId',
+          'name slug status cnpj trialEndsAt plan billingStatus currentPeriodEnd stripeSubscriptionId ownerUserId enabled_modules emissao_nf_habilitada',
         )
         .lean(),
     );
@@ -182,6 +185,10 @@ export class AuthService {
     const safe = this.sanitizeUser(user) as Record<string, unknown>;
     const org = safe.tenantId as Record<string, unknown> | null;
     if (org && typeof org === 'object' && org._id) {
+      const enabled_modules = this.entitlementsService.resolveEnabledModules({
+        enabled_modules: org.enabled_modules as string[] | undefined,
+        emissao_nf_habilitada: org.emissao_nf_habilitada as boolean | undefined,
+      });
       safe.organization = {
         _id: String(org._id),
         name: org.name,
@@ -194,6 +201,7 @@ export class AuthService {
         currentPeriodEnd: org.currentPeriodEnd,
         hasSubscription: Boolean(org.stripeSubscriptionId),
         ownerUserId: org.ownerUserId ? String(org.ownerUserId) : undefined,
+        enabled_modules,
       };
       safe.tenantId = String(org._id);
     }
@@ -226,6 +234,7 @@ export class AuthService {
       plan: 'trial',
       billingStatus: 'trialing',
       trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      enabled_modules: [...DEFAULT_ENABLED_MODULES],
     });
 
     const user = await this.userModel.create({

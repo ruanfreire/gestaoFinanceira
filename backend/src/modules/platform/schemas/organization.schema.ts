@@ -19,6 +19,10 @@ export const OrganizationSchema = new Schema(
     stripeSubscriptionId: { type: String, index: true, sparse: true },
     currentPeriodEnd: { type: Date },
     planActivatedAt: { type: Date },
+    emissao_nf_habilitada: { type: Boolean, default: false },
+    prefeitura_codigo: { type: String, enum: ['sp'], trim: true },
+    enabled_modules: { type: [String], default: ['finance'] },
+    module_meta: { type: Object },
   },
   { timestamps: true },
 );

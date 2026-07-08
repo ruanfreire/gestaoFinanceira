@@ -17,7 +17,9 @@ import { ImportIntelligenceModule } from './modules/import-intelligence/import-i
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { TomadoresModule } from './modules/tomadores/tomadores.module';
 import { EmissaoModule } from './modules/emissao/emissao.module';
+import { DocumentCoreModule } from './modules/document-core/document-core.module';
 import { ResourceJobsModule } from './common/jobs/resource-jobs.module';
+import { EntitlementsModule } from './common/entitlements/entitlements.module';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtGuard } from './modules/auth/jwt.guard';
 import { TenantGuard } from './common/tenant/tenant.guard';
@@ -51,7 +53,9 @@ import { TenantInterceptor } from './common/tenant/tenant.interceptor';
     IntegrationsModule,
     TomadoresModule,
     EmissaoModule,
+    DocumentCoreModule,
     ResourceJobsModule,
+    EntitlementsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtGuard },

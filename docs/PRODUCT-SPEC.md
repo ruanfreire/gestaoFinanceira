@@ -275,6 +275,14 @@ Alerta no Início → fila à esquerda → detalhe à direita → confirma → p
 - Badge confiança com cor semântica (`MatchScore`: verde ≥80%, amarelo ≥50%).
 - Tecla `Enter` confirma quando foco não está em input.
 - Snackbar com “Desfazer” após confirmar (`useConciliacaoUndo`).
+- Callout **cliente provável** (`tomador_sugerido`) em pagamentos sem nota.
+- Botão **“Registrar nota para este recebimento”** → wizard de emissão (`EmissaoWizard`).
+
+## 4.1 Emissão a partir de pagamento (2026-07) ✅
+
+Fluxo paralelo documentado em `docs/FLUXO-EMISSAO-PAGAMENTO.md`.  
+Emissão fiscal via **APIs oficiais das prefeituras** (`docs/PREFEITURA-EMISSAO.md`). Honest = importação apenas.  
+Com `emissao_nf_habilitada` desligada (default), o botão de registrar nota usa modo local (`PENDENTE_EMISSAO`).
 
 ## 7. Wireframe desktop
 ```
@@ -310,6 +318,22 @@ Tratar recebimentos que o sistema não associou automaticamente.
 ## 4. Melhorias
 - Mesma UI do módulo 8; copy diferente.
 - Empty state celebratório: "Todos os pagamentos estão associados às notas."
+- Botão **Registrar nota para este recebimento** quando não há nota candidata.
+
+---
+
+# MÓDULO 8B — Tomadores (`/configuracoes/tomadores`)
+
+## 1. Objetivo
+Cadastrar clientes (tomadores) para emissão de NF a partir de pagamentos.
+
+## 2. Jornada
+Configurações → Tomadores → criar ou importar das notas → apelidos para match no extrato.
+
+## 10. Aceitação
+- [x] CRUD com CPF/CNPJ obrigatório para emissão
+- [x] Importar tomadores únicos das notas existentes
+- [x] Resolver/sugerir tomador por nome do pagador
 
 ---
 

@@ -13,3 +13,5 @@ export { SplitView } from "./split-view/split-view";
 export { Sheet } from "./sheet/sheet";
 export { VirtualList } from "./virtual-list/virtual-list";
 export { CommandPalette, useCommandPaletteShortcut } from "./command-palette/command-palette";
+export { ImportSummaryModal } from "./import-summary-modal/import-summary-modal";
+export type { ImportSummaryCounts } from "./import-summary-modal/import-summary-modal";

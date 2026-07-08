@@ -5,6 +5,7 @@ import {
   BankLancamentoSchema,
 } from '../import-intelligence/schemas/import-intelligence.schema';
 import { NotasModule } from '../notas/notas.module';
+import { DocumentCoreModule } from '../document-core/document-core.module';
 import { ConciliacaoController } from './conciliacao.controller';
 import { ConciliacaoService } from './conciliacao.service';
 
@@ -15,6 +16,7 @@ import { ConciliacaoService } from './conciliacao.service';
       { name: 'BankImportacao', schema: BankImportacaoSchema },
     ]),
     NotasModule,
+    DocumentCoreModule,
   ],
   providers: [ConciliacaoService],
   controllers: [ConciliacaoController],

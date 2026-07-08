@@ -6,7 +6,7 @@ export const UserActionLogSchema = new Schema(
     action: {
       type: String,
       required: true,
-      enum: ['signup', 'approved', 'rejected', 'suspended', 'reactivated'],
+      enum: ['signup', 'approved', 'rejected', 'suspended', 'reactivated', 'invite_accepted'],
     },
     performedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     note: { type: String },

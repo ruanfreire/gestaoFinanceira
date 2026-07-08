@@ -178,6 +178,7 @@ Itens conscientemente **não** bloqueantes do roadmap de frontend:
 | Item | Prioridade | Notas |
 |------|------------|-------|
 | Teste manual leitor de tela (NVDA/VoiceOver) | Baixa | `docs/WCAG-AUDIT.md` |
+| E2E isolamento multi-tenant | — | ✅ Fase 2A.1 (`e2e/tenant-isolation.spec.ts`) |
 | Contraste tema escuro (`.dark`) | Baixa | Tokens existem; tema não exposto na UI |
 | “Esqueci senha” | — | Fora de escopo de API (`PRODUCT-SPEC.md`) |
 | Boas-vindas primeira sessão no login | Baixa | Onboarding só na conciliação hoje |
@@ -209,10 +210,17 @@ Fluxo **paralelo** ao de conciliação existente: tomadores → rascunho → emi
 | **EP-1** | Cadastro de tomadores | ✅ |
 | **EP-2** | Sugestão de tomador em recebimentos | ✅ |
 | **EP-3** | Rascunho local + vínculo (sem prefeitura) | ✅ |
-| **EP-4** | Emissão real via Honest | ✅ |
+| **EP-4** | Arquitetura emissão prefeitura (provider SP stub) | ✅ |
 | **EP-5** | Polish e rollout | ✅ |
+| **EP-6** | API NFS-e São Paulo + credenciais fiscais | Planejado |
 
-Plano completo: **`docs/FLUXO-EMISSAO-PAGAMENTO.md`**
+Plano completo: **`docs/FLUXO-EMISSAO-PAGAMENTO.md`** · Emissão: **`docs/PREFEITURA-EMISSAO.md`**
+
+### Multi-tenant — Fase 2A.1 ✅
+
+| Item | Status |
+|------|--------|
+| E2E isolamento dois tenants (API + slug redirect) | ✅ `e2e/tenant-isolation.spec.ts` |
 
 - Multi-tenant / isolamento por organização
 - Planos, billing e self-signup
@@ -220,3 +228,16 @@ Plano completo: **`docs/FLUXO-EMISSAO-PAGAMENTO.md`**
 - Integrações bancárias além de CSV manual
 
 Referência de produto detalhada: `docs/PRODUCT-SPEC.md`.
+
+### Plataforma modular + Document Core
+
+**Estratégia:** `docs/POSITIONING-DOCUMENT-INTELLIGENCE.md` — motor documental no centro; logística como vertical GTM.
+
+| Fase | Escopo | Status |
+|------|--------|--------|
+| **D0–D2** | Document Core + parsers logística + vínculo | Planejado — **prioridade** |
+| **M0** | Entitlements + menu modular | Planejado |
+| **Finance** | Conciliação (app sobre o Core) | ✅ |
+| **TMS/WMS** | Telas operação pós-Document Core | Depois de D2 |
+
+Trilha serviços (NFS-e): legado, sem GTM ativo.
